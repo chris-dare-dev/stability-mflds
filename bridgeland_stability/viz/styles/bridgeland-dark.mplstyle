@@ -1,0 +1,49 @@
+# bridgeland_stability -- DARK publication style (matplotlib).
+# Light ink on a dark/transparent ground, tuned to composite on a dark web UI
+# (the review gallery background is #11151c).  Figures export transparent=True;
+# the facecolors below only affect on-screen / opaque-PNG previews.
+
+# -- typography ----------------------------------------------------------------
+font.family:        serif
+font.serif:         cmr10, DejaVu Serif, Bitstream Vera Serif
+mathtext.fontset:   cm
+axes.unicode_minus: False
+axes.formatter.use_mathtext: True  # required companion to the cm/cmr10 fontset
+font.size:          13.0
+axes.titlesize:     15.0
+axes.labelsize:     13.5
+xtick.labelsize:    11.5
+ytick.labelsize:    11.5
+legend.fontsize:    11.0
+
+# -- color / ink ---------------------------------------------------------------
+figure.facecolor:   11151c
+axes.facecolor:     11151c
+savefig.facecolor:  11151c
+text.color:         e6e6e6
+axes.edgecolor:     8aa0bf
+axes.labelcolor:    e6e6e6
+xtick.color:        c4d2e6
+ytick.color:        c4d2e6
+# Okabe-Ito cycle, lightened where needed to read on dark; black -> light gray.
+axes.prop_cycle:    cycler('color', ['56B4E9','E69F00','009E73','CC79A7','F0E442','0072B2','cfd8e6'])
+
+# -- grid / spines -------------------------------------------------------------
+axes.grid:          True
+axes.grid.which:    major
+grid.color:         3a4658
+grid.alpha:         0.5
+grid.linewidth:     0.6
+axes.spines.top:    False
+axes.spines.right:  False
+axes.linewidth:     0.9
+
+# -- layout / export -----------------------------------------------------------
+figure.constrained_layout.use: True
+figure.dpi:         120
+savefig.dpi:        300
+savefig.bbox:       tight
+lines.linewidth:    2.0
+legend.frameon:     True
+legend.framealpha:  0.85
+legend.edgecolor:   3a4658

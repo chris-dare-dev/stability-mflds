@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bridgeland-stability"
+version = "0.1.0"
+description = "Drezet-Le Potier curves, Bogomolov-Gieseker boundaries, and Bridgeland stability walls for surfaces and threefolds"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "NALEJ AI Next Platform" }]
+keywords = [
+  "algebraic-geometry",
+  "bridgeland-stability",
+  "moduli-of-sheaves",
+  "drezet-le-potier",
+  "bogomolov-gieseker",
+  "exceptional-bundles",
+]
+# The core algorithms are pure standard library (fractions, math); no runtime deps.
+dependencies = []
+
+[project.optional-dependencies]
+viz = ["plotly>=5.18", "matplotlib>=3.7"]
+dev = ["pytest>=7.4", "plotly>=5.18", "matplotlib>=3.7"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["bridgeland_stability"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

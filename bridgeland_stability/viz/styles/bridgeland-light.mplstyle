@@ -1,0 +1,51 @@
+# bridgeland_stability -- LIGHT publication style (matplotlib).
+# Dark ink on a light/transparent ground.  Mathtext uses Computer Modern so
+# rendered math matches a LaTeX paper without requiring a TeX install.
+# Figures are exported with transparent=True; the facecolors below only affect
+# on-screen / opaque-PNG previews.
+
+# -- typography ----------------------------------------------------------------
+font.family:        serif
+font.serif:         cmr10, DejaVu Serif, Bitstream Vera Serif
+mathtext.fontset:   cm
+axes.unicode_minus: False          # cmr10 lacks U+2212; use ASCII hyphen-minus
+axes.formatter.use_mathtext: True  # required companion to the cm/cmr10 fontset
+font.size:          13.0
+axes.titlesize:     15.0
+axes.labelsize:     13.5
+xtick.labelsize:    11.5
+ytick.labelsize:    11.5
+legend.fontsize:    11.0
+
+# -- color / ink ---------------------------------------------------------------
+figure.facecolor:   white
+axes.facecolor:     white
+savefig.facecolor:  white
+text.color:         222222
+axes.edgecolor:     444444
+axes.labelcolor:    222222
+xtick.color:        333333
+ytick.color:        333333
+# Okabe-Ito qualitative cycle (colorblind-safe), black dropped (invisible roles
+# use semantic palette from style.py instead).
+axes.prop_cycle:    cycler('color', ['0072B2','D55E00','009E73','CC79A7','E69F00','56B4E9','999999'])
+
+# -- grid / spines -------------------------------------------------------------
+axes.grid:          True
+axes.grid.which:    major
+grid.color:         b8b8b8
+grid.alpha:         0.35
+grid.linewidth:     0.6
+axes.spines.top:    False
+axes.spines.right:  False
+axes.linewidth:     0.9
+
+# -- layout / export -----------------------------------------------------------
+figure.constrained_layout.use: True
+figure.dpi:         120
+savefig.dpi:        300
+savefig.bbox:       tight
+lines.linewidth:    2.0
+legend.frameon:     True
+legend.framealpha:  0.85
+legend.edgecolor:   cccccc
