@@ -9,7 +9,7 @@ description = "Drezet-Le Potier curves, Bogomolov-Gieseker boundaries, and Bridg
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
-authors = [{ name = "NALEJ AI Next Platform" }]
+authors = [{ name = "Chris Dare", email = "me@chrisdare.net" }]
 keywords = [
   "algebraic-geometry",
   "bridgeland-stability",

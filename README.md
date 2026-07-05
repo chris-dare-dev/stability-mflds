@@ -10,7 +10,7 @@ moduli of sheaves on projective surfaces and threefolds:
 4. the **K3 Mukai lattice** and Bayer–Macrì wall classification.
 
 All core computations are exact (`fractions.Fraction`); floats appear only for
-geometry and plotting. Part of the **NALEJ AI Next Platform**.
+geometry and plotting.
 
 > ⚠️ This package corrects several substantive mathematical errors in the
 > originating project brief (the exceptional-bundle ranks are **Markov numbers**,
@@ -97,7 +97,7 @@ validated value and writes the figures in `figures/`.
 
 ## Validation
 
-`pytest` (36 tests) pins every documented value, e.g. δ(½)=5/8, δ(1/3)=5/9,
+`pytest` (42 tests) pins every documented value, e.g. δ(½)=5/8, δ(1/3)=5/9,
 the P²[2] wall (−5/2, 3/2), α_crit(β=½)=√3 for the P³ null-correlation bundle,
 ⟨v(O),v(O)⟩=−2 on K3, and that ranks 3, 4 are not Markov numbers.
 
