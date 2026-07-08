@@ -972,14 +972,17 @@ the rational-surface epic (E11).
   arXiv:1910.14060 del Pezzo deg ≥ 3, anticanonical), `moduli_nonempty(...)` returns the paper's exact
   yes/no verdict and `delta_H` returns the exact tabulated `Fraction` target.
 - **Acceptance criteria (testable checklist):**
-  - [ ] A fixed finite class list supplies HN-length-one data + exact `δ_H` numeric targets; each entry
-        cites its paper and class.
-  - [ ] `moduli_nonempty` reproduces the paper's yes/no for every tabulated class.
-  - [ ] A verdict from the in-architecture inequality carries `rigor=PROVEN` only because the
-        HN-length-one hypothesis was supplied by this certified paper table.
-- **[RESEARCH]:** These exact `δ_H` numeric targets are the ONLY genuinely paper-dependent test values
-  in the roadmap; they MUST be extracted from arXiv:1907.06739 / arXiv:1910.14060 before acceptance is
-  pinned. Do NOT pin acceptance values until transcribed **[UNVERIFIED at the exact-value level]**.
+  - [x] A fixed finite class list supplies HN-length-one data + exact `δ_H` numeric targets; each entry
+        cites its paper and class. — `PaperDeltaHTarget` table, 6 entries (`nonemptiness_rational.py`).
+  - [x] `moduli_nonempty` reproduces the paper's yes/no for every tabulated class. — `test_paper_verdicts`.
+  - [x] A verdict from the in-architecture inequality carries `rigor=PROVEN` only because the
+        HN-length-one hypothesis was supplied by this certified paper table. — asserted for all entries.
+- **[RESEARCH] — DONE (with scope caveat):** the exact `δ_H` targets were transcribed from
+  arXiv:1907.06739 / arXiv:1910.14060 and pinned (4 P² anticanonical entries machine-regressed against the
+  native DLP curve; 2 `F_0` `c₁∥H` entries via the machine-checked `Δ_paper = d·discriminant_H` identity).
+  Genuinely paper-novel off-P² content is bounded: the sources give the sharp off-P² `δ_H` only via a
+  limiting procedure (no exact tables), so non-diagonal / non-anticanonical `𝔽_n` classes remain deferred
+  open questions (the polarization-dependent bound is E11-M5 territory + a future full-NS discriminant).
 - **Expected effort:** 3 weeks.
 
 ### E11-M5 — Optional G16 cross-check + 𝔽_n polarization-dependence witness (G18c) **[PROVEN]** (split of G18)
