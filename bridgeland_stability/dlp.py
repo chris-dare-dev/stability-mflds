@@ -41,6 +41,7 @@ from typing import List, Optional, Tuple
 
 from .chern import ChernChar, Number, Q
 from .exceptional import Bundle, P, chi, enumerate_exceptional, is_exceptional
+from .varieties import Surface, P2, require_faithful_computation
 
 # Re-export so callers can do ``from bridgeland_stability.dlp import P``.
 __all__ = [
@@ -146,7 +147,7 @@ def dlp_curve(
 
 
 def moduli_nonempty(
-    E: Bundle, R_max: int = 50
+    E: Bundle, R_max: int = 50, surface: Surface = P2
 ) -> dict:
     """Decide whether the P^2 moduli space M(E) is non-empty, with full reasoning.
 
@@ -154,7 +155,15 @@ def moduli_nonempty(
     ``exceptional`` (bool), ``positive_dimensional`` (Delta >= delta),
     ``integral`` (c1, chi integral), ``nonempty`` (bool), ``moduli_dim``
     (= r^2(2*Delta_brief - 1) + 1 when positive-dimensional, else 0), ``reason``.
+
+    The DLP / exceptional-bundle machinery is P^2-only; the optional ``surface``
+    parameter (default :data:`P2`, backward-compatible) exists solely to route
+    the E7-M2 / G11 faithful-computation guard: a torsion-canonical surface
+    (Enriques / bielliptic, ``faithful_computation_supported is False``) is
+    refused with the "NS-lattice refactor (G12)" error rather than silently
+    (mis)computed with the scalar rank-1 model.
     """
+    require_faithful_computation(surface)  # G12 guard: torsion-canonical rows refused
     mu = E.slope
     Dm = E.discriminant  # CH
     exceptional = is_exceptional(E)

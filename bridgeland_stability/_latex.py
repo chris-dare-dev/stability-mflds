@@ -65,10 +65,11 @@ def latex_sqrt(x: Number) -> str:
     rn, rd = _isqrt_exact(n), _isqrt_exact(d)
     if rn is not None and rd is not None:
         return latex_frac(Fraction(rn, rd))
-    if rd is not None and rd != 0:  # sqrt(n)/rd, rationalize not needed
-        inner = "" if n == 1 else f"\\sqrt{{{n}}}"
+    if rd is not None and rd != 0:  # sqrt(n)/rd
         if n == 1:
             return latex_frac(Fraction(1, rd))
+        if rd == 1:  # denominator 1 -> bare surd, not \frac{...}{1}
+            return f"\\sqrt{{{n}}}"
         return f"\\frac{{\\sqrt{{{n}}}}}{{{rd}}}"
     return f"\\sqrt{{{latex_frac(fr)}}}"
 

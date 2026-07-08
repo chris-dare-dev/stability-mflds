@@ -12,6 +12,7 @@ from bridgeland_stability.threefold import (
     bg_boundary_curve,
     bmt_Q_at,
     check_bg_threefold,
+    nu,
 )
 from bridgeland_stability.varieties import P2, P3, QUINTIC, BLOWUP_P3_POINT
 
@@ -83,3 +84,28 @@ def test_bg_boundary_curve_flags_proven_status():
     assert len(proven.alphas) == len(proven.betas) > 0
     unproven = bg_boundary_curve(v, BLOWUP_P3_POINT, beta_range=(-2, 2), N=200)
     assert unproven.bg_proven is False
+
+
+# ---- BMT tilt-slope nu_{alpha,beta} (G4) ---------------------------------
+def test_nu_null_correlation():
+    # P^3 null-correlation bundle (2,0,1,0), d3=1.  These four values are
+    # EXACTLY-DERIVED from the BMT tilt-slope formula (self-consistent), not
+    # read off a source: twist(1,1) = (2,-2,2,-4/3), so nu = (2 - alpha_sq)/(-2).
+    v = ThreefoldChern(2, F(0), F(1), F(0))
+    assert nu(v, 0, 1, 1) == -1          # (2 - 0)/(-2)
+    assert nu(v, 1, 1, 1) == F(-1, 2)    # (2 - 1)/(-2)
+    assert nu(v, 2, 1, 1) == 0           # (2 - 2)/(-2)
+    assert nu(v, 0, 0, 1) is None        # beta=0 -> ch1^b = 0, vertical (+inf)
+
+
+def test_nu_twist_consistency():
+    v = ThreefoldChern(2, F(0), F(1), F(0))
+    assert v.twist(1, 1).a3 == F(-4, 3)  # 0 - 1 + 0 - (1/6)*2*1 = -4/3; NOT -7/6
+
+
+def test_nu_ch3_independent():
+    base = ThreefoldChern(2, F(0), F(1), F(0))
+    for a3 in (F(5), F(-7), F(1, 3)):
+        w = ThreefoldChern(2, F(0), F(1), a3)
+        assert nu(w, 1, 1, 1) == nu(base, 1, 1, 1) == F(-1, 2)
+        assert nu(w, 0, 0, 1) is None

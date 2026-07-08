@@ -5,6 +5,7 @@ from fractions import Fraction as F
 import pytest
 
 from bridgeland_stability.chern import ChernChar
+from bridgeland_stability.rigor import Rigor
 from bridgeland_stability.varieties import P2
 from bridgeland_stability.walls import (
     VerticalWall,
@@ -12,6 +13,7 @@ from bridgeland_stability.walls import (
     actual_walls,
     actual_walls_complete,
     compute_walls,
+    maciocia_wall_bound,
     numerical_wall,
 )
 
@@ -35,6 +37,41 @@ def test_hilbert_scheme_two_points_principal_wall():
     assert wall.center == F(-5, 2)
     assert wall.radius_sq == F(9, 4)
     assert abs(wall.radius - 1.5) < 1e-12
+
+
+def test_numerical_wall_rho1_bitforbit():
+    # E8-M3/G12.3: numerical_wall's minors read <ch1,H> through the NS-lattice
+    # pairing (ch1_dot_H); on the Picard-rank-1 shim <ch1,H> == c, so every value
+    # is bit-for-bit unchanged.  (a) P^2[2] regression (ABCH arXiv:1203.0316 sec 9).
+    v = ChernChar(1, 0, F(-2))
+    w = ChernChar(1, F(-1), F(1, 2))
+    wall = numerical_wall(v, w, P2.d)
+    assert isinstance(wall, Wall)
+    assert wall.center == F(-5, 2)
+    assert wall.radius_sq == F(9, 4)          # radius 3/2
+    # (b) minors == raw-scalar closed form on a grid, AND <ch1,H> comes from the
+    #     NS-lattice pairing (ch1_dot_H), not the raw scalar c.
+    grid = [
+        (1, 0, F(-2),   1, -1, F(1, 2), 1),   # P^2[2] / O(-1)  -> (-5/2, 9/4)
+        (2, 0, F(-1, 4),1,  1, F(1, 2), 1),   # basic wall      -> (5/8, 9/64)
+        (2, 0, F(-3),   2,  2, F(-1),   2),   # K3(2) integral-l-> (1, -1/2)
+        (3, 1, F(2),    2, -1, F(0),    5),   # arbitrary       -> (4/5, 4/5)
+        (2, 0, F(-1, 4),1,  0, F(1, 2), 1),   # equal slopes    -> VerticalWall s=0
+    ]
+    for (rv, cv, ev, rw, cw, ew, d) in grid:
+        V, W = ChernChar(rv, cv, ev), ChernChar(rw, cw, ew)
+        assert V.ch1_dot_H(d) == V.c          # NS-lattice pairing delivers <ch1,H> == c
+        assert W.ch1_dot_H(d) == W.c
+        W_rc = V.r * W.c - W.r * V.c          # pre-E8-M3 raw-scalar minors
+        W_re = V.r * W.e - W.r * V.e
+        W_ce = V.c * W.e - W.c * V.e
+        got = numerical_wall(V, W, d)
+        if W_rc == 0:
+            assert isinstance(got, VerticalWall)
+        else:
+            s0 = F(W_re, W_rc)
+            rho_sq = s0 * s0 - F(2 * W_ce, d * W_rc)
+            assert (got.center, got.radius_sq) == (s0, rho_sq)
 
 
 def test_vertical_wall_on_equal_slopes():
@@ -121,3 +158,59 @@ def test_actual_walls_nested():
     assert radii == sorted(radii, reverse=True)
     # all centers are < mu_v = 0 (walls to the left for this ideal-sheaf class)
     assert all(w.center < 0 for w in walls)
+
+
+def test_compute_walls_is_uncertified():
+    # E1-M4: compute_walls returns the DENSE numerical set, tagged HEURISTIC
+    # (never certified via G5), and it is a SUPERSET of the certified
+    # actual-wall set.  For P^2[2] (v = (1,0,-2)) the single actual wall is
+    # center -5/2, radius 3/2 -> radius_sq 9/4 (ABCH arXiv:1203.0316 sec 9).
+    v = ChernChar(1, 0, F(-2))
+    dense_walls = compute_walls(v, P2)
+    assert dense_walls
+    # every numerical wall carries only a HEURISTIC certificate (uncertified)
+    assert all(w.certificate.rigor == Rigor.HEURISTIC for w in dense_walls)
+    dense = {(w.center, w.radius_sq) for w in dense_walls}
+
+    # the certified actual set is the single P^2[2] wall, tagged PROVEN (coprime)
+    certified = actual_walls(v, P2)
+    certified_keys = {(w.center, w.radius_sq) for w in certified}
+    assert certified_keys == {(F(-5, 2), F(9, 4))}
+    assert all(w.certificate.rigor == Rigor.PROVEN for w in certified)
+
+    # dense numerical set is a strict superset of the certified set
+    assert certified_keys <= dense
+    assert (F(-5, 2), F(9, 4)) in dense
+    assert len(dense) > len(certified_keys)
+
+
+def test_maciocia_bound_contains_gieseker():
+    # E3-M2/G7: the (bog-1)^2/4 bound equals the ABCH Gieseker outermost-wall radius^2.
+    # For P^2[n] (v=(1,0,-n)) the outermost (Gieseker) wall has radius (2n-1)/2
+    # (ABCH arXiv:1203.0316 sec 9); the bound (bog-1)^2/4 = (2n-1)^2/4 equals it.
+    # (PROVEN for this family; the general Maciocia 1202.4587 constant is [RESEARCH].)
+    for n in (2, 3, 4, 5):
+        v = ChernChar(1, 0, F(-n))
+        gieseker_radius_sq = F((2 * n - 1) ** 2, 4)
+        assert maciocia_wall_bound(v, 1) >= gieseker_radius_sq
+
+
+def test_actual_walls_complete_p2_2():
+    # E3-M2/G7: P^2[2] regression -- the single certified wall (-5/2, 3/2),
+    # complete=True, lying on/inside the Maciocia bounding semicircle.
+    v = ChernChar(1, 0, F(-2))
+    walls, complete = actual_walls_complete(v, P2)
+    assert complete is True
+    assert len(walls) == 1
+    assert walls[0].center == F(-5, 2)
+    assert walls[0].radius_sq == F(9, 4)
+    assert walls[0].radius_sq <= maciocia_wall_bound(v, P2.d)
+
+
+def test_no_wall_exceeds_bound():
+    # E3-M2/G7: no returned wall exceeds the Maciocia bound (Thm 3.11 nesting).
+    for n in (2, 3, 4, 5):
+        v = ChernChar(1, 0, F(-n))
+        bound = maciocia_wall_bound(v, P2.d)
+        for w in actual_walls(v, P2):
+            assert w.radius_sq <= bound

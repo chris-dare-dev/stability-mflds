@@ -42,6 +42,8 @@ from dataclasses import dataclass
 from fractions import Fraction
 from typing import Tuple, Union
 
+from .nslattice import rank1_shim, shim_ch1, RANK1_AMPLE
+
 Number = Union[int, Fraction]
 
 
@@ -57,6 +59,13 @@ class ChernChar:
     ``r`` is the rank (``ch0``), ``c = ch1 . H`` and ``e = ch2``.  Slope and
     discriminant require the surface's ``d = H^2`` because all H-normalized
     formulas carry that factor (a classic P^2-to-general-surface porting bug).
+
+    E8-M2 / G12.2: ``slope`` / ``discriminant`` / ``bogomolov_discriminant`` are
+    computed through the NS-lattice pairing via the ``ch1(d)`` / ``ch1_dot_H(d)`` /
+    ``ch1_squared(d)`` view (the Picard-rank-1 shim of :mod:`~.nslattice`), so
+    ``ch1`` is now a first-class NS-vector.  The stored scalar ``c`` is retained
+    as the H-projection accessor ``<ch1,H>``; every value is bit-for-bit
+    unchanged from the closed forms.
     """
 
     r: int
@@ -67,14 +76,38 @@ class ChernChar:
         object.__setattr__(self, "c", Q(self.c))
         object.__setattr__(self, "e", Q(self.e))
 
+    # -- NS-lattice view (E8-M2 / G12.2) -----------------------------------
+    def ch1(self, d: int) -> Tuple[Fraction, ...]:
+        """``ch1`` as an NS-vector on the Picard-rank-1 shim lattice (<H,H>=d).
+
+        Returns ``shim_ch1(self.c, d) = (c/d,)`` -- the H-coordinate of ch1 in the
+        ample-generator basis, NOT the naive scalar c.  Then <ch1,H>=(c/d)*d=c and
+        <ch1,ch1>=(c/d)^2*d=c^2/d.  ``self.c`` is retained as the H-projection
+        accessor <ch1,H> used by the wall minors and the pinned-test gate; genuine
+        Picard-rank>=2 ch1 vectors arrive with E8-M4.
+        """
+        return shim_ch1(self.c, d)
+
+    def ch1_dot_H(self, d: int) -> Fraction:
+        """<ch1, H> via the NS-lattice pairing (equals ``self.c`` exactly)."""
+        return rank1_shim(d).pairing(self.ch1(d), RANK1_AMPLE)
+
+    def ch1_squared(self, d: int) -> Fraction:
+        """<ch1, ch1> via the NS-lattice pairing (equals c^2/d exactly)."""
+        return rank1_shim(d).self_pairing(self.ch1(d))
+
     # -- invariants ---------------------------------------------------------
     def slope(self, d: int) -> Fraction:
         if self.r == 0:
             raise ValueError("Mumford slope is undefined for a rank-0 (torsion) object")
-        return Fraction(self.c, self.r * d)
+        return self.ch1_dot_H(d) / (self.r * d)          # <ch1,H>/(r d)  == c/(r d)
 
     def discriminant(self, d: int) -> Fraction:
-        """Normalized discriminant  Delta = (1/2) mu^2 - e/(r d)  (CH convention)."""
+        """Normalized discriminant  Delta = (1/2) mu^2 - e/(r d)  (CH convention).
+
+        ``mu = <ch1,H>/(r d)`` is now an NS-lattice term (E8-M2); the value is
+        bit-for-bit identical to the closed form ``c/(r d)`` on the rank-1 shim.
+        """
         mu = self.slope(d)
         return Fraction(1, 2) * mu * mu - Fraction(self.e, self.r * d)
 
@@ -83,12 +116,15 @@ class ChernChar:
         return 2 * self.discriminant(d)
 
     def bogomolov_discriminant(self, d: int) -> Fraction:
-        """Integer-flavored Bogomolov discriminant  (c^2/d - 2 r e) = 2 r^2 d Delta.
+        """Integer-flavored Bogomolov discriminant  (<ch1,ch1> - 2 r e) = 2 r^2 d Delta.
 
-        Equals the classical ``ch1^2 - 2 ch0 ch2`` when Pic has rank 1 and
-        ch1 = (c/d) H.  Non-negativity of this is equivalent to BG.
+        Computed in NS-lattice terms (E8-M2/G12.2): ch1^2 = <ch1,ch1>.  For the
+        Picard-rank-1 shim <ch1,ch1>=c^2/d, reproducing the classical c^2/d - 2 r e
+        bit-for-bit; the rho>=2 generalization of the minors is E8-M3.  Equals the
+        classical ``ch1^2 - 2 ch0 ch2`` when Pic has rank 1 and ch1 = (c/d) H.
+        Non-negativity of this is equivalent to BG.
         """
-        return Fraction(self.c * self.c, d) - 2 * self.r * self.e
+        return self.ch1_squared(d) - 2 * self.r * self.e
 
     # -- twisted characters -------------------------------------------------
     def twist(self, s: Number, d: int) -> "ChernChar":
