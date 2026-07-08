@@ -78,14 +78,16 @@ from .dlp import delta
 from .exceptional import Bundle, enumerate_exceptional, is_exceptional
 from .exceptional_surface import SurfaceBundle
 from .rigor import Certificate, Rigor
-from .varieties import Surface, require_faithful_computation
+from .varieties import Surface, P2, P1xP1, require_faithful_computation
 
 __all__ = [
     "HNMode",
     "NonemptinessVerdict",
+    "PaperDeltaHTarget",
     "discriminant_H",
     "delta_H",
     "moduli_nonempty",
+    "paper_delta_H_targets",
 ]
 
 Number = Union[int, Fraction]
@@ -179,6 +181,204 @@ class NonemptinessVerdict:
     def certified(self) -> bool:
         """``True`` iff the verdict's rigor is ``PROVEN`` (certified HN datum)."""
         return self.certificate.rigor == Rigor.PROVEN
+
+
+# --------------------------------------------------------------------------
+# E11-M4 / G18b [RESEARCH]: the fixed finite paper-tabulated delta_H table.
+#
+# Each entry pins an EXACT ``Fraction`` delta_H target + the primary source's
+# yes/no verdict for one class ``(r, c1, ch2)`` on one polarized surface, fed
+# into ``moduli_nonempty(..., delta_H_target=e.delta_H, hn_source=HNMode.PAPER)``
+# so the in-architecture ``Delta >= delta_H`` inequality reproduces the paper's
+# verdict with a certified (PROVEN) HN-length-one hypothesis.
+#
+# NORMALIZATION (the load-bearing research finding, R3).  The primary sources use
+# the FULL-NS discriminant ``Delta_paper = 1/2 nu^2 - ch2/r`` (nu = c1/r an NS
+# class), verified verbatim in arXiv:1907.06739 (Delta = 1/2 nu^2 - ch2/r) and
+# its RR pairing ``chi(V,W) = r_V r_W (P(nu_W - nu_V) - Delta_V - Delta_W)`` with
+# ``P(nu) = chi(O_X) + 1/2(nu^2 - nu.K_X)``.  The package's ``discriminant_H`` is
+# the H-PROJECTED scalar ``1/2 mu^2 - ch2/(r d)``, ``mu = <c1,H>/(r d)``,
+# ``d = H^2``.  On P^2 (d=1) the two coincide; for a class with ``c1`` PROPORTIONAL
+# to H one has the exact identity ``Delta_paper = d * discriminant_H`` (machine-
+# checked).  Every entry stores the CH-PACKAGE-NORMALIZED target ``delta_H`` (what
+# the hook compares against ``discriminant_H``): ``delta_H == delta_H_paper`` on
+# P^2 (d=1) and ``delta_H == delta_H_paper / d`` for the c1 || H entries on F_0.
+# Only classes where ``discriminant_H`` is the right object to compare (P^2, or
+# c1 || H on anticanonical F_0) are pinnable; a general off-P^2 non-diagonal class
+# is NOT (the scalar model cannot reproduce the paper's full-NS verdict) and is an
+# open question, per research-integrity rules R2/R4 (a small verified table beats a
+# larger one with an invented value).
+#
+# The DLP peak values delta(mu) = chi(O_X) - Delta_E at an exceptional slope
+# (Delta_E = (1 - 1/r_E^2)/2, classical Drezet-Le Potier) are the package's own
+# already-pinned dlp.delta machinery (delta(1/2)=5/8, delta(1/3)=5/9,
+# delta(2/5)=13/25) -- every P^2 target below is independently regressed against
+# delta_H(xi, P2), and every F_0 target uses the exceptional line bundle at its
+# integral slope (Delta_E=0 -> delta_H_paper = chi(O_{F_0}) = 1).
+# --------------------------------------------------------------------------
+@dataclass(frozen=True)
+class PaperDeltaHTarget:
+    """One primary-source-tabulated ``delta_H`` target + verdict for a class.
+
+    Attributes
+    ----------
+    surface : Surface
+        The polarized surface the class lives on (``P2`` or ``P1xP1`` here).
+    r : int
+        Rank of the class.
+    c1 : tuple
+        First Chern class as an NS-vector in ``surface.lattice``'s basis
+        (``(int, ...)``; coerced to ``Fraction`` by ``SurfaceBundle`` at use).
+    ch2 : Fraction
+        Second Chern character (exact ``Fraction``).
+    delta_H : Fraction
+        The CH-PACKAGE-NORMALIZED sharp target compared against ``discriminant_H``
+        (``== delta_H_paper`` on P^2; ``== delta_H_paper / d`` for a ``c1 || H``
+        class on ``F_0``).
+    paper_nonempty : bool
+        The primary source's yes/no non-emptiness verdict for this class.
+    delta_H_paper : Fraction
+        The paper's full-NS ``delta_H`` BEFORE the ``/d`` conversion
+        (``== delta_H`` when ``d == 1``).
+    citation : str
+        Primary source: arXiv id + exact statement (Thm/Cor number) + the class
+        ``(r, c1, ch2)`` + the polarization ``H``.
+    note : str
+        The exact ``Fraction`` arithmetic (R3): the paper datum -> the CH-normalized
+        ``delta_H``, the independent ``Delta`` recompute, and the two-way verdict.
+    """
+
+    surface: Surface
+    r: int
+    c1: tuple
+    ch2: Fraction
+    delta_H: Fraction
+    paper_nonempty: bool
+    delta_H_paper: Fraction
+    citation: str
+    note: str = ""
+
+
+_PAPER_DELTA_H_TABLE = (
+    # -- P^2 = Levine-Zhang X_0 (m=0), the degree-9 anticanonical del Pezzo -----
+    PaperDeltaHTarget(
+        surface=P2, r=2, c1=(1,), ch2=Fraction(-5, 2),
+        delta_H=Fraction(5, 8), paper_nonempty=True, delta_H_paper=Fraction(5, 8),
+        citation=(
+            "Levine-Zhang arXiv:1910.14060 Thm 1.4 (=Thm 7.15), m=0 (X_0=P^2); "
+            "class (r,c1,ch2)=(2,(1),-5/2), H=-K=3H_0 (d=H_0^2=1). Existence via "
+            "LZ Thm 1.4 (Delta=11/8>1/2, DL condition holds). delta_H=delta(1/2)="
+            "5/8 classical Drezet-Le Potier (Ann. Sci. ENS 18, 1985)."
+        ),
+        note=(
+            "mu=<1*H0,H0>/(2*1)=1/2; discriminant_H=1/2*(1/2)^2-(-5/2)/2=1/8+5/4=11/8; "
+            "delta_H=delta(1/2)=chi(O_{P2})-Delta_{rk2 exc}=1-(1-1/2^2)/2=1-3/8=5/8; "
+            "c2=1/2-(-5/2)=3. Two-way: 11/8>=5/8 -> nonempty; matches dlp.moduli_nonempty."
+        ),
+    ),
+    PaperDeltaHTarget(
+        surface=P2, r=3, c1=(0,), ch2=Fraction(-2),
+        delta_H=Fraction(1), paper_nonempty=False, delta_H_paper=Fraction(1),
+        citation=(
+            "Levine-Zhang arXiv:1910.14060 Thm 1.4 (=Thm 7.15), m=0 (X_0=P^2); "
+            "class (3,(0),-2), H=-K=3H_0 (d=1). LZ Thm 1.4 applies (Delta=2/3>1/2): "
+            "the DL existence condition FAILS (2/3 < delta(0)=1) and the class is "
+            "non-exceptional (rank 3 is not a Markov number), so NO -K-(semi)stable "
+            "sheaf exists. delta(0)=1=chi(O_{P2}) classical Drezet-Le Potier."
+        ),
+        note=(
+            "mu=0; discriminant_H=1/2*0-(-2)/3=2/3; delta_H=delta(0)=chi(O_{P2})-Delta_O="
+            "1-0=1; c2=0-(-2)=2; is_exceptional(3,0,-2)=False (rank 3 not Markov). "
+            "Two-way: 2/3<1 and non-exceptional -> EMPTY; matches dlp.moduli_nonempty."
+        ),
+    ),
+    PaperDeltaHTarget(
+        surface=P2, r=3, c1=(1,), ch2=Fraction(-5, 2),
+        delta_H=Fraction(5, 9), paper_nonempty=True, delta_H_paper=Fraction(5, 9),
+        citation=(
+            "Levine-Zhang arXiv:1910.14060 Thm 1.4 (=Thm 7.15), m=0 (X_0=P^2); "
+            "class (3,(1),-5/2), H=-K=3H_0 (d=1). LZ Thm 1.4 applies (Delta=8/9>1/2): "
+            "DL condition holds (8/9 >= delta(1/3)=5/9) -> exists. delta(1/3)=5/9 "
+            "classical Drezet-Le Potier (Ann. Sci. ENS 18, 1985)."
+        ),
+        note=(
+            "mu=1/3; discriminant_H=1/2*(1/3)^2-(-5/2)/3=1/18+15/18=8/9; "
+            "delta_H=delta(1/3)=chi(O)-Delta_{rk3 exc}=1-(1-1/3^2)/2=1-4/9=5/9; "
+            "c2=1/2-(-5/2)=3. Two-way: 8/9>=5/9 -> nonempty; matches dlp.moduli_nonempty."
+        ),
+    ),
+    PaperDeltaHTarget(
+        surface=P2, r=5, c1=(2,), ch2=Fraction(-2),
+        delta_H=Fraction(13, 25), paper_nonempty=True, delta_H_paper=Fraction(13, 25),
+        citation=(
+            "Coskun-Huizenga arXiv:1907.06739 (abstract + Cor 9.13: exceptional "
+            "bundles are -K-stable on an anticanonically polarized del Pezzo); "
+            "class (5,(2),-2) is the rank-5 slope-2/5 exceptional bundle on P^2 "
+            "(Delta=Delta_E=12/25), H=-K=3H_0 (d=1). Nonempty via the exceptional "
+            "bundle itself -- NOT via Levine-Zhang arXiv:1910.14060 Thm 1.4, whose "
+            "Delta>1/2 hypothesis FAILS here (12/25<1/2). delta_H=delta(2/5)=13/25 "
+            "classical Drezet-Le Potier."
+        ),
+        note=(
+            "mu=2/5; discriminant_H=1/2*(2/5)^2-(-2)/5=2/25+10/25=12/25; "
+            "Delta_E(r=5)=(1-1/5^2)/2=12/25 -> the class IS the exceptional bundle "
+            "(is_exceptional=True, chi(E,E)=1); delta_H=delta(2/5)=13/25; c2=2-(-2)=4. "
+            "12/25 < 13/25 (strictly below the curve) yet nonempty=True via the DLP "
+            "exceptional-bundle disjunct (P^2 only); matches dlp.moduli_nonempty."
+        ),
+    ),
+    # -- P^1 x P^1 = F_0, the degree-8 anticanonical del Pezzo (c1 || H) --------
+    PaperDeltaHTarget(
+        surface=P1xP1, r=2, c1=(0, 0), ch2=Fraction(-4),
+        delta_H=Fraction(1, 2), paper_nonempty=True, delta_H_paper=Fraction(1),
+        citation=(
+            "Coskun-Huizenga arXiv:1907.06739 Thm 1.8 / Cor 9.13: on F_0 "
+            "anticanonical delta_H(nu)=DLP_{-K_{F_0}}(nu). Class (2,(0,0),-4), "
+            "H=(1,1) (same ample ray as -K=O(2,2)), d=H^2=2, NS Gram [[0,1],[1,0]]. "
+            "At the line-bundle slope nu=(0,0) the controlling exceptional bundle is "
+            "O (Delta_E=0), so delta_H_paper=P(0)-Delta_O=chi(O_{F_0})=1."
+        ),
+        note=(
+            "nu=c1/r=(0,0), nu^2=0; Delta_paper=1/2*0-(-4)/2=2; discriminant_H: "
+            "mu=<(0,0),(1,1)>/(2*2)=0, =1/2*0-(-4)/(2*2)=1; c1||H identity "
+            "Delta_paper=d*discriminant_H=2*1=2; delta_H_paper=1, CH target=1/2; "
+            "c2=0-(-4)=4. Two-way: Delta_paper=2>=delta_H_paper=1 <=> "
+            "discriminant_H=1>=1/2 -> nonempty; exceptional=False (P^2-only disjunct)."
+        ),
+    ),
+    PaperDeltaHTarget(
+        surface=P1xP1, r=2, c1=(2, 2), ch2=Fraction(-2),
+        delta_H=Fraction(1, 2), paper_nonempty=True, delta_H_paper=Fraction(1),
+        citation=(
+            "Coskun-Huizenga arXiv:1907.06739 Thm 1.8 / Cor 9.13: on F_0 "
+            "anticanonical delta_H(nu)=DLP_{-K_{F_0}}(nu). Class (2,(2,2),-2), "
+            "H=(1,1), d=2, NS Gram [[0,1],[1,0]]. At the diagonal line-bundle slope "
+            "nu=(1,1) the controlling exceptional bundle is O(1,1) (Delta_E=0), so "
+            "delta_H_paper=P(0)-Delta_{O(1,1)}=chi(O_{F_0})=1."
+        ),
+        note=(
+            "nu=c1/r=(1,1), nu^2=<(1,1),(1,1)>=2; Delta_paper=1/2*2-(-2)/2=1+1=2; "
+            "discriminant_H: mu=<(2,2),(1,1)>/(2*2)=1, =1/2*1^2-(-2)/(2*2)=1/2+1/2=1; "
+            "c1||H identity Delta_paper=d*discriminant_H=2*1=2; delta_H_paper=1, "
+            "CH target=1/2; c2=<(2,2),(2,2)>/2-(-2)=4+2=6. Two-way: 2>=1 <=> 1>=1/2 "
+            "-> nonempty; exceptional=False (P^2-only disjunct)."
+        ),
+    ),
+)
+
+
+def paper_delta_H_targets() -> "tuple[PaperDeltaHTarget, ...]":
+    """The fixed finite table of primary-source ``delta_H`` targets (E11-M4).
+
+    Each entry carries an exact ``Fraction`` CH-package-normalized ``delta_H``, the
+    paper's yes/no verdict, and a per-entry arXiv citation (arXiv:1907.06739
+    Coskun-Huizenga / arXiv:1910.14060 Levine-Zhang) naming the exact statement and
+    the class.  Feed an entry into
+    ``moduli_nonempty(e.r, e.c1, e.ch2, e.surface, delta_H_target=e.delta_H,
+    hn_source=HNMode.PAPER)`` to reproduce the paper verdict with a PROVEN
+    HN-length-one hypothesis.
+    """
+    return _PAPER_DELTA_H_TABLE
 
 
 def _mu(xi: SurfaceBundle, surface: Surface) -> Fraction:

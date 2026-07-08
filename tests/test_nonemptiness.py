@@ -30,6 +30,8 @@ from bridgeland_stability.nonemptiness_rational import (
     moduli_nonempty,
     NonemptinessVerdict,
     HNMode,
+    PaperDeltaHTarget,
+    paper_delta_H_targets,
 )
 from bridgeland_stability.exceptional_surface import SurfaceBundle, chi
 from bridgeland_stability.varieties import P2, P1xP1, enriques
@@ -284,6 +286,96 @@ def test_discriminant_H_offp2_matches_chern_convention():
         got = discriminant_H(xi, P1xP1)
         assert got == expected                         # pinned hand value
         assert got == ChernChar(xi.r, int(c), xi.ch2).discriminant(P1xP1.d)  # two-way
+
+
+# --------------------------------------------------------------------------
+# E11-M4 / G18b [RESEARCH]: paper-tabulated delta_H targets.  Each verified entry
+# of paper_delta_H_targets() is fed in as a certified PAPER target and must
+# reproduce the primary source's yes/no verdict with a PROVEN HN-length-one
+# hypothesis.  Every numeric value is traceable to arXiv:1907.06739
+# (Coskun-Huizenga) or arXiv:1910.14060 (Levine-Zhang) -- see each entry's
+# .citation / .note (R1/R3).
+# --------------------------------------------------------------------------
+def test_paper_verdicts():
+    # Acceptance (1)+(2)+(3): moduli_nonempty reproduces the paper yes/no for
+    # every tabulated class, returns the exact delta_H target, and carries
+    # rigor=PROVEN ONLY because the HN-length-one datum came from the PAPER table.
+    targets = paper_delta_H_targets()
+    assert len(targets) >= 1
+    for e in targets:
+        v = moduli_nonempty(e.r, e.c1, e.ch2, e.surface,
+                            delta_H_target=e.delta_H, hn_source=HNMode.PAPER)
+        assert v.nonempty is e.paper_nonempty            # paper's yes/no reproduced
+        assert v.mode is HNMode.PAPER
+        assert v.certified is True
+        assert v.certificate.rigor == Rigor.PROVEN       # PROVEN via the certified table
+        assert v.delta_H == e.delta_H                     # exact tabulated target returned
+        assert isinstance(v.delta_H, F)
+
+
+def test_paper_table_is_exact_fractions():
+    # Exact-arithmetic invariant: every tabulated numeric is a Fraction and every
+    # entry cites an arXiv:19xx primary source.
+    targets = paper_delta_H_targets()
+    assert len(targets) > 0
+    for e in targets:
+        assert isinstance(e, PaperDeltaHTarget)
+        assert isinstance(e.delta_H, F)
+        assert isinstance(e.delta_H_paper, F)
+        assert isinstance(e.ch2, F)
+        assert "arXiv:19" in e.citation
+
+
+def test_paper_p2_targets_match_native_dlp():
+    # Independent two-way anchor: on P^2 the PAPER target must equal the package's
+    # OWN native DLP delta-curve, and discriminant_H must equal the pinned
+    # ChernChar.discriminant (d=1).  Ties each paper datum to in-package machinery.
+    seen = 0
+    for e in paper_delta_H_targets():
+        if e.surface is not P2:
+            continue
+        seen += 1
+        xi = SurfaceBundle(e.r, e.c1, e.ch2)
+        assert delta_H(xi, P2) == e.delta_H                       # native DLP == PAPER target
+        assert discriminant_H(xi, P2) == \
+            ChernChar(e.r, int(e.c1[0]), e.ch2).discriminant(1)   # two-way discriminant
+    assert seen == 4
+
+
+def test_paper_p1xp1_normalization_conversion():
+    # The load-bearing normalization conversion (R3): for the c1||H entries on F_0
+    # the paper's full-NS Delta = 1/2 nu^2 - ch2/r equals d*discriminant_H, and the
+    # CH-package target is delta_H_paper/d.  The exceptional disjunct is P^2-only.
+    seen = 0
+    for e in paper_delta_H_targets():
+        if e.surface is not P1xP1:
+            continue
+        seen += 1
+        nu = tuple(F(x, e.r) for x in e.c1)                        # nu = c1/r, exact
+        Delta_paper = F(1, 2) * P1xP1.lattice.self_pairing(nu) - e.ch2 / e.r
+        xi = SurfaceBundle(e.r, e.c1, e.ch2)
+        assert Delta_paper == P1xP1.d * discriminant_H(xi, P1xP1)  # c1||H identity
+        assert e.delta_H == e.delta_H_paper / P1xP1.d              # /d conversion
+        assert e.delta_H_paper == 1                                # controlling l.b.: chi(O_{F_0})
+        v = moduli_nonempty(e.r, e.c1, e.ch2, P1xP1,
+                            delta_H_target=e.delta_H, hn_source=HNMode.PAPER)
+        assert v.exceptional is False                             # disjunct is P^2-only
+    assert seen == 2
+
+
+def test_paper_exceptional_coexists_with_target():
+    # E4: the rank-5 exceptional bundle sits STRICTLY BELOW its paper delta_H yet is
+    # nonempty via the exceptional disjunct, chi(E,E)=1, and agrees with dlp.
+    e = next(t for t in paper_delta_H_targets()
+             if t.surface is P2 and t.r == 5 and t.c1 == (2,))
+    xi = SurfaceBundle(e.r, e.c1, e.ch2)
+    v = moduli_nonempty(e.r, e.c1, e.ch2, P2,
+                        delta_H_target=e.delta_H, hn_source=HNMode.PAPER)
+    assert discriminant_H(xi, P2) < e.delta_H                     # strictly below the curve
+    assert v.nonempty is True
+    assert v.exceptional is True
+    assert chi(xi, xi, P2) == 1                                   # genuine exceptional bundle
+    assert dlp_moduli_nonempty(Bundle(5, 2, e.ch2))["nonempty"] is True
 
 
 # --------------------------------------------------------------------------
