@@ -93,12 +93,14 @@ not add YAML frontmatter to a tracked document: vault metadata belongs in the va
 pytest -q
 ```
 
-All 42 tests should pass. They are organized by algorithm:
+All 273 tests should pass (6 skip unless Macaulay2 is installed). They are
+organized by algorithm:
 
 | File | Coverage |
 |---|---|
 | `tests/test_exceptional.py` | Exceptional bundles, Markov numbers, ε-recursion |
-| `tests/test_dlp.py` | DLP curve δ(μ), moduli non-emptiness |
+| `tests/test_dlp.py` | DLP curve δ(μ), moduli non-emptiness (P²) |
+| `tests/test_dlp_hirzebruch.py` | The polarization-dependent δ_H envelope on 𝔽ₑ |
 | `tests/test_walls.py` | Numerical and actual Bridgeland walls |
 | `tests/test_threefold.py` | Threefold tilt-BG boundary α_crit(β) |
 | `tests/test_mukai.py` | K3 Mukai lattice, pairing, Bayer–Macrì classification |
@@ -198,18 +200,40 @@ ask in the issue before writing code.
 
 ## The Coskun–Huizenga discriminant convention
 
-The discriminant used throughout is the **Coskun–Huizenga normalization** (the
-standard in the modern literature):
+There are **two** discriminants here, and they are not the same once the Picard
+rank exceeds 1. Do not conflate them.
+
+**The CH discriminant** — the one in the primary literature, and the one
+non-emptiness verdicts compare against:
 
 ```
-Δ = ½·μ² − ch₂/(r·d),   μ = (ch₁·H)/(r·d),   d = H²
+Δ = ½·⟨ν,ν⟩ − ch₂/r,    ν = c₁/r  (a full Néron–Severi class)
 ```
 
-so line bundles have Δ=0, an exceptional bundle of rank r has Δ=½(1−1/r²)<½, and
-the DLP curve takes values in [½, 1]. **This convention is fixed.** The brief's
-doubled convention `Δ_brief = 2Δ` is available as `ChernChar.discriminant_brief`
-/ `Bundle.discriminant_brief` for comparison output only; all new formulas,
-docstrings, tests, and docs must use the CH convention.
+It is **polarization-independent**: all dependence on `H` lives in the bound `δ_H`,
+never in `Δ`. See `dlp_hirzebruch.discriminant`.
+
+**The H-numerical scalar** — carried by the `(r, c = ch₁·H, ch₂)` model on which the
+wall, Bogomolov–Gieseker and P²-DLP machinery is built:
+
+```
+Δ_H = ½·μ² − ch₂/(r·d),   μ = (ch₁·H)/(r·d),   d = H²
+```
+
+See `ChernChar.discriminant(d)` and `nonemptiness_rational.discriminant_H`.
+
+The two satisfy `Δ = d·Δ_H` **if and only if `c₁ ∥ H`** — automatic at Picard rank 1,
+and on P² (`d = 1`) they are *equal*, which is why every pinned P² value is
+unambiguous. For a non-diagonal `c₁` on `P¹×P¹` or `F_n` they genuinely differ, and
+`Δ_H` is a lossy surrogate that spuriously appears to depend on `H`. Conflating them
+has already produced one wrong result in this codebase —
+[`docs/CORRECTIONS.md`](docs/CORRECTIONS.md) §7 records it.
+
+Both conventions are **fixed**. Line bundles have `Δ = 0`, an exceptional bundle of
+rank `r` has `Δ = ½(1−1/r²) < ½`, and the P² DLP curve takes values in `[½, 1]`. The
+brief's doubled convention `Δ_brief = 2Δ_H` is available as
+`ChernChar.discriminant_brief` / `Bundle.discriminant_brief` for comparison output
+only; never make it the default.
 
 ---
 

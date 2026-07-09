@@ -75,6 +75,17 @@ from fractions import Fraction
 from typing import Optional, Sequence, Union
 
 from .dlp import delta
+from .dlp_hirzebruch import (
+    DEFAULT_RANK_MAX,
+    discriminant,
+    dlp_envelope,
+    emptiness_bound,
+    hirzebruch_index,
+    is_ample,
+    is_semiexceptional,
+    is_stable_exceptional,
+    total_slope,
+)
 from .exceptional import Bundle, enumerate_exceptional, is_exceptional
 from .exceptional_surface import SurfaceBundle
 from .rigor import Certificate, Rigor
@@ -84,6 +95,7 @@ __all__ = [
     "HNMode",
     "NonemptinessVerdict",
     "PaperDeltaHTarget",
+    "discriminant",
     "discriminant_H",
     "delta_H",
     "hirzebruch_with_polarization",
@@ -101,10 +113,18 @@ class HNMode(str, Enum):
     PAPER = "paper"        # PROVEN: paper-tabulated HN-length-one datum (E11-M4 hook)
     ORACLE = "oracle"      # PROVEN: M2/OSCAR-constructed HN filtration (E11-M5 hook)
     HEURISTIC = "heuristic"  # HEURISTIC: no certified HN datum (Bogomolov floor)
+    # -- E11-M6 / G18: the natively-computed Coskun-Huizenga envelope on F_e --------
+    DLP_ANTICANONICAL = "dlp_anticanonical"  # e in {0,1}, H = -K: delta_H = DLP_{-K} (sharp)
+    DLP_LOWER = "dlp_lower"                  # any other ample H on F_e: certified LOWER bound
 
 
 #: The modes whose HN-length-one hypothesis is certified -> verdict rigor PROVEN.
+#: (The two ``DLP_*`` envelope modes carry a per-verdict rigor instead -- see
+#: :func:`_hirzebruch_verdict` -- because whether the verdict is PROVEN depends on which
+#: side of the envelope ``Delta`` falls, not on the mode alone.)
 _CERTIFIED = frozenset({HNMode.DLP, HNMode.PAPER, HNMode.ORACLE})
+
+_CH = "arXiv:1907.06739"          # Coskun-Huizenga, Existence of semistable sheaves on F_e
 
 _MODE_CERT = {
     HNMode.DLP: Certificate(
@@ -193,22 +213,27 @@ class NonemptinessVerdict:
 # so the in-architecture ``Delta >= delta_H`` inequality reproduces the paper's
 # verdict with a certified (PROVEN) HN-length-one hypothesis.
 #
-# NORMALIZATION (the load-bearing research finding, R3).  The primary sources use
-# the FULL-NS discriminant ``Delta_paper = 1/2 nu^2 - ch2/r`` (nu = c1/r an NS
-# class), verified verbatim in arXiv:1907.06739 (Delta = 1/2 nu^2 - ch2/r) and
-# its RR pairing ``chi(V,W) = r_V r_W (P(nu_W - nu_V) - Delta_V - Delta_W)`` with
-# ``P(nu) = chi(O_X) + 1/2(nu^2 - nu.K_X)``.  The package's ``discriminant_H`` is
-# the H-PROJECTED scalar ``1/2 mu^2 - ch2/(r d)``, ``mu = <c1,H>/(r d)``,
-# ``d = H^2``.  On P^2 (d=1) the two coincide; for a class with ``c1`` PROPORTIONAL
-# to H one has the exact identity ``Delta_paper = d * discriminant_H`` (machine-
-# checked).  Every entry stores the CH-PACKAGE-NORMALIZED target ``delta_H`` (what
-# the hook compares against ``discriminant_H``): ``delta_H == delta_H_paper`` on
-# P^2 (d=1) and ``delta_H == delta_H_paper / d`` for the c1 || H entries on F_0.
-# Only classes where ``discriminant_H`` is the right object to compare (P^2, or
-# c1 || H on anticanonical F_0) are pinnable; a general off-P^2 non-diagonal class
-# is NOT (the scalar model cannot reproduce the paper's full-NS verdict) and is an
-# open question, per research-integrity rules R2/R4 (a small verified table beats a
-# larger one with an invented value).
+# NORMALIZATION (E11-M4's load-bearing research finding R3, and its E11-M6 RESOLUTION).
+# The primary sources use the FULL-NS discriminant ``Delta = 1/2 nu^2 - ch2/r``
+# (nu = c1/r an NS class), verified verbatim in arXiv:1907.06739 Sec. 2.1, together with
+# ``chi(V,W) = r_V r_W (P(nu_W - nu_V) - Delta_V - Delta_W)`` and
+# ``P(nu) = chi(O_X) + 1/2(nu^2 - nu.K_X)``.  M4 could not compare against that Delta --
+# the package then only had the H-PROJECTED scalar ``discriminant_H = 1/2 mu^2 -
+# ch2/(r d)`` -- so each entry stored a rescaled target ``delta_H = delta_H_paper / d``,
+# and only classes with ``c1`` PROPORTIONAL to ``H`` (where ``Delta = d * discriminant_H``)
+# were pinnable.
+#
+# E11-M6 / G18 ships the genuine full-NS ``discriminant`` (dlp_hirzebruch.discriminant),
+# and ``moduli_nonempty`` now compares against IT.  So the rescaling is gone: every entry
+# stores the paper's own target, ``delta_H == delta_H_paper``, on every surface.  The
+# ``delta_H_paper`` field is kept (equal to ``delta_H``) so the historical distinction
+# stays legible and the /d identity remains testable.  See docs/CORRECTIONS.md (C7).
+#
+# The two F_0 targets below are no longer merely transcribed: ``dlp_envelope`` computes
+# ``DLP_{-K_{F_0}}(nu) = 1`` natively at both slopes and certifies the rank truncation as
+# exact (tests/test_dlp_hirzebruch.py::test_delta_K_at_line_bundle_slopes_is_one), so the
+# table is now a REGRESSION of the in-package envelope against the primary source rather
+# than the package's only source of truth.
 #
 # The DLP peak values delta(mu) = chi(O_X) - Delta_E at an exceptional slope
 # (Delta_E = (1 - 1/r_E^2)/2, classical Drezet-Le Potier) are the package's own
@@ -233,14 +258,14 @@ class PaperDeltaHTarget:
     ch2 : Fraction
         Second Chern character (exact ``Fraction``).
     delta_H : Fraction
-        The CH-PACKAGE-NORMALIZED sharp target compared against ``discriminant_H``
-        (``== delta_H_paper`` on P^2; ``== delta_H_paper / d`` for a ``c1 || H``
-        class on ``F_0``).
+        The sharp target, in the paper's own (full-NS) normalization, compared against
+        :func:`~bridgeland_stability.dlp_hirzebruch.discriminant`.  Since E11-M6 this
+        equals ``delta_H_paper`` on every surface (the old ``/d`` rescaling is gone).
     paper_nonempty : bool
         The primary source's yes/no non-emptiness verdict for this class.
     delta_H_paper : Fraction
-        The paper's full-NS ``delta_H`` BEFORE the ``/d`` conversion
-        (``== delta_H`` when ``d == 1``).
+        The paper's full-NS ``delta_H``.  Retained (now always ``== delta_H``) so the
+        historical M4 ``/d`` normalization finding stays legible and testable.
     citation : str
         Primary source: arXiv id + exact statement (Thm/Cor number) + the class
         ``(r, c1, ch2)`` + the polarization ``H``.
@@ -331,38 +356,36 @@ _PAPER_DELTA_H_TABLE = (
     # -- P^1 x P^1 = F_0, the degree-8 anticanonical del Pezzo (c1 || H) --------
     PaperDeltaHTarget(
         surface=P1xP1, r=2, c1=(0, 0), ch2=Fraction(-4),
-        delta_H=Fraction(1, 2), paper_nonempty=True, delta_H_paper=Fraction(1),
+        delta_H=Fraction(1), paper_nonempty=True, delta_H_paper=Fraction(1),
         citation=(
-            "Coskun-Huizenga arXiv:1907.06739 Thm 1.8 / Cor 9.13: on F_0 "
-            "anticanonical delta_H(nu)=DLP_{-K_{F_0}}(nu). Class (2,(0,0),-4), "
-            "H=(1,1) (same ample ray as -K=O(2,2)), d=H^2=2, NS Gram [[0,1],[1,0]]. "
-            "At the line-bundle slope nu=(0,0) the controlling exceptional bundle is "
-            "O (Delta_E=0), so delta_H_paper=P(0)-Delta_O=chi(O_{F_0})=1."
+            "Coskun-Huizenga arXiv:1907.06739 Cor 'deltaDLP': on F_0 with the "
+            "anticanonical polarization delta_H^{mu-s}(nu)=DLP_{-K_{F_0}}(nu). Class "
+            "(2,(0,0),-4), H=(1,1) (same ample ray as -K=O(2,2)), d=H^2=2, NS Gram "
+            "[[0,1],[1,0]]. At the line-bundle slope nu=(0,0) the controlling exceptional "
+            "bundle is O (Delta_E=0), so delta_H=P(0)-Delta_O=chi(O_{F_0})=1."
         ),
         note=(
-            "nu=c1/r=(0,0), nu^2=0; Delta_paper=1/2*0-(-4)/2=2; discriminant_H: "
-            "mu=<(0,0),(1,1)>/(2*2)=0, =1/2*0-(-4)/(2*2)=1; c1||H identity "
-            "Delta_paper=d*discriminant_H=2*1=2; delta_H_paper=1, CH target=1/2; "
-            "c2=0-(-4)=4. Two-way: Delta_paper=2>=delta_H_paper=1 <=> "
-            "discriminant_H=1>=1/2 -> nonempty; exceptional=False (P^2-only disjunct)."
+            "nu=c1/r=(0,0), nu^2=0; full-NS Delta=1/2*0-(-4)/2=2; delta_H=1; c2=0-(-4)=4. "
+            "Two-way: 2>=1 -> nonempty.  The /d relic: discriminant_H=1 and c1||H gives "
+            "Delta=d*discriminant_H=2*1=2.  E11-M6 regression: dlp_envelope((0,0),P1xP1) "
+            "computes delta_H=1 natively, exact=True, sharp=True, witness=O."
         ),
     ),
     PaperDeltaHTarget(
         surface=P1xP1, r=2, c1=(2, 2), ch2=Fraction(-2),
-        delta_H=Fraction(1, 2), paper_nonempty=True, delta_H_paper=Fraction(1),
+        delta_H=Fraction(1), paper_nonempty=True, delta_H_paper=Fraction(1),
         citation=(
-            "Coskun-Huizenga arXiv:1907.06739 Thm 1.8 / Cor 9.13: on F_0 "
-            "anticanonical delta_H(nu)=DLP_{-K_{F_0}}(nu). Class (2,(2,2),-2), "
-            "H=(1,1), d=2, NS Gram [[0,1],[1,0]]. At the diagonal line-bundle slope "
-            "nu=(1,1) the controlling exceptional bundle is O(1,1) (Delta_E=0), so "
-            "delta_H_paper=P(0)-Delta_{O(1,1)}=chi(O_{F_0})=1."
+            "Coskun-Huizenga arXiv:1907.06739 Cor 'deltaDLP': on F_0 with the "
+            "anticanonical polarization delta_H^{mu-s}(nu)=DLP_{-K_{F_0}}(nu). Class "
+            "(2,(2,2),-2), H=(1,1), d=2, NS Gram [[0,1],[1,0]]. At the diagonal "
+            "line-bundle slope nu=(1,1) the controlling exceptional bundle is O(1,1) "
+            "(Delta_E=0), so delta_H=P(0)-Delta_{O(1,1)}=chi(O_{F_0})=1."
         ),
         note=(
-            "nu=c1/r=(1,1), nu^2=<(1,1),(1,1)>=2; Delta_paper=1/2*2-(-2)/2=1+1=2; "
-            "discriminant_H: mu=<(2,2),(1,1)>/(2*2)=1, =1/2*1^2-(-2)/(2*2)=1/2+1/2=1; "
-            "c1||H identity Delta_paper=d*discriminant_H=2*1=2; delta_H_paper=1, "
-            "CH target=1/2; c2=<(2,2),(2,2)>/2-(-2)=4+2=6. Two-way: 2>=1 <=> 1>=1/2 "
-            "-> nonempty; exceptional=False (P^2-only disjunct)."
+            "nu=c1/r=(1,1), nu^2=<(1,1),(1,1)>=2; full-NS Delta=1/2*2-(-2)/2=1+1=2; "
+            "delta_H=1; c2=<(2,2),(2,2)>/2-(-2)=4+2=6. Two-way: 2>=1 -> nonempty.  The "
+            "/d relic: discriminant_H=1 and c1||H gives Delta=d*discriminant_H=2. "
+            "E11-M6 regression: dlp_envelope((1,1),P1xP1)=1, exact=True, witness=O(1,1)."
         ),
     ),
 )
@@ -412,23 +435,31 @@ def _is_p2_exceptional(xi: SurfaceBundle, surface: Surface) -> bool:
 
 
 def hirzebruch_with_polarization(n: int, H: Sequence[Number]) -> Surface:
-    """Build F_n (n>=1) carrying a GIVEN strictly-ample polarization H = a f + b s.
+    """Build F_n (n>=0) carrying a GIVEN strictly-ample polarization H = a f + b s.
 
-    Non-mutating glue for the E11-M5 polarization-dependence witness: constructs a
-    fresh frozen ``Surface`` on the FIXED F_n NS lattice (Gram ``[[0,1],[1,-n]]``,
-    basis f, s) reused from :func:`bridgeland_stability.varieties.hirzebruch`, with
-    ``d = <H,H>`` computed exactly so ``discriminant_H``/``_mu`` are self-consistent.
+    Constructs a fresh frozen ``Surface`` on the FIXED F_n NS lattice (Gram
+    ``[[0,1],[1,-n]]``, basis f, s), with ``d = <H,H>`` computed exactly so
+    ``discriminant_H`` / ``_mu`` stay self-consistent.  ``n = 0`` gives the genuine
+    rank-2 ``F_0 = P^1 x P^1`` lattice (the :func:`~bridgeland_stability.varieties.
+    hirzebruch` factory falls back to the rank-1 shim there, so we take the lattice
+    from :data:`~bridgeland_stability.varieties.P1xP1`).
 
-    Strict ampleness on F_n (Nakai): H.f = b > 0 and H.C_0 = a - n b > 0.  The
-    factory polarization H = n f + s = (n,1) is only nef-and-big (a - n b = 0) and
-    is honestly REFUSED here.  ``delta_H`` off P^2 is unchanged (Bogomolov floor 0;
-    the sharp polarization-dependent envelope stays the deferred G18 remainder).
+    Strict ampleness on F_n (Nakai): ``H.f = b > 0`` and ``H.C_0 = a - n b > 0``.  The
+    factory polarization ``H = n f + s = (n,1)`` is only nef-and-big (``a - n b = 0``)
+    and is honestly REFUSED here.  Note that for ``n >= 2`` the anticanonical class
+    ``-K = (n+2) f + 2 s`` is itself NOT ample (``a - n b = 2 - n <= 0``) -- F_n is a
+    del Pezzo surface only for ``n = 0, 1``.
+
+    Every ample class on ``F_n`` lies on the ray of some ``H`` with integer coordinates,
+    and both ``DLP_{H,V}`` and ``mu_H``-stability depend on ``H`` only through its ray,
+    so integer coordinates lose no generality: the polarization ``H_m = E + (n+m) F``
+    of arXiv:1907.06739 is the ray of ``(n + m) f + s``, i.e. ``(p, q)`` with
+    ``m = p/q - n``.
     """
-    if n < 1:
-        raise ValueError("hirzebruch_with_polarization needs n>=1 (F_0 = P1xP1)")
-    base = hirzebruch(n)
-    lat = base.ns_lattice
-    if lat is None or lat.rank != 2:            # defensive: n>=1 always gives rank 2
+    if n < 0:
+        raise ValueError("hirzebruch_with_polarization needs n>=0")
+    lat = P1xP1.ns_lattice if n == 0 else hirzebruch(n).ns_lattice
+    if lat is None or lat.rank != 2:            # defensive
         raise ValueError("expected the rank-2 F_n NS lattice")
     Hv = tuple(int(x) for x in H)
     if len(Hv) != 2:
@@ -436,53 +467,186 @@ def hirzebruch_with_polarization(n: int, H: Sequence[Number]) -> Surface:
     a, b = Hv
     if not (b > 0 and a - n * b > 0):
         raise ValueError(
-            f"H={Hv} is not strictly ample on F_{n} (need b>0 and a>n*b; the "
-            f"factory H=(n,1) is only nef-and-big)")
+            f"H={Hv} is not strictly ample on F_{n} (Nakai needs b>0 and a>n*b; the "
+            f"factory H=({n},1) is only nef-and-big, and -K is not ample for n>=2)")
     d = lat.self_pairing(Hv)                     # = 2ab - n b^2, an exact integer
     return Surface(
         name=f"F_{n} (H={a}f+{b}s, d={d})", d=int(d), K_H=-2, chi_O=1,
         picard_rank=2, kind="hirzebruch",
-        note=f"F_{n} strictly-ample H={Hv}; E11-M5 polarization-dependence witness.",
+        note=f"F_{n} strictly-ample H={Hv}; carries the CH Drezet-Le Potier envelope.",
         H=Hv, ns_lattice=lat,
     )
 
 
 def discriminant_H(xi: SurfaceBundle, surface: Surface) -> Fraction:
-    """Exact discriminant ``Delta(xi)`` on ``surface`` (Coskun-Huizenga norm.).
+    """The **H-projected** scalar discriminant ``1/2 mu^2 - ch2/(r d)``, ``d = H^2``.
 
-    ``Delta = 1/2 mu^2 - ch2/(r d)`` with ``mu = <c1, H>/(r d)`` and ``d = H^2``.
-    Bit-for-bit the CH convention used everywhere in this package (see
-    :meth:`bridgeland_stability.chern.ChernChar.discriminant`); never the doubled
-    ``discriminant_brief``.
+    .. warning::
+       This is **not** the Coskun-Huizenga discriminant when ``rho(X) >= 2``.  The
+       primary sources use the *full-NS* ``Delta = 1/2 <nu,nu> - ch2/r`` with
+       ``nu = c1/r`` -- see :func:`bridgeland_stability.dlp_hirzebruch.discriminant`,
+       which is what :func:`moduli_nonempty` compares against.  The two are related by
+
+           ``Delta = d * discriminant_H``   **iff**  ``c1`` is proportional to ``H``,
+
+       which holds automatically on every Picard-rank-1 surface, and on ``P^2``
+       (``d = 1``) they are equal.  For a non-diagonal ``c1`` on ``P^1 x P^1`` or ``F_n``
+       they genuinely differ, and ``discriminant_H`` -- being built from ``mu_H`` --
+       spuriously *depends on the polarization*, whereas ``Delta`` does not.
+
+    Retained as the H-numerical scalar of the ``(r, ch1.H, ch2)`` model (it agrees
+    bit-for-bit with :meth:`bridgeland_stability.chern.ChernChar.discriminant`) and for
+    comparison, exactly as ``discriminant_brief`` is retained.  See ``docs/CORRECTIONS.md``
+    (C7).
     """
     d = surface.d
     mu = _mu(xi, surface)
     return Fraction(1, 2) * mu * mu - xi.ch2 / (xi.r * d)
 
 
-def delta_H(xi: SurfaceBundle, surface: Surface, R_max: int = 60) -> Fraction:
+def _hirzebruch_envelope(xi: SurfaceBundle, surface: Surface, rank_max: int):
+    """The CH envelope on an ample-polarized ``F_e``, or ``None`` if that theory
+    does not apply to ``surface`` (not a Hirzebruch surface, or ``H`` not ample)."""
+    try:
+        hirzebruch_index(surface)
+    except NotImplementedError:
+        return None                       # P^2, K3, abelian, ... : no F_e NS lattice
+    if not is_ample(surface):
+        return None                       # the hirzebruch(n) factory H is only nef-and-big
+    return dlp_envelope(total_slope(xi), surface, rank_max)
+
+
+def delta_H(
+    xi: SurfaceBundle,
+    surface: Surface,
+    R_max: int = 60,
+    rank_max: int = DEFAULT_RANK_MAX,
+) -> Fraction:
     """The sharp non-emptiness bound ``delta_H(xi)`` for ``surface``'s polarization.
 
-    * On ``P^2`` (``surface.is_p2``) this is the PROVEN Drezet-Le Potier
-      closed-form curve :func:`bridgeland_stability.dlp.delta` evaluated at
-      ``mu`` -- regressing exactly to the pinned ``delta(1/2)=5/8``,
-      ``delta(1/3)=5/9``, ... .
-    * Off ``P^2`` there is no closed ``delta``-curve; the sharp,
-      polarization-dependent bound is the paper-tabulated / oracle-supplied datum
-      of E11-M4/M5.  This THIN slice returns the **Bogomolov floor** ``0`` (the
-      sanity floor ``Delta >= 0``); callers wanting a certified sharp target pass
-      it to :func:`moduli_nonempty` as ``delta_H_target``.
+    * On ``P^2`` this is the PROVEN Drezet-Le Potier closed-form curve
+      :func:`bridgeland_stability.dlp.delta` evaluated at ``mu`` -- regressing exactly to
+      the pinned ``delta(1/2)=5/8``, ``delta(1/3)=5/9``, ... .  ``R_max`` is the rank
+      cutoff of the ``P^2`` exceptional-bundle enumeration.
+    * On a Hirzebruch surface ``F_e`` with a **strictly ample** ``H`` this is the
+      Coskun-Huizenga Drezet-Le Potier envelope ``DLP_H(nu)``, computed natively from the
+      ``mu_H``-stable exceptional bundles of rank ``<= rank_max``
+      (:func:`bridgeland_stability.dlp_hirzebruch.dlp_envelope`).  It is the **sharp**
+      bound ``delta_H^{mu-s}(nu)`` when ``e in {0,1}`` and ``H`` is anticanonical
+      (arXiv:1907.06739 Cor. "deltaDLP"), and a **certified lower bound** for every other
+      ample ``H`` (Cor. "deltaDLPe").  This retires the G18 remainder.
+    * Otherwise (K3, abelian, or an ``F_n`` carrying only the nef-and-big factory
+      polarization) there is no envelope and this returns the **Bogomolov floor** ``0``.
 
-    The G12 faithful-computation guard is applied first: a torsion-canonical
-    surface (Enriques / bielliptic) is refused with the NS-lattice-refactor
-    error rather than silently mis-modelled.  Always exact (``Fraction``).
+    The G12 faithful-computation guard is applied first: a torsion-canonical surface
+    (Enriques / bielliptic) is refused with the NS-lattice-refactor error rather than
+    silently mis-modelled.  Always exact (``Fraction``).
     """
     require_faithful_computation(surface)  # G12 guard: torsion-canonical rows refused
     if surface.is_p2:
         mu = _mu(xi, surface)
         bundles = enumerate_exceptional(mu - 3, mu + 3, R_max)
         return delta(mu, bundles)
-    return Fraction(0)  # THIN slice: Bogomolov floor; sharp delta_H is E11-M4/M5.
+    env = _hirzebruch_envelope(xi, surface, rank_max)
+    return Fraction(0) if env is None else env.value
+
+
+def _is_integral_c1(xi: SurfaceBundle) -> bool:
+    return all(c.denominator == 1 for c in xi.c1)
+
+
+def _hirzebruch_verdict(
+    xi: SurfaceBundle, surface: Surface, disc: Fraction, env, rank_max: int
+) -> NonemptinessVerdict:
+    """The E11-M6 / G18 verdict on an ample-polarized Hirzebruch surface.
+
+    Four disjoint certified regimes, then an honest HEURISTIC remainder.
+
+    1. ``Delta < 0`` -- Bogomolov: no ``mu_H``-semistable sheaf.  **PROVEN empty.**
+    2. ``xi`` is a ``mu_H``-stable exceptional bundle, or ``V^{+m}`` for one.  Then
+       ``M_H(xi)`` contains that (semi)stable sheaf.  **PROVEN non-empty**, even though
+       such a class sits strictly BELOW the envelope -- the F_e analogue of the
+       Drezet-Le Potier exceptional disjunct on ``P^2``.
+    3. ``Delta < emptiness_bound(xi)`` -- some ``mu_H``-stable exceptional bundle ``V``
+       forces ``chi(V, W) <= 0`` (or ``chi(W, V) <= 0``) on any semistable ``W`` of this
+       slope, contradicting Riemann-Roch.  **PROVEN empty.**  Note ``emptiness_bound``
+       is strictly weaker than the envelope: it drops the ``(nu - nu_V).H = 0``,
+       ``nu != nu_V`` branch, which is not a theorem (see
+       :func:`bridgeland_stability.dlp_hirzebruch.emptiness_bound`).
+    4. ``Delta > delta_H`` with a **sharp and exact** envelope (``e in {0,1}``, ``H``
+       anticanonical, truncation certified): ``mu_H``-stable sheaves exist by
+       arXiv:1907.06739 Thm. "deltaSurface" (1) + Cor. "deltaDLP".  **PROVEN non-empty.**
+
+    Everything else -- notably the boundary ``Delta == delta_H``, and every verdict under
+    a merely lower-bounding envelope -- returns the inequality's truth value with
+    ``HEURISTIC`` rigor.  The boundary case is a recorded open question: Thm.
+    "deltaSurface" (1) needs a strict inequality.
+    """
+    mode = HNMode.DLP_ANTICANONICAL if env.sharp else HNMode.DLP_LOWER
+    dH = env.value
+    integral = _is_integral_c1(xi)
+    c1i = tuple(int(c) for c in xi.c1) if integral else None
+
+    exceptional = bool(integral and is_stable_exceptional(xi.r, c1i, surface))
+    semiexceptional = bool(integral and (exceptional or is_semiexceptional(xi, surface)))
+
+    def _cert(rigor, hyps, note):
+        return Certificate(rigor, tuple(hyps), (_CH,), note)
+
+    if disc < 0:
+        return NonemptinessVerdict(
+            False, disc, dH, mode,
+            _cert(Rigor.PROVEN, ("Bogomolov inequality: Delta >= 0 for any mu_H-semistable sheaf",),
+                  "Delta < 0: no semistable sheaf of this character exists, for any polarization."),
+            f"mode={mode.value}: Delta={disc} < 0 violates Bogomolov -> PROVEN empty", False)
+
+    if semiexceptional:
+        return NonemptinessVerdict(
+            True, disc, dH, mode,
+            _cert(Rigor.PROVEN,
+                  ("xi is (a direct sum of copies of) a mu_H-stable exceptional bundle",
+                   "Cor. 'DLPExceptional': Delta >= DLP_H^{<r}(nu) certifies mu_H-stability"),
+                  "exceptional/semiexceptional bundle: a non-empty point that may sit "
+                  "strictly BELOW the envelope (F_e analogue of the DLP disjunct)."),
+            f"mode={mode.value}: Delta={disc}, delta_H={dH}; exceptional bundle: "
+            f"non-empty {'point' if exceptional else 'semiexceptional class'} below the envelope",
+            True)
+
+    eb = emptiness_bound(xi, surface, rank_max)
+    if disc < eb:
+        return NonemptinessVerdict(
+            False, disc, dH, mode,
+            _cert(Rigor.PROVEN,
+                  ("a mu_H-stable exceptional bundle V with 0 < |(nu-nu_V).H| <= -1/2 K.H "
+                   "(or nu = nu_V with Delta != Delta_V) forces Delta >= DLP_{H,V}(nu)",
+                   "Sec. 5.4: Hom and Ext^2 vanish by stability + Serre duality"),
+                  "Delta below the certified emptiness bound: no Gieseker-semistable sheaf."),
+            f"mode={mode.value}: Delta={disc} < emptiness_bound={eb} -> PROVEN empty", False)
+
+    if env.certified_sharp and disc > dH:
+        return NonemptinessVerdict(
+            True, disc, dH, mode,
+            _cert(Rigor.PROVEN,
+                  ("e in {0,1} and H anticanonical: delta_H^{mu-s}(nu) = DLP_{-K}(nu) "
+                   "(Cor. 'deltaDLP')",
+                   "the rank truncation is certified exact (DLP_{-K,V} <= 1/2 + 1/(2 r_V^2))",
+                   "Thm. 'deltaSurface' (1): Delta > delta_H^{mu-s} gives mu_H-stable sheaves"),
+                  "Delta strictly above the sharp anticanonical envelope."),
+            f"mode={mode.value}: Delta={disc} > delta_H={dH} (sharp, exact) -> PROVEN nonempty",
+            False)
+
+    above = disc >= dH
+    why = ("the envelope is a certified LOWER bound only (H is not an anticanonical del "
+           "Pezzo polarization; delta_H may be computed by Kronecker modules)"
+           if not env.sharp else
+           "Delta sits ON the sharp envelope (Thm. 'deltaSurface' (1) needs a strict "
+           "inequality) or the rank truncation is not certified exact")
+    return NonemptinessVerdict(
+        above, disc, dH, mode,
+        Certificate(Rigor.HEURISTIC, (why,), (_CH,),
+                    "envelope comparison without a certified disjunct: HEURISTIC."),
+        f"mode={mode.value}: Delta={disc} {'>=' if above else '<'} delta_H={dH} "
+        f"(HEURISTIC: {why})", False)
 
 
 def moduli_nonempty(
@@ -494,6 +658,7 @@ def moduli_nonempty(
     delta_H_target: Optional[Number] = None,
     hn_source: Optional[HNMode] = None,
     R_max: int = 60,
+    rank_max: int = DEFAULT_RANK_MAX,
 ) -> NonemptinessVerdict:
     """Decide ``Delta(xi) >= delta_H(xi)`` for ``xi = (r, c1, ch2)`` on ``surface``.
 
@@ -524,7 +689,7 @@ def moduli_nonempty(
     """
     require_faithful_computation(surface)  # G12 guard
     xi = SurfaceBundle(r, c1, ch2)
-    disc = discriminant_H(xi, surface)
+    disc = discriminant(xi, surface)       # full-NS CH discriminant (G18a)
 
     if delta_H_target is not None:
         if hn_source not in _CERTIFIED:
@@ -538,7 +703,10 @@ def moduli_nonempty(
     elif surface.is_p2:
         dH, mode = delta_H(xi, surface, R_max), HNMode.DLP
     else:
-        dH = delta_H(xi, surface, R_max)
+        env = _hirzebruch_envelope(xi, surface, rank_max)
+        if env is not None and hn_source is None:
+            return _hirzebruch_verdict(xi, surface, disc, env, rank_max)
+        dH = delta_H(xi, surface, R_max, rank_max)
         mode = hn_source if hn_source in _CERTIFIED else HNMode.HEURISTIC
 
     cert = _MODE_CERT[mode]
@@ -549,5 +717,5 @@ def moduli_nonempty(
     if exceptional and not above_curve:
         reason += "; exceptional bundle: non-empty isolated point below the DLP curve"
     if mode not in _CERTIFIED:
-        reason += " (HEURISTIC: Bogomolov floor; sharp delta_H is E11-M4/M5)"
+        reason += " (HEURISTIC: Bogomolov floor; no Drezet-Le Potier envelope applies)"
     return NonemptinessVerdict(nonempty, disc, dH, mode, cert, reason, exceptional)

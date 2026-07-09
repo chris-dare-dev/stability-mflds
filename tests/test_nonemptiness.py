@@ -26,6 +26,7 @@ import pytest
 
 from bridgeland_stability.nonemptiness_rational import (
     delta_H,
+    discriminant,
     discriminant_H,
     hirzebruch_with_polarization,
     moduli_nonempty,
@@ -34,9 +35,10 @@ from bridgeland_stability.nonemptiness_rational import (
     PaperDeltaHTarget,
     paper_delta_H_targets,
 )
+from bridgeland_stability.dlp_hirzebruch import exceptional_discriminant, is_stable_exceptional
 from bridgeland_stability.exceptional_surface import SurfaceBundle, chi
 from bridgeland_stability.oracle.m2 import find_m2  # skip-guard only (matches test_oracle.py)
-from bridgeland_stability.varieties import P2, P1xP1, enriques
+from bridgeland_stability.varieties import P2, P1xP1, enriques, hirzebruch
 from bridgeland_stability.dlp import delta as dlp_delta
 from bridgeland_stability.dlp import moduli_nonempty as dlp_moduli_nonempty
 from bridgeland_stability.exceptional import Bundle, enumerate_exceptional
@@ -162,26 +164,35 @@ def test_p2_below_curve_nonexceptional_stays_empty():
     assert dlp_moduli_nonempty(Bundle(2, 1, F(1, 2)))["nonempty"] is False
 
 
-def test_exceptional_disjunct_is_p2_only():
-    # The exceptional disjunct is a P^2 (Pic = Z.H) fact; off P^2 the flag never
-    # fires (the sharp delta_H is delegated -- E11-M4/M5), so a HEURISTIC verdict
-    # is never silently upgraded via a spurious "exceptional" claim.
+def test_exceptional_disjunct_on_F0_needs_a_genuine_exceptional_bundle():
+    # (2,(1,0)) is NOT potentially exceptional on F_0: Lemma "excFacts" (2) forbids even
+    # rank when e is even.  So the disjunct must not fire, and the verdict is decided by
+    # the envelope alone -- never silently upgraded via a spurious "exceptional" claim.
     v = moduli_nonempty(2, (1, 0), 0, P1xP1)
     assert v.exceptional is False
-    assert v.mode is HNMode.HEURISTIC
+    assert v.mode is HNMode.DLP_ANTICANONICAL     # F_0 ships H = f+s, the -K ray
 
 
 # --------------------------------------------------------------------------
-# Acceptance (4): THIN slice off P^2 -- Bogomolov floor, HEURISTIC verdict.
+# E11-M6 / G18: off P^2 the Bogomolov floor is REPLACED by the natively computed
+# Coskun-Huizenga envelope.  This test previously pinned the deferred behaviour
+# (delta_H == 0, verdict "nonempty" with HEURISTIC rigor); the envelope now proves
+# the opposite, and the old verdict was wrong.
 # --------------------------------------------------------------------------
-def test_p1xp1_heuristic_floor():
+def test_p1xp1_envelope_proves_emptiness():
+    # xi = (2, f, 0) has full-NS Delta = 1/2 <nu,nu> - ch2/r = 0 (nu = f/2, <f,f> = 0),
+    # NOT the H-projected 1/32.  The line bundle O is a mu_H-stable exceptional bundle
+    # with w = nu - 0 = (1/2, 0), w.H = 1/2 (strictly inside the strip |w.H| <= 2), so any
+    # mu_H-semistable sheaf of this slope obeys Delta >= P(-w) - 0 = 1 + 1/2(0 - 1) = 1/2.
+    # Since 0 < 1/2 there is no such sheaf: M_H(xi) is PROVABLY EMPTY.
     v = moduli_nonempty(2, (1, 0), 0, P1xP1)
-    assert v.discriminant == F(1, 32)         # mu=1/4 -> 1/2*(1/4)^2
-    assert v.delta_H == F(0)                  # Bogomolov floor (sharp delta_H delegated)
-    assert v.nonempty is True                 # 1/32 >= 0
-    assert v.mode is HNMode.HEURISTIC
-    assert v.certified is False
-    assert v.certificate.rigor == Rigor.HEURISTIC
+    assert v.discriminant == F(0)                 # full-NS Delta (polarization-independent)
+    assert discriminant_H(SurfaceBundle(2, (1, 0), 0), P1xP1) == F(1, 32)   # the old surrogate
+    assert v.delta_H == F(1, 2)                   # DLP_{-K}(1/2, 0), floored by Cor. "K1/2"
+    assert v.nonempty is False
+    assert v.mode is HNMode.DLP_ANTICANONICAL
+    assert v.certificate.rigor == Rigor.PROVEN    # certified emptiness, not a floor guess
+    assert "PROVEN empty" in v.reason
 
 
 # --------------------------------------------------------------------------
@@ -206,9 +217,16 @@ def test_verdict_reports_mode():
     assert vp.certificate.rigor == Rigor.PROVEN
     assert "dlp" in vp.reason
 
-    vh = moduli_nonempty(2, (1, 0), 0, P1xP1)
+    # F_0 with H = f+s is the anticanonical ray -> the sharp envelope mode.
+    vk = moduli_nonempty(2, (1, 0), 0, P1xP1)
+    assert vk.mode is HNMode.DLP_ANTICANONICAL and vk.mode.value == "dlp_anticanonical"
+
+    # An F_n surface whose only polarization is the nef-and-big factory H has no
+    # envelope at all: the Bogomolov floor + HEURISTIC path is still reachable.
+    vh = moduli_nonempty(2, (1, 0), 0, hirzebruch(3))
     assert vh.mode is HNMode.HEURISTIC
     assert vh.certificate.rigor == Rigor.HEURISTIC
+    assert vh.delta_H == 0
     assert "HEURISTIC" in vh.reason
 
 
@@ -217,14 +235,21 @@ def test_verdict_reports_mode():
 # hn_source; an uncertified source (or none) is rejected.
 # --------------------------------------------------------------------------
 def test_certified_external_target_is_proven():
-    v = moduli_nonempty(2, (1, 0), 0, P1xP1,
-                        delta_H_target=F(1, 64), hn_source=HNMode.PAPER)
-    assert v.delta_H == F(1, 64)
-    assert v.discriminant == F(1, 32)
+    # An externally supplied target overrides the native envelope entirely (that is the
+    # E11-M4 paper hook / E11-M5 oracle hook).  Compared against the full-NS Delta = 2.
+    v = moduli_nonempty(2, (0, 0), F(-4), P1xP1,
+                        delta_H_target=F(1), hn_source=HNMode.PAPER)
+    assert v.delta_H == F(1)
+    assert v.discriminant == F(2)
     assert v.mode is HNMode.PAPER
     assert v.certified is True
     assert v.certificate.rigor == Rigor.PROVEN
-    assert v.nonempty is True                 # 1/32 >= 1/64
+    assert v.nonempty is True                 # 2 >= 1
+
+    # ...and the target really does override: an absurd target flips the verdict.
+    w = moduli_nonempty(2, (0, 0), F(-4), P1xP1,
+                        delta_H_target=F(5), hn_source=HNMode.PAPER)
+    assert w.nonempty is False and w.delta_H == F(5)
 
 
 def test_uncertified_target_rejected():
@@ -344,24 +369,34 @@ def test_paper_p2_targets_match_native_dlp():
     assert seen == 4
 
 
-def test_paper_p1xp1_normalization_conversion():
-    # The load-bearing normalization conversion (R3): for the c1||H entries on F_0
-    # the paper's full-NS Delta = 1/2 nu^2 - ch2/r equals d*discriminant_H, and the
-    # CH-package target is delta_H_paper/d.  The exceptional disjunct is P^2-only.
+def test_paper_p1xp1_targets_match_native_envelope():
+    # E11-M6 supersedes the M4 "/d" conversion: moduli_nonempty now compares against the
+    # paper's own full-NS Delta, so delta_H == delta_H_paper.  The c1||H identity
+    # Delta = d * discriminant_H is retained as a documented relation (it is exactly why
+    # the M4 rescaling worked for these two entries and nowhere else).  Crucially the
+    # target is no longer a transcription: dlp_envelope computes it natively.
+    from bridgeland_stability.dlp_hirzebruch import dlp_envelope, total_slope
+
     seen = 0
     for e in paper_delta_H_targets():
         if e.surface is not P1xP1:
             continue
         seen += 1
-        nu = tuple(F(x, e.r) for x in e.c1)                        # nu = c1/r, exact
-        Delta_paper = F(1, 2) * P1xP1.lattice.self_pairing(nu) - e.ch2 / e.r
         xi = SurfaceBundle(e.r, e.c1, e.ch2)
-        assert Delta_paper == P1xP1.d * discriminant_H(xi, P1xP1)  # c1||H identity
-        assert e.delta_H == e.delta_H_paper / P1xP1.d              # /d conversion
-        assert e.delta_H_paper == 1                                # controlling l.b.: chi(O_{F_0})
+        nu = total_slope(xi)
+        Delta = F(1, 2) * P1xP1.lattice.self_pairing(nu) - e.ch2 / e.r
+        assert discriminant(xi, P1xP1) == Delta                    # full-NS, exact
+        assert Delta == P1xP1.d * discriminant_H(xi, P1xP1)        # c1||H identity (relic)
+        assert e.delta_H == e.delta_H_paper == 1                   # controlling l.b.: chi(O_{F_0})
+
+        env = dlp_envelope(nu, P1xP1, 8)                           # NATIVE computation
+        assert env.value == e.delta_H_paper                        # regression vs the paper
+        assert env.exact and env.sharp                             # certified sharp truncation
+
         v = moduli_nonempty(e.r, e.c1, e.ch2, P1xP1,
                             delta_H_target=e.delta_H, hn_source=HNMode.PAPER)
-        assert v.exceptional is False                             # disjunct is P^2-only
+        assert v.nonempty is e.paper_nonempty
+        assert v.exceptional is False                              # not an exceptional bundle
     assert seen == 2
 
 
@@ -381,57 +416,87 @@ def test_paper_exceptional_coexists_with_target():
 
 
 # --------------------------------------------------------------------------
-# E11-M5 / G18c [PROVEN]: F_n polarization-dependence witness.
+# E11-M5 / G18c: F_n polarization-dependence witness -- REDONE for E11-M6 / G18.
 #
-# HONEST SCOPING (rules H1/H2).  delta_H(xi, surface) is polarization-INDEPENDENT
-# off P^2: it returns the Bogomolov FLOOR 0 for every non-P^2 surface regardless
-# of H (verified below: delta_H == 0 for BOTH polarizations).  A literal
-# "delta_H differs between two ample H" witness would therefore be FALSE (0 == 0);
-# the sharp polarization-dependent delta_H envelope on F_n (the Hirzebruch
-# exceptional-bundle DLP limiting procedure) is the DEFERRED G18 remainder and is
-# NOT computed here.  So the [PROVEN] witness is at the level of the quantities
-# the package GENUINELY computes on F_n for a FIXED class under two DIFFERENT
-# ample H: mu = <c1,H>/(r d), d = H^2, discriminant_H, and hence the
-# moduli_nonempty VERDICT -- all of which straddle and flip.  This is a real,
-# exact, machine-checkable polarization dependence that the P^2 model
-# (Pic(P^2) = Z.H, a single ample ray) STRUCTURALLY cannot express.
+# The original M5 witness was built on ``discriminant_H``, which depends on H by
+# construction (it is 1/2 mu_H^2 - ch2/(r d)).  Under the primary sources' actual
+# discriminant Delta = 1/2 <nu,nu> - ch2/r that class, xi = (2,(1,1),1/2), has
+# Delta = -1/8 < 0: it violates Bogomolov and is empty for EVERY polarization.  Its
+# apparent polarization dependence was an artefact of the H-projected surrogate.
+#
+# Delta is polarization-independent; the polarization dependence lives entirely in
+# delta_H.  The honest witness is therefore a class whose delta_H -- and hence whose
+# non-emptiness -- genuinely moves with H, both verdicts PROVEN.  See
+# docs/CORRECTIONS.md (C7) and tests/test_dlp_hirzebruch.py.
 # --------------------------------------------------------------------------
-def test_fn_polarization_dependence():
-    # Fixed F_1 class with NON-diagonal c1=(1,1) (not proportional to either ample
-    # H); a genuine effective integral class: c1^2 = <(1,1),(1,1)> = 2*1*1 - 1 = 1,
-    # so c2 = c1^2/2 - ch2 = 1/2 - 1/2 = 0 (realized e.g. by O + O(f+s)).  Two
-    # STRICTLY-ample H in different regions of the F_1 ample cone; the factory
-    # H=(1,1) is only nef-and-big (a-nb=0), so we build our own strictly-ample H.
+def test_old_m5_class_violates_bogomolov_under_the_true_discriminant():
     HA = hirzebruch_with_polarization(1, (2, 1))   # d = <(2,1),(2,1)> = 2*2 - 1 = 3
     HB = hirzebruch_with_polarization(1, (4, 1))   # d = <(4,1),(4,1)> = 2*4 - 1 = 7
-    assert HA.d == 3 and HB.d == 7                  # d = H^2 genuinely differs
+    assert HA.d == 3 and HB.d == 7
     xi = SurfaceBundle(2, (1, 1), F(1, 2))
-    assert xi.c1 == (F(1), F(1))                    # c2 = <c1,c1>/2 - ch2 = 1/2 - 1/2 = 0
 
-    # mu = <c1,H>/(r d) differs between the two ample H (exact Fractions):
-    muA = HA.lattice.pairing(xi.c1, HA.H) / (xi.r * HA.d)   # <(1,1),(2,1)>/(2*3)=2/6
-    muB = HB.lattice.pairing(xi.c1, HB.H) / (xi.r * HB.d)   # <(1,1),(4,1)>/(2*7)=4/14
-    assert muA == F(1, 3) and muB == F(2, 7) and muA != muB
+    # The H-projected surrogate straddles 0 and moves with H (this is the artefact):
+    assert discriminant_H(xi, HA) == F(-1, 36) and discriminant_H(xi, HB) == F(1, 196)
 
-    # discriminant_H = 1/2 mu^2 - ch2/(r d) differs AND straddles 0:
-    dA = discriminant_H(xi, HA)   # 1/2*(1/3)^2 - (1/2)/6  = 1/18 - 1/12 = -1/36
-    dB = discriminant_H(xi, HB)   # 1/2*(2/7)^2 - (1/2)/14 = 2/49  - 1/28 =  1/196
-    assert dA == F(-1, 36) and dB == F(1, 196) and dA < 0 < dB
+    # The true discriminant is the SAME for both, and negative: empty for every H.
+    assert discriminant(xi, HA) == discriminant(xi, HB) == F(-1, 8)
+    for S in (HA, HB):
+        v = moduli_nonempty(xi.r, xi.c1, xi.ch2, S)
+        assert v.discriminant == F(-1, 8)
+        assert v.nonempty is False
+        assert v.certificate.rigor == Rigor.PROVEN          # Bogomolov, not a floor guess
+        assert "Bogomolov" in v.certificate.hypotheses[0]
 
-    # HONEST SCOPING (rules H1/H2): delta_H is the Bogomolov FLOOR 0 for BOTH H --
-    # polarization-INDEPENDENT off P^2.  The sharp polarization-dependent delta_H
-    # envelope on F_n (Hirzebruch exceptional-bundle DLP) is the DEFERRED G18
-    # remainder, NOT computed here.  We assert EQUALITY (never fake a difference):
-    assert delta_H(xi, HA) == 0 and delta_H(xi, HB) == 0
 
-    # ...therefore the moduli_nonempty VERDICT genuinely differs (empty vs nonempty)
-    # -- a polarization dependence P^2 (Pic = Z.H, one ray) structurally cannot show.
+def test_fn_polarization_dependence():
+    # THE witness.  xi = (2, f+s, -1/2) on F_1 is the rank-2 exceptional character:
+    # Delta = 3/8 = 1/2 - 1/(2*2^2), c1^2 = <(1,1),(1,1)> = 2 - 1 = 1, c2 = 1/2 + 1/2 = 1.
+    # Paper Table 2 gives its stability interval I_V = (0, 1) in the H_m parametrization
+    # H_m = E + (e+m)F, which in the package (f, s) basis is the ray of (e+m, 1).
+    #
+    #   * H = (3,2)  <-> m = 3/2 - 1 = 1/2, the ANTICANONICAL polarization (-K = 3f+2s),
+    #     and 1/2 in I_V: V is a mu_H-stable exceptional bundle, so M_H(xi) is a single
+    #     reduced point -- NON-EMPTY -- sitting strictly BELOW its own envelope
+    #     delta_H = 5/8 (exactly as T_{P^2}(-1) sits below the P^2 DLP curve).
+    #   * H = (3,1)  <-> m = 3 - 1 = 2, OUTSIDE I_V: no mu_H-stable exceptional bundle of
+    #     this character exists.  The line bundle O(f) then certifies emptiness:
+    #     w = nu - nu_{O(f)} = (-1/2, 1/2), w.H = 1/2 > 0 (strict branch, inside the strip
+    #     since -1/2 K.H = 7/2), so any mu_H-semistable sheaf obeys
+    #     Delta >= P(-w) = 1 + 1/2((-w)^2 - (-w).K) = 1 + 1/2(-3/4 + 1/2) = 7/8 > 3/8.
+    #
+    # Delta is identical for both; delta_H is not; both verdicts are PROVEN.
+    xi = SurfaceBundle(2, (1, 1), F(-1, 2))
+    HK = hirzebruch_with_polarization(1, (3, 2))    # anticanonical, d = 2*6 - 4 = 8
+    HA = hirzebruch_with_polarization(1, (3, 1))    # m = 2,          d = 2*3 - 1 = 5
+    assert HK.d == 8 and HA.d == 5
+
+    # Delta does NOT depend on the polarization:
+    assert discriminant(xi, HK) == discriminant(xi, HA) == F(3, 8) == exceptional_discriminant(2)
+
+    # ...but the exceptional bundle exists only for the anticanonical H:
+    assert is_stable_exceptional(2, (1, 1), HK) is True
+    assert is_stable_exceptional(2, (1, 1), HA) is False
+
+    vK = moduli_nonempty(xi.r, xi.c1, xi.ch2, HK)
     vA = moduli_nonempty(xi.r, xi.c1, xi.ch2, HA)
-    vB = moduli_nonempty(xi.r, xi.c1, xi.ch2, HB)
-    assert vA.nonempty is False and vB.nonempty is True     # verdict flips with H
-    assert vA.mode is HNMode.HEURISTIC and vB.mode is HNMode.HEURISTIC
-    assert vA.discriminant == F(-1, 36) and vB.discriminant == F(1, 196)
-    assert vA.delta_H == 0 and vB.delta_H == 0              # floor unchanged both ways
+
+    # delta_H genuinely differs -- the real polarization dependence:
+    assert vK.delta_H == F(5, 8) and vA.delta_H == F(7, 8)
+    assert vK.delta_H != vA.delta_H
+
+    # ...and so does the verdict, with BOTH sides PROVEN:
+    assert vK.nonempty is True and vK.exceptional is True
+    assert vK.mode is HNMode.DLP_ANTICANONICAL
+    assert vK.certificate.rigor == Rigor.PROVEN
+    assert vK.discriminant < vK.delta_H              # strictly below its own envelope
+
+    assert vA.nonempty is False and vA.exceptional is False
+    assert vA.mode is HNMode.DLP_LOWER
+    assert vA.certificate.rigor == Rigor.PROVEN
+    assert "PROVEN empty" in vA.reason
+
+    # delta_H is sharp only on the anticanonical del Pezzo ray; off it, a lower bound.
+    assert delta_H(xi, HK) == F(5, 8) and delta_H(xi, HA) == F(7, 8)
 
 
 # --------------------------------------------------------------------------

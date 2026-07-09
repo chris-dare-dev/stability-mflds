@@ -20,7 +20,7 @@ verification. That correctness culture is the point of the project — respect i
 pip install -e .                    # core — pure standard library, zero runtime deps
 pip install -e ".[viz]"             # + plotly>=5.18 + matplotlib>=3.7 for figures
 pip install -e ".[dev]"             # + pytest (includes viz)
-pytest -q                           # run the suite (42 tests)
+pytest -q                           # run the suite (273 tests; 6 skip without Macaulay2)
 python examples/demo.py             # print the corrected validated-value table
 python examples/demo.py --figures   # write figures/*.{html,png}  (untracked build output)
 # figure-review gallery (use `python` on Windows):
@@ -35,7 +35,8 @@ sh scripts/install-hooks.sh         # once per clone: activate .githooks/pre-com
 | `chern` | `ChernChar(r, c, e)`: H-numerical Chern character on a surface. `slope(d)`, `discriminant(d)` (CH normalization), `discriminant_brief(d)` (doubled — comparison only), `twist(s, d)`, `central_charge(s, t, d)` → `(float, float)`, `to_latex(name)`. Plus the `Q()` coerce-to-`Fraction` helper and `Number = Union[int, Fraction]`. |
 | `varieties` | `Surface` / `Threefold` frozen dataclasses + catalog: `P2`, `P1xP1`, `P3`, `QUADRIC3`, `QUINTIC`, `BLOWUP_P3_POINT`; factories `K3(h2)`, `hirzebruch(n)`, `abelian_surface(h2)`, `abelian_threefold(d3)`, `fano_picard_one(name, d3)`. |
 | `exceptional` | Algorithm 1. `Bundle(r, c1, ch2)` with `.discriminant` / `.discriminant_brief` properties and constructors `Bundle.O(n)`, `Bundle.T_minus1()`, `Bundle.from_slope(alpha)`. Markov/ε-recursion: `enumerate_exceptional`, `exceptional_mediant`, `markov_numbers`, `is_markov_number`, `is_exceptional`, `chi` (Riemann–Roch). |
-| `dlp` | Algorithm 2. DLP curve as a fractal upper envelope: `delta(mu, bundles)`, `dlp_curve(...)` → `DLPCurve`, `control_interval_halfwidth`, `moduli_nonempty`. |
+| `dlp` | Algorithm 2. DLP curve as a fractal upper envelope: `delta(mu, bundles)`, `dlp_curve(...)` → `DLPCurve`, `control_interval_halfwidth`, `moduli_nonempty`. **P² only.** |
+| `dlp_hirzebruch` | E11-M6 / G18. The polarization-dependent CH Drézet–Le Potier envelope on `F_e`. `discriminant` (full-NS Δ — see invariant 2), `total_slope`, `hilbert_P`, `is_potentially_exceptional`, `is_stable_exceptional` (Cor. "DLPExceptional" rank induction), `is_semiexceptional`, `dlp_bundle` (`DLP_{H,V}`), `dlp_restricted` (`DLP_H^{<r}`, an exact max), `dlp_envelope` → `DLPEnvelope(value, exact, sharp, witness)`, `emptiness_bound` (strictly weaker than the envelope — only the branches that are theorems). |
 | `walls` | Algorithm 3. `numerical_wall(v, w, d)` (exact primitive), `compute_walls` (dense numerical set — *not* certified), `walls_from_subobjects`, `actual_walls` / `actual_walls_complete` (certified-necessary, finite set). Types: `Wall`, `VerticalWall`, `ActualWall` (`.center`, `.radius_sq` exact; `.radius` is `float`). |
 | `bg_check` | Algorithm 4. `check_bg_surface(...)`; re-exports `check_bg_threefold`. |
 | `threefold` | Algorithm 5. `ThreefoldChern(r, a1, a2, a3)`, `bmt_Q` / `bmt_Q_at` (return `Fraction`), `alpha_crit(v, beta, d3)` → `Optional[float]`, `bg_boundary_curve(...)` → `BGBoundary`. `Threefold.bg_proven` flags proven vs conjectural. |
@@ -56,10 +57,23 @@ sampling grid, `control_interval_halfwidth()`, `alpha_crit()`'s final
 `math.sqrt`, and everything in `viz/`.
 
 ### 2. The Coskun–Huizenga discriminant convention is fixed
-The standard throughout: `Δ = ½·μ² − ch₂/(r·d)`, `d = H²`. `discriminant_brief`
-(= 2Δ) exists only for comparison with the original brief — never make it the
-default. Every DLP, wall, and BG formula here is stated in CH normalization. Do
-not change this convention.
+Two objects, and they are **not** the same once ρ(X) ≥ 2. Do not conflate them.
+
+- **The CH discriminant** — the one in the primary sources, and the one non-emptiness
+  verdicts compare against: `Δ = ½·⟨ν,ν⟩ − ch₂/r`, with the *full-NS* total slope
+  `ν = c₁/r`. It is **polarization-independent**; all polarization dependence lives in
+  `δ_H`. See `dlp_hirzebruch.discriminant`.
+- **The H-numerical scalar** carried by the `(r, c = ch₁·H, ch₂)` model that the wall /
+  BG / P²-DLP machinery is built on: `Δ_H = ½·μ² − ch₂/(r·d)`, `μ = ⟨c₁,H⟩/(r·d)`,
+  `d = H²`. See `ChernChar.discriminant(d)` and `nonemptiness_rational.discriminant_H`.
+
+They satisfy `Δ = d · Δ_H` **iff c₁ ∥ H** — automatic at Picard rank 1, and on P²
+(`d = 1`) they are *equal*, which is why every pinned P² value is unambiguous. For a
+non-diagonal `c₁` on `P¹×P¹` / `F_n` they differ, and `Δ_H` is a lossy surrogate that
+spuriously depends on `H`. Read `docs/CORRECTIONS.md` §7 before touching either.
+
+`discriminant_brief` (= 2Δ_H) exists only for comparison with the original brief —
+never make it the default. Do not change either convention.
 
 ### 3. Every mathematical change requires two-way verification
 Before changing any formula, output value, or constant: (1) recompute it with
@@ -69,7 +83,7 @@ template. Math correctness is safety-critical here — this package exists becau
 it corrected a brief that got the mathematics wrong in several independent ways.
 
 ### 4. Pinned test values are ground truth
-The 42 tests pin exact values checked against the literature. If code produces a
+The suite pins exact values checked against the literature. If code produces a
 different answer, **the code is wrong** — do not edit a test to match a new
 value without completing step 3 above. A subset:
 - `delta(1/2) = 5/8`, `delta(1/3) = 5/9`, `delta(1/4) = 21/32`, `delta(2/5) = 13/25`
@@ -78,6 +92,11 @@ value without completing step 3 above. A subset:
 - P³ null-correlation bundle (2,0,1,0): `alpha_crit(β=1/2) = √3` (not √29/4)
 - K3 structure sheaf: `v(O) = (1,0,1)`, `⟨v,v⟩ = −2` (not `(1,0,−1)`)
 - Ranks 3 and 4 are **not** Markov numbers — no rank-3 or rank-4 exceptional bundle exists
+- `F_0` exceptional-bundle ranks are **odd** (`(1,(0,0))`, `(3,(1,1))`, `(5,(1,2))`, …);
+  `F_1` admits rank 2 (`(2,(1,1))`). Both tables reproduce Coskun–Huizenga
+  arXiv:1907.06739 Tables 1–2 bit-for-bit (`tests/test_dlp_hirzebruch.py`)
+- `DLP_{-K_{F_e}}(ν) ≥ 1/2` (the `F_e` analogue of the P² ½-clamp), and `δ_H = DLP_{-K}`
+  is **sharp only** for `e ∈ {0,1}` with the anticanonical `H`; otherwise a lower bound
 
 ### 5. viz is an optional extra — keep matplotlib/plotly imports lazy
 `import bridgeland_stability` must succeed with **zero** runtime dependencies.

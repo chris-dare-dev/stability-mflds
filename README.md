@@ -30,16 +30,29 @@ Pure-stdlib core: the algorithms need only `fractions`. Python ≥ 3.9.
 
 ## Convention
 
-Discriminant is the Coskun–Huizenga normalization (the literature standard):
+The discriminant is the Coskun–Huizenga one, built from the **full Néron–Severi
+total slope** `nu = c1 / r`:
 
 ```
-mu    = (ch1 . H) / (r * d),   d = H^2
-Delta = (1/2) mu^2 - ch2 / (r * d)
+Delta = (1/2) <nu, nu> - ch2 / r
 ```
 
-In it, line bundles have Δ=0, an exceptional bundle of rank r has
-Δ = ½(1 − 1/r²) < ½, and the DLP curve takes values in [½, 1].
-`ChernChar.discriminant_brief` returns `2·Δ` (the brief's doubled convention).
+It does **not** depend on the polarization — all polarization dependence lives in the
+non-emptiness bound `delta_H`. Line bundles have Δ=0, an exceptional bundle of rank r
+has Δ = ½(1 − 1/r²) < ½, and the P² DLP curve takes values in [½, 1].
+
+The `(r, ch1·H, ch2)` scalar model carrying the wall and Bogomolov–Gieseker machinery
+uses the **H-projected** surrogate
+
+```
+mu      = (ch1 . H) / (r * d),   d = H^2
+Delta_H = (1/2) mu^2 - ch2 / (r * d)
+```
+
+The two agree as `Delta = d * Delta_H` **only when c₁ ∥ H** — automatic at Picard
+rank 1, and *equal* on P², where `d = 1`. Off P², for a non-diagonal c₁, they differ:
+see [`docs/CORRECTIONS.md`](docs/CORRECTIONS.md) §7. `ChernChar.discriminant_brief`
+returns `2·Delta_H` (the brief's doubled convention), for comparison only.
 
 ## Quickstart
 
@@ -88,7 +101,8 @@ validated value and writes the figures in `figures/`.
 | `chern` | `ChernChar` (surface), slope/discriminant/twist/central charge |
 | `varieties` | `Surface`/`Threefold` data classes + catalog (P², P¹×P¹, K3, P³, quintic, …) |
 | `exceptional` | Algorithm 1: exceptional bundles (ε/Markov recursion), Riemann–Roch χ |
-| `dlp` | Algorithm 2: the DLP curve δ(μ) and the non-emptiness criterion |
+| `dlp` | Algorithm 2: the DLP curve δ(μ) and the non-emptiness criterion (P²) |
+| `dlp_hirzebruch` | The polarization-dependent DLP envelope `δ_H(ν)` on Hirzebruch surfaces 𝔽ₑ |
 | `walls` | Algorithm 3: `numerical_wall`, `compute_walls`, `actual_walls` (certified), `walls_from_subobjects` |
 | `bg_check` | Algorithm 4: Bogomolov–Gieseker (surface) |
 | `threefold` | Algorithm 5: tilt-BG boundary α_crit(β) (proven cases flagged) |
@@ -97,12 +111,14 @@ validated value and writes the figures in `figures/`.
 
 ## Validation
 
-`pytest` (42 tests) pins every documented value, e.g. δ(½)=5/8, δ(1/3)=5/9,
-the P²[2] wall (−5/2, 3/2), α_crit(β=½)=√3 for the P³ null-correlation bundle,
-⟨v(O),v(O)⟩=−2 on K3, and that ranks 3, 4 are not Markov numbers.
+`pytest` pins every documented value, e.g. δ(½)=5/8, δ(1/3)=5/9, the P²[2] wall
+(−5/2, 3/2), α_crit(β=½)=√3 for the P³ null-correlation bundle, ⟨v(O),v(O)⟩=−2 on
+K3, that ranks 3 and 4 are not Markov numbers, and — bit-for-bit — Tables 1 and 2
+of Coskun–Huizenga [1907.06739](https://arxiv.org/abs/1907.06739) (every exceptional
+bundle of rank ≤ 19 on 𝔽₀ and ≤ 20 on 𝔽₁, with its stability interval).
 
 ```bash
-pytest -q
+pytest -q     # 273 tests; 6 skip unless Macaulay2 is installed
 ```
 
 ## References

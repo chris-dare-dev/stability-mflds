@@ -7,14 +7,20 @@ computation, and against primary sources (read directly, not from memory). This
 document records each discrepancy, the correct statement, and the citation.
 
 The single most important convention choice: we use the **Coskun–Huizenga
-normalized discriminant**
+normalized discriminant**. On P² and on any Picard-rank-1 surface this is the
+H-numerical scalar
 
-> Δ = ½·μ² − ch₂/(r·d),   d = H²,   μ = (ch₁·H)/(r·d)
+> Δ_H = ½·μ² − ch₂/(r·d),   d = H²,   μ = (ch₁·H)/(r·d)
 
-(the brief used `Δ_brief = μ² − 2 ch₂/(r d) = 2·Δ`). The CH normalization is the
+(the brief used `Δ_brief = μ² − 2 ch₂/(r d) = 2·Δ_H`). The CH normalization is the
 one in which every DLP / wall / BG formula in the literature is stated, so all
-the explicit formulas below are clean in it. `ChernChar.discriminant_brief`
+the explicit formulas in §§1–6 below are clean in it. `ChernChar.discriminant_brief`
 returns the doubled value when needed.
+
+> ⚠️ Once ρ(X) ≥ 2 this scalar is **not** the discriminant of the primary sources.
+> The real one is the full-NS `Δ = ½⟨ν,ν⟩ − ch₂/r` with `ν = c₁/r`, and it is
+> polarization-independent. They coincide on P² (`d = 1`) and agree as `Δ = d·Δ_H`
+> whenever `c₁ ∥ H`. **See §7**, which records the error this conflation caused.
 
 ---
 
@@ -194,3 +200,77 @@ Bl_p(P³) (Schmidt, [1602.05055](https://arxiv.org/abs/1602.05055)) — flagged 
 *Source:* A. Bayer, E. Macrì, "MMP for moduli of sheaves on K3s via
 wall-crossing", [arXiv:1301.6968](https://arxiv.org/abs/1301.6968), Thm 2.15
 (dimension) and Thm 5.7 (classification).
+
+---
+
+## 7. The discriminant off P²: the H-projected scalar is NOT the CH discriminant
+
+**Status:** corrected in E11-M6 / G18 (`bridgeland_stability/dlp_hirzebruch.py`).
+This correction is against *the package's own earlier code*, not the brief.
+
+Through E11-M5 the rational-surface non-emptiness layer compared
+
+```
+discriminant_H(xi, X) = 1/2 mu^2 - ch2/(r d),   mu = <c1,H>/(r d),  d = H^2
+```
+
+against `delta_H`. But the primary sources define the discriminant with the **full
+Néron–Severi slope**, not its H-projection. Verbatim, Coskun–Huizenga
+[arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §2.1:
+
+> the *total slope* ν and *discriminant* Δ of a Chern character **v** ∈ K(X) are defined by
+> ν = c₁/r,  Δ = ½ν² − ch₂/r.
+
+### Why it matters
+
+* **Δ is polarization-independent.** `discriminant_H` is built out of μ_H, so it *moves
+  with H*. Every Bogomolov-type statement ("Δ ≥ 0", "Δ ≥ δ_H(ν)") is a statement about the
+  intrinsic Δ; the polarization dependence lives entirely in **δ_H**, never in Δ.
+* The two agree exactly when **c₁ ∥ H**:  `Δ = d · discriminant_H`. That covers every
+  Picard-rank-1 surface, and on P² (`d = 1`) they are *equal* — so **no P² value in this
+  package changes**, and all pinned P² tests are untouched.
+* For a non-diagonal c₁ at ρ(X) ≥ 2 they genuinely differ, and the surrogate is lossy.
+
+### Exact-`Fraction` evidence
+
+On `P^1 x P^1` (Gram `[[0,1],[1,0]]`, `H = f+s`, `d = 2`), for `xi = (2, f, 0)`:
+
+| quantity | value |
+|---|---|
+| ν = c₁/r | `(1/2, 0)` |
+| ⟨ν,ν⟩ | `0` |
+| **Δ = ½⟨ν,ν⟩ − ch₂/r** | **`0`** |
+| μ_H = ⟨c₁,H⟩/(r d) | `1/4` |
+| `discriminant_H` | `1/32` |
+
+`d · discriminant_H = 1/16 ≠ 0 = Δ` — the c₁ ∥ H identity fails, as it must, since
+`c₁ = f` is not proportional to `H = f+s`.
+
+The consequence is not cosmetic. With Δ = 0 the class lies *on* the Bogomolov boundary,
+and the line bundle `O` (a μ_H-stable exceptional bundle) forces every μ_H-semistable
+sheaf of this slope to satisfy `Δ ≥ P(−w) = 1/2` where `w = ν − ν(O) = (1/2,0)`. So
+`M_H(2, f, 0)` is **provably empty**. The old code, comparing `1/32 ≥ 0`, reported
+"non-empty (HEURISTIC)" — the wrong verdict, from the wrong invariant.
+
+### What changed
+
+* `dlp_hirzebruch.discriminant(xi, X)` is the CH discriminant and is what
+  `moduli_nonempty` now compares against.
+* `nonemptiness_rational.discriminant_H` is **retained**, documented as the H-projected
+  scalar of the `(r, ch1·H, ch2)` model (it still agrees bit-for-bit with
+  `ChernChar.discriminant(d)`), exactly as `discriminant_brief` is retained for
+  comparison. It is no longer the basis of any verdict.
+* The E11-M4 paper table dropped its `delta_H_paper / d` rescaling: targets are now
+  stored in the paper's own normalization.
+* The E11-M5 polarization-dependence witness was **rebuilt**. Its old class
+  `xi = (2,(1,1),1/2)` on 𝔽₁ has `Δ = −1/8 < 0` under the true discriminant — it violates
+  Bogomolov and is empty for *every* polarization; its apparent "polarization dependence"
+  (`discriminant_H` = −1/36 vs 1/196) was an artifact of the surrogate. The replacement
+  witness fixes `Δ = 3/8` and varies `H` so that **δ_H** moves (5/8 vs 7/8), flipping the
+  verdict with both sides PROVEN. See `tests/test_nonemptiness.py::test_fn_polarization_dependence`.
+
+*Sources:* Coskun–Huizenga, "Existence of semistable sheaves on Hirzebruch surfaces",
+[arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §2.1 (definition), §5.4 (the
+DLP surface), Cor. "deltaDLP" / "deltaDLPe" (sharpness), Cor. "K1/2" (the ½ floor),
+Cor. "DLPExceptional" (the rank induction), Lemma "excFacts" (2) (the integrality
+congruence), Tables 1–2 (regression data).
