@@ -116,3 +116,15 @@ Maciocia ([1202.4587](https://arxiv.org/abs/1202.4587)); Bayer–Macrì
 [1810.03434](https://arxiv.org/abs/1810.03434)); Veselov
 ([2501.06779](https://arxiv.org/abs/2501.06779)). Full per-claim citations in
 [docs/CORRECTIONS.md](docs/CORRECTIONS.md).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the mathematical correctness standard and
+for what this repository tracks — the library, its tests, and only the documents
+linked from this README. Planning, research and handoff notes are working artifacts
+and stay out of git; `.githooks/pre-commit` enforces that (`sh scripts/install-hooks.sh`).
+
+## License
+
+[MIT](LICENSE) © Chris Dare. A solo, personal research project — unrelated to any
+employer or platform.

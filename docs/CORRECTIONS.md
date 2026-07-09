@@ -183,10 +183,8 @@ Bl_p(P³) (Schmidt, [1602.05055](https://arxiv.org/abs/1602.05055)) — flagged 
   `MukaiVector.from_chern` / `mukai.classify_wall` apply it because √td(K3) =
   (1,0,1), raising radius² by exactly +2/d. For an **abelian** surface
   √td = (1,0,0), so the bare Chern triple `(r, c₁, ch₂)` *is already* the Mukai
-  vector — never apply the shift there (it injects a spurious +2/d). This is the
-  **canonical statement** of the caveat in the corrections ledger; it is restated
-  consistently (same math) in `docs/GOALS.md` §G2/§G3 and
-  `docs/LITERATURE_GAP_ANALYSIS.md` §1a.
+  vector — never apply the shift there (it injects a spurious +2/d). This ledger
+  is the **canonical statement** of the caveat; goals G2/G3 restate the same math.
 * The brief's wall trichotomy "δ²=−2/0/2" is wrong: the only invariants are
   **spherical s²=−2** and **isotropic w²=0** (no "+2" type — that was only the
   wrong-sign artifact of (1,0,−1)). The correct four-case classification is

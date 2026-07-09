@@ -206,7 +206,7 @@ def k3_wall(v: ChernChar, w: ChernChar, d: int) -> Wall | VerticalWall:
     Under e |-> e + r, e' |-> e' + r' the three minors satisfy: W_rc unchanged,
     W_re unchanged, W_ce |-> W_ce - W_rc, so the wall CENTER is invariant and
     radius^2 increases by EXACTLY +2/d relative to the bare numerical_wall
-    (PROVEN, Picard rank 1; docs/GOALS.md G3).  For the fixture v=(1,0,-2),
+    (PROVEN, Picard rank 1; goal G3).  For the fixture v=(1,0,-2),
     w=(1,-1,1/2) on d=2 this is center -5/2, radius^2 21/4 -- exactly 2/d = 1
     MORE than the abelian value 17/4.
 

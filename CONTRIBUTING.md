@@ -38,6 +38,7 @@ if in doubt, open an issue first.
 git clone https://github.com/chris-dare-dev/stability-mflds.git
 cd stability-mflds
 pip install -e ".[dev]"      # pytest + plotly + matplotlib
+sh scripts/install-hooks.sh  # activate the pre-commit hook (see below)
 ```
 
 The `[dev]` extra installs everything you need: `pytest>=7.4`, `plotly>=5.18`,
@@ -47,6 +48,42 @@ the Python standard library (`fractions`, `math`). For the core alone:
 ```bash
 pip install -e .
 ```
+
+On Windows without a POSIX shell, run
+`powershell -ExecutionPolicy Bypass -File scripts\install-hooks.ps1` instead. Both
+scripts just set `git config core.hooksPath .githooks`; that setting is local to a
+clone and is not carried by `git clone`, which is why it must be run once.
+
+---
+
+## What this repository tracks
+
+The library, its tests and examples, and a deliberately small set of documents:
+
+- the standard project files — `README.md`, `CLAUDE.md`, `CONTRIBUTING.md`,
+  `SECURITY.md`, `LICENSE`;
+- **[`docs/CORRECTIONS.md`](docs/CORRECTIONS.md)** — the only tracked document
+  under `docs/`, because the README links to it and the source cites it.
+
+Everything else is a **working artifact and stays out of git**: planning and
+research documents (`docs/ROADMAP.md`, `docs/GOALS.md`, `docs/HANDOFF.md`, the
+literature surveys and gap analyses), agent tooling (`.claude/`), and generated
+output (`figures/`, `*junit*.xml`). They may exist in a maintainer's working tree;
+they are not part of the project's public surface, and they go stale fast.
+
+`.gitignore` hides them; [`.githooks/pre-commit`](.githooks/pre-commit) refuses any
+commit that contains them, as a backstop against `git add -f`. Regenerate the
+figures with `python examples/demo.py --figures`.
+
+**To add a document to the repository**, in this order:
+
+1. link it from `README.md` — if the README does not link it, it does not belong;
+2. un-ignore it in `.gitignore`;
+3. add it to `ALLOWED_DOCS` in `.githooks/pre-commit`.
+
+Never cite an untracked document's path from a source docstring or a test — cite
+the goal or epic ID (`G3`, `E10`), which stays meaningful in a fresh clone. And do
+not add YAML frontmatter to a tracked document: vault metadata belongs in the vault.
 
 ---
 

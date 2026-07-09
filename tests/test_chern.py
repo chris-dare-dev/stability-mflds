@@ -23,7 +23,7 @@ Every asserted class is either literature-anchored or exactly re-derived:
   * ``ChernChar(2,0,-1/4)`` on ``d=1`` is the pinned P^2 wall class ``v`` from
     tests/test_walls.py (``Delta_v(CH) = 1/8``).
   * ``ChernChar(2,0,-3)`` on ``d=2`` is the G6 K3-accept class
-    (docs/GOALS.md, ``Delta == 3/4``).
+    (goal G6, ``Delta == 3/4``).
 
 The module imports only stdlib ``fractions`` plus ``pytest`` and
 ``bridgeland_stability.chern``; no viz / matplotlib is pulled in, so the

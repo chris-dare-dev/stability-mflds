@@ -1,0 +1,92 @@
+#!/bin/sh
+#
+# pre-commit -- keep working artifacts out of the repository.
+#
+# POLICY (mirrors .gitignore).  This repository tracks the library, its tests and
+# examples, plus:
+#   * the standard project documents at the root (README, CLAUDE, CONTRIBUTING,
+#     SECURITY, LICENSE, CHANGELOG, CODE_OF_CONDUCT), and
+#   * the documents the README links to directly, listed in ALLOWED_DOCS below.
+#
+# It does NOT track planning / research / handoff documents (ROADMAP, GOALS,
+# HANDOFF, surveys, gap analyses, revamp prompts), agent tooling (.claude/), or
+# generated output (figures/, *junit*.xml).  .gitignore already hides those; this
+# hook is the backstop for anything already tracked, or force-added with `git add -f`.
+#
+# Install:  sh scripts/install-hooks.sh      (or: git config core.hooksPath .githooks)
+# Bypass:   git commit --no-verify           (deliberate; a hook cannot stop you)
+#
+# It inspects the INDEX (`git ls-files --cached`), i.e. the tree about to be
+# committed -- not the diff against HEAD.  That distinction matters: re-adding an
+# already-tracked, unchanged file with `git add -f` produces no diff, so a
+# diff-based check would wave it through while it stayed in the repository.
+# Checking the index instead enforces the real invariant ("these paths are never
+# in the tree"), makes the check self-healing, and still lets the commit that
+# REMOVES such files land, because by then they are gone from the index.
+
+# Files under docs/ that may be committed.  Keep in sync with .gitignore.
+ALLOWED_DOCS="docs/CORRECTIONS.md"
+
+# Root-level markdown that may be committed.
+ALLOWED_ROOT_MD="README.md CLAUDE.md CONTRIBUTING.md SECURITY.md LICENSE.md CHANGELOG.md CODE_OF_CONDUCT.md"
+
+in_list() {
+	_needle=$1
+	_list=$2
+	for _item in $_list; do
+		if [ "$_item" = "$_needle" ]; then
+			return 0
+		fi
+	done
+	return 1
+}
+
+violations=""
+note() { violations="${violations}  ${1}
+      -> ${2}
+"; }
+
+# Every path in the index -- i.e. exactly the tree this commit will record.
+while IFS= read -r f; do
+	[ -n "$f" ] || continue
+	case "$f" in
+	.claude/*)
+		note "$f" "agent tooling: .claude/ is never committed"
+		;;
+	figures/*)
+		note "$f" "generated output: rebuild with 'python examples/demo.py --figures'"
+		;;
+	*junit*.xml)
+		note "$f" "transient test artifact"
+		;;
+	docs/*)
+		in_list "$f" "$ALLOWED_DOCS" ||
+			note "$f" "working document: only [$ALLOWED_DOCS] may be committed"
+		;;
+	*/*)
+		: # any other nested path (library, tests, examples, hooks, scripts): fine
+		;;
+	*.md)
+		in_list "$f" "$ALLOWED_ROOT_MD" ||
+			note "$f" "root markdown outside the standard set"
+		;;
+	esac
+done <<EOF
+$(git ls-files --cached)
+EOF
+
+if [ -n "$violations" ]; then
+	printf '\npre-commit: refusing to commit working artifacts.\n\n'
+	printf '%s' "$violations"
+	printf '\nThese belong on disk (and in the vault), not in git.  Fix with:\n'
+	printf '    git rm --cached <file>           # stop tracking, keep the file on disk\n'
+	printf '    git restore --staged <file>      # unstage an edit, keep it tracked\n\n'
+	printf 'If a document genuinely belongs in the repo, the README must link to it:\n'
+	printf '  1. link it from README.md\n'
+	printf '  2. un-ignore it in .gitignore\n'
+	printf '  3. add it to ALLOWED_DOCS in .githooks/pre-commit\n\n'
+	printf 'Deliberate override: git commit --no-verify\n\n'
+	exit 1
+fi
+
+exit 0

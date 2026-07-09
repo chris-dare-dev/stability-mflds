@@ -1,3 +1,4 @@
+# --- Python / build --------------------------------------------------------
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -9,5 +10,31 @@ dist/
 venv/
 .DS_Store
 
-# transient test / review artifacts
+# --- transient test / review artifacts -------------------------------------
 *junit*.xml
+
+# --- generated figures -----------------------------------------------------
+# Build output, not source.  Rebuild with:  python examples/demo.py --figures
+/figures/
+
+# --- agent + editor tooling artifacts --------------------------------------
+# Claude Code config, subagent workflow scripts, scratch notes.  These describe
+# how the work was done on one machine; they are not part of the library.
+/.claude/
+
+# --- working documents: planning, research, handoffs -----------------------
+# POLICY.  This repository tracks only the standard project documents at the
+# root -- README.md, CLAUDE.md, CONTRIBUTING.md, SECURITY.md, LICENSE -- plus
+# the documents the README links to directly, which live under docs/ and are
+# un-ignored one by one below.
+#
+# Everything else under docs/ is a working artifact: ROADMAP, GOALS, HANDOFF,
+# literature surveys, gap analyses, revamp prompts, and any agent-generated
+# planning note.  They stay on disk (and in the Obsidian vault); they do not go
+# into git.  The pre-commit hook in .githooks/ enforces this -- see
+# CONTRIBUTING.md.
+#
+# Adding a doc here is a deliberate act: un-ignore it ONLY if the README links
+# to it, and add it to ALLOWED_DOCS in .githooks/pre-commit at the same time.
+/docs/*
+!/docs/CORRECTIONS.md

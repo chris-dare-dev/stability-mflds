@@ -269,9 +269,9 @@ def is_exceptional_collection(
     diagonal, strictly-lower triangle zero).
 
     Genuine sheaf-level exceptionality ``Ext^{>0}(E_i, E_i) = 0`` is delegated
-    to G16 (E10) and is NEVER asserted by the core (docs/ROADMAP.md E11-M2
-    acceptance).  A ``True`` return is therefore a numerical *necessary*
-    certificate, not a proof of exceptionality.
+    to G16 (E10) and is NEVER asserted by the core (E11-M2 acceptance).  A
+    ``True`` return is therefore a numerical *necessary* certificate, not a
+    proof of exceptionality.
     """
     G = euler_gram(bundles, surface)
     for i in range(len(G)):

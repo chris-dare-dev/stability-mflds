@@ -10,8 +10,7 @@ zero-third-party-dependency; only *calling* an oracle function needs M2.
 Host-path note [UNVERIFIED on Windows]: on Windows, Macaulay2 runs either
 natively or under WSL; the discovered invocation (``BRIDGELAND_M2`` env override,
 then ``shutil.which('M2')``) has NOT been verified on this host -- confirm the M2
-call before relying on any oracle value.  See docs/GOALS.md G16 and
-docs/ROADMAP.md E10.
+call before relying on any oracle value.  (Goal G16; epic E10.)
 
 E10-M2 (Euler-pairing cross-check) note: the *mathematics* of
 :func:`chi_via_ext` / :func:`ext_dims` is **[PROVEN]** -- P^2 / K3 line-bundle
