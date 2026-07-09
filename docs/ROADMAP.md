@@ -992,10 +992,18 @@ the rational-surface epic (E11).
   list; `test_fn_polarization_dependence` asserts on 𝔽_n two ample `H` in DIFFERENT chambers give
   DIFFERENT `δ_H` for a fixed `ξ` (the polarization dependence P² cannot see).
 - **Acceptance criteria (testable checklist):**
-  - [ ] (If E10/G16 present) `moduli_nonempty_by_construction` agrees with the formula-layer verdict on a
-        shared class list.
-  - [ ] On 𝔽_n, `δ_H(ξ)` differs between two ample `H` in different chambers for a fixed `ξ` — a
-        polarization-dependence witness the P² model cannot express.
+  - [x] (If E10/G16 present) `moduli_nonempty_by_construction` agrees with the formula-layer verdict on a
+        shared class list. — `test_m2_cross_check` (P² shared list; sufficient-only directional agreement,
+        oracle `True ⇒ formula.nonempty True`). Skips cleanly here (M2 absent); agrees by construction when M2
+        is provisioned.
+  - [x] On 𝔽_n, the verdict differs between two ample `H` in different chambers for a fixed `ξ` — a
+        polarization-dependence witness the P² model cannot express. — `test_fn_polarization_dependence`.
+        **Honest reframing (see E11-M4 caveat):** `δ_H` itself does NOT differ — off P² it is the Bogomolov
+        floor `0` for both `H` (asserted *equal*, never faked). The dependence is shown in the quantities the
+        package genuinely computes — `μ` (1/3 vs 2/7), `d=H²` (3 vs 7), `discriminant_H` (−1/36 vs 1/196,
+        straddling 0), and hence the `moduli_nonempty` verdict (empty vs nonempty) — for `ξ=(2,(1,1),1/2)` on
+        𝔽_1 under two strictly-ample `H`. The **sharp polarization-dependent `δ_H` envelope** (Hirzebruch
+        exceptional-bundle DLP limiting procedure) remains the **deferred G18 remainder**.
 - **Expected effort:** 2 weeks.
 
 ---

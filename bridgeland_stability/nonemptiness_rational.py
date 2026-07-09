@@ -78,7 +78,7 @@ from .dlp import delta
 from .exceptional import Bundle, enumerate_exceptional, is_exceptional
 from .exceptional_surface import SurfaceBundle
 from .rigor import Certificate, Rigor
-from .varieties import Surface, P2, P1xP1, require_faithful_computation
+from .varieties import Surface, P2, P1xP1, hirzebruch, require_faithful_computation
 
 __all__ = [
     "HNMode",
@@ -86,6 +86,7 @@ __all__ = [
     "PaperDeltaHTarget",
     "discriminant_H",
     "delta_H",
+    "hirzebruch_with_polarization",
     "moduli_nonempty",
     "paper_delta_H_targets",
 ]
@@ -408,6 +409,42 @@ def _is_p2_exceptional(xi: SurfaceBundle, surface: Surface) -> bool:
     if c1.denominator != 1:
         return False
     return is_exceptional(Bundle(xi.r, int(c1), xi.ch2))
+
+
+def hirzebruch_with_polarization(n: int, H: Sequence[Number]) -> Surface:
+    """Build F_n (n>=1) carrying a GIVEN strictly-ample polarization H = a f + b s.
+
+    Non-mutating glue for the E11-M5 polarization-dependence witness: constructs a
+    fresh frozen ``Surface`` on the FIXED F_n NS lattice (Gram ``[[0,1],[1,-n]]``,
+    basis f, s) reused from :func:`bridgeland_stability.varieties.hirzebruch`, with
+    ``d = <H,H>`` computed exactly so ``discriminant_H``/``_mu`` are self-consistent.
+
+    Strict ampleness on F_n (Nakai): H.f = b > 0 and H.C_0 = a - n b > 0.  The
+    factory polarization H = n f + s = (n,1) is only nef-and-big (a - n b = 0) and
+    is honestly REFUSED here.  ``delta_H`` off P^2 is unchanged (Bogomolov floor 0;
+    the sharp polarization-dependent envelope stays the deferred G18 remainder).
+    """
+    if n < 1:
+        raise ValueError("hirzebruch_with_polarization needs n>=1 (F_0 = P1xP1)")
+    base = hirzebruch(n)
+    lat = base.ns_lattice
+    if lat is None or lat.rank != 2:            # defensive: n>=1 always gives rank 2
+        raise ValueError("expected the rank-2 F_n NS lattice")
+    Hv = tuple(int(x) for x in H)
+    if len(Hv) != 2:
+        raise ValueError("H must be a length-2 NS vector (a f + b s)")
+    a, b = Hv
+    if not (b > 0 and a - n * b > 0):
+        raise ValueError(
+            f"H={Hv} is not strictly ample on F_{n} (need b>0 and a>n*b; the "
+            f"factory H=(n,1) is only nef-and-big)")
+    d = lat.self_pairing(Hv)                     # = 2ab - n b^2, an exact integer
+    return Surface(
+        name=f"F_{n} (H={a}f+{b}s, d={d})", d=int(d), K_H=-2, chi_O=1,
+        picard_rank=2, kind="hirzebruch",
+        note=f"F_{n} strictly-ample H={Hv}; E11-M5 polarization-dependence witness.",
+        H=Hv, ns_lattice=lat,
+    )
 
 
 def discriminant_H(xi: SurfaceBundle, surface: Surface) -> Fraction:

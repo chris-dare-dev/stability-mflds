@@ -27,6 +27,7 @@ import pytest
 from bridgeland_stability.nonemptiness_rational import (
     delta_H,
     discriminant_H,
+    hirzebruch_with_polarization,
     moduli_nonempty,
     NonemptinessVerdict,
     HNMode,
@@ -34,6 +35,7 @@ from bridgeland_stability.nonemptiness_rational import (
     paper_delta_H_targets,
 )
 from bridgeland_stability.exceptional_surface import SurfaceBundle, chi
+from bridgeland_stability.oracle.m2 import find_m2  # skip-guard only (matches test_oracle.py)
 from bridgeland_stability.varieties import P2, P1xP1, enriques
 from bridgeland_stability.dlp import delta as dlp_delta
 from bridgeland_stability.dlp import moduli_nonempty as dlp_moduli_nonempty
@@ -376,6 +378,87 @@ def test_paper_exceptional_coexists_with_target():
     assert v.exceptional is True
     assert chi(xi, xi, P2) == 1                                   # genuine exceptional bundle
     assert dlp_moduli_nonempty(Bundle(5, 2, e.ch2))["nonempty"] is True
+
+
+# --------------------------------------------------------------------------
+# E11-M5 / G18c [PROVEN]: F_n polarization-dependence witness.
+#
+# HONEST SCOPING (rules H1/H2).  delta_H(xi, surface) is polarization-INDEPENDENT
+# off P^2: it returns the Bogomolov FLOOR 0 for every non-P^2 surface regardless
+# of H (verified below: delta_H == 0 for BOTH polarizations).  A literal
+# "delta_H differs between two ample H" witness would therefore be FALSE (0 == 0);
+# the sharp polarization-dependent delta_H envelope on F_n (the Hirzebruch
+# exceptional-bundle DLP limiting procedure) is the DEFERRED G18 remainder and is
+# NOT computed here.  So the [PROVEN] witness is at the level of the quantities
+# the package GENUINELY computes on F_n for a FIXED class under two DIFFERENT
+# ample H: mu = <c1,H>/(r d), d = H^2, discriminant_H, and hence the
+# moduli_nonempty VERDICT -- all of which straddle and flip.  This is a real,
+# exact, machine-checkable polarization dependence that the P^2 model
+# (Pic(P^2) = Z.H, a single ample ray) STRUCTURALLY cannot express.
+# --------------------------------------------------------------------------
+def test_fn_polarization_dependence():
+    # Fixed F_1 class with NON-diagonal c1=(1,1) (not proportional to either ample
+    # H); a genuine effective integral class: c1^2 = <(1,1),(1,1)> = 2*1*1 - 1 = 1,
+    # so c2 = c1^2/2 - ch2 = 1/2 - 1/2 = 0 (realized e.g. by O + O(f+s)).  Two
+    # STRICTLY-ample H in different regions of the F_1 ample cone; the factory
+    # H=(1,1) is only nef-and-big (a-nb=0), so we build our own strictly-ample H.
+    HA = hirzebruch_with_polarization(1, (2, 1))   # d = <(2,1),(2,1)> = 2*2 - 1 = 3
+    HB = hirzebruch_with_polarization(1, (4, 1))   # d = <(4,1),(4,1)> = 2*4 - 1 = 7
+    assert HA.d == 3 and HB.d == 7                  # d = H^2 genuinely differs
+    xi = SurfaceBundle(2, (1, 1), F(1, 2))
+    assert xi.c1 == (F(1), F(1))                    # c2 = <c1,c1>/2 - ch2 = 1/2 - 1/2 = 0
+
+    # mu = <c1,H>/(r d) differs between the two ample H (exact Fractions):
+    muA = HA.lattice.pairing(xi.c1, HA.H) / (xi.r * HA.d)   # <(1,1),(2,1)>/(2*3)=2/6
+    muB = HB.lattice.pairing(xi.c1, HB.H) / (xi.r * HB.d)   # <(1,1),(4,1)>/(2*7)=4/14
+    assert muA == F(1, 3) and muB == F(2, 7) and muA != muB
+
+    # discriminant_H = 1/2 mu^2 - ch2/(r d) differs AND straddles 0:
+    dA = discriminant_H(xi, HA)   # 1/2*(1/3)^2 - (1/2)/6  = 1/18 - 1/12 = -1/36
+    dB = discriminant_H(xi, HB)   # 1/2*(2/7)^2 - (1/2)/14 = 2/49  - 1/28 =  1/196
+    assert dA == F(-1, 36) and dB == F(1, 196) and dA < 0 < dB
+
+    # HONEST SCOPING (rules H1/H2): delta_H is the Bogomolov FLOOR 0 for BOTH H --
+    # polarization-INDEPENDENT off P^2.  The sharp polarization-dependent delta_H
+    # envelope on F_n (Hirzebruch exceptional-bundle DLP) is the DEFERRED G18
+    # remainder, NOT computed here.  We assert EQUALITY (never fake a difference):
+    assert delta_H(xi, HA) == 0 and delta_H(xi, HB) == 0
+
+    # ...therefore the moduli_nonempty VERDICT genuinely differs (empty vs nonempty)
+    # -- a polarization dependence P^2 (Pic = Z.H, one ray) structurally cannot show.
+    vA = moduli_nonempty(xi.r, xi.c1, xi.ch2, HA)
+    vB = moduli_nonempty(xi.r, xi.c1, xi.ch2, HB)
+    assert vA.nonempty is False and vB.nonempty is True     # verdict flips with H
+    assert vA.mode is HNMode.HEURISTIC and vB.mode is HNMode.HEURISTIC
+    assert vA.discriminant == F(-1, 36) and vB.discriminant == F(1, 196)
+    assert vA.delta_H == 0 and vB.delta_H == 0              # floor unchanged both ways
+
+
+# --------------------------------------------------------------------------
+# E11-M5 / G16 optional cross-check.  oracle.moduli_nonempty_by_construction is
+# P^2-only and M2-gated; on this host M2 is ABSENT, so this test SKIPS cleanly
+# (exactly like the E10 @requires_m2 tests in tests/test_oracle.py).  When a user
+# provisions M2 it asserts the sufficient-only constructive witness AGREES with
+# the formula-layer moduli_nonempty on a shared P^2 class list.  The oracle import
+# is kept LOCAL to the test body, preserving the core-never-imports-oracle
+# invariant (nonemptiness_rational never imports oracle at module top level).
+# --------------------------------------------------------------------------
+@pytest.mark.skipif(find_m2() is None, reason="Macaulay2 (M2) not installed")
+def test_m2_cross_check():
+    from bridgeland_stability.oracle.m2 import moduli_nonempty_by_construction
+    # Shared P^2 class list inside the oracle's rank-1 ideal-sheaf witness family.
+    # moduli_nonempty_by_construction is SUFFICIENT-ONLY: returns True or None,
+    # NEVER False.  Agreement = "when the oracle CONSTRUCTS a witness (True), the
+    # formula layer also says nonempty".
+    shared = [(1, 0, F(-2)),   # I_Z, l=2    -> formula disc 2   >= delta(0)=1  -> True
+              (1, 0, F(0)),    # O,   l=0    -> exceptional bundle             -> True
+              (1, 2, F(1))]    # I_Z(2), l=1 -> disc 1 >= delta(2)=1 (boundary) -> True
+    for r, c1, ch2 in shared:
+        oracle = moduli_nonempty_by_construction(r, c1, ch2, P2)
+        formula = moduli_nonempty(r, (c1,), ch2, P2)
+        assert oracle is not False               # witness never claims emptiness
+        if oracle is True:                       # only assert on constructed classes
+            assert formula.nonempty is True      # oracle AGREES with formula layer
 
 
 # --------------------------------------------------------------------------
