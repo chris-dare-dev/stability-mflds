@@ -1,0 +1,30 @@
+# Obsidian frontmatter strip.
+#
+# This repository sits inside an Obsidian vault whose maintenance script
+# (<vault>/.obsidian/add_properties.py, fired from a detached Claude Code PostToolUse
+# hook) stamps `project:` / `type:` / `authorship:` / `tags:` frontmatter -- and
+# sometimes a "## Related notes (Obsidian)" footer -- into these documents, and rewrites
+# them as CRLF.  They are tracked, so without a filter that metadata lands in the public
+# history and the tree is dirty after every edit.
+#
+# The `obsidian-strip` clean filter keeps the metadata in the WORKING TREE (Obsidian
+# needs it) while git stores the clean, LF-normalized version.  It needs per-clone local
+# config, which is NOT carried by `git clone`:
+#
+#     sh scripts/setup-clone.sh
+#
+# or, by hand:
+#
+#     git config filter.obsidian-strip.clean "python scripts/strip-obsidian-frontmatter.py"
+#     git config filter.obsidian-strip.smudge cat
+#
+# Without that config git leaves the content untouched and the frontmatter would be
+# committable -- so .githooks/pre-commit independently rejects any staged document that
+# still carries a vault frontmatter block, and tells you to run setup-clone.sh.
+#
+# Keep this list in sync with what the stamper touches: its in_scope() matches a repo's
+# CLAUDE.md, README.md, AGENTS.md, and anything under plans/ or docs/.
+/CLAUDE.md    filter=obsidian-strip
+/README.md    filter=obsidian-strip
+/AGENTS.md    filter=obsidian-strip
+/docs/*.md    filter=obsidian-strip

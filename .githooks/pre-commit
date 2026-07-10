@@ -13,7 +13,7 @@
 # generated output (figures/, *junit*.xml).  .gitignore already hides those; this
 # hook is the backstop for anything already tracked, or force-added with `git add -f`.
 #
-# Install:  sh scripts/install-hooks.sh      (or: git config core.hooksPath .githooks)
+# Install:  sh scripts/setup-clone.sh       (or: git config core.hooksPath .githooks)
 # Bypass:   git commit --no-verify           (deliberate; a hook cannot stop you)
 #
 # It inspects the INDEX (`git ls-files --cached`), i.e. the tree about to be
@@ -23,6 +23,11 @@
 # Checking the index instead enforces the real invariant ("these paths are never
 # in the tree"), makes the check self-healing, and still lets the commit that
 # REMOVES such files land, because by then they are gone from the index.
+#
+# It ALSO rejects any tracked markdown whose STAGED CONTENT still carries an Obsidian
+# frontmatter block.  That means the `obsidian-strip` clean filter is not configured in
+# this clone (it is local git config, which `git clone` does not carry), so vault
+# metadata is about to enter the history.  See .gitattributes; fix with setup-clone.sh.
 
 # Files under docs/ that may be committed.  Keep in sync with .gitignore.
 ALLOWED_DOCS="docs/CORRECTIONS.md"
@@ -45,6 +50,20 @@ violations=""
 note() { violations="${violations}  ${1}
       -> ${2}
 "; }
+
+# True when the file's STAGED blob opens with a vault frontmatter block, i.e. the
+# obsidian-strip clean filter did not run.  Only `project:` / `type:` / `authorship:`
+# count -- a document with its own legitimate YAML frontmatter is left alone.
+has_vault_frontmatter() {
+	blob=$(git show ":$1" 2>/dev/null | head -60) || return 1
+	case "$blob" in
+	---*) ;;
+	*) return 1 ;;
+	esac
+	printf '%s\n' "$blob" |
+		sed -n '2,/^---[ 	]*$/p' |
+		grep -qE '^[ 	]*(project|type|authorship)[ 	]*:'
+}
 
 # Every path in the index -- i.e. exactly the tree this commit will record.
 while IFS= read -r f; do
@@ -71,9 +90,29 @@ while IFS= read -r f; do
 			note "$f" "root markdown outside the standard set"
 		;;
 	esac
+	case "$f" in
+	*.md)
+		if has_vault_frontmatter "$f"; then
+			frontmatter="${frontmatter}  ${f}
+"
+		fi
+		;;
+	esac
 done <<EOF
 $(git ls-files --cached)
 EOF
+
+if [ -n "${frontmatter:-}" ]; then
+	printf '\npre-commit: Obsidian vault frontmatter is about to be committed.\n\n'
+	printf '%s' "$frontmatter"
+	printf '\nThe obsidian-strip clean filter is not configured in this clone, so the\n'
+	printf 'stamper metadata was not removed on `git add`.  It is LOCAL git config and\n'
+	printf 'is not carried by `git clone`.  Fix once, then re-stage:\n\n'
+	printf '    sh scripts/setup-clone.sh\n'
+	printf '    git add <files>\n\n'
+	printf 'See .gitattributes and scripts/strip-obsidian-frontmatter.py.\n\n'
+	exit 1
+fi
 
 if [ -n "$violations" ]; then
 	printf '\npre-commit: refusing to commit working artifacts.\n\n'

@@ -38,7 +38,7 @@ if in doubt, open an issue first.
 git clone https://github.com/chris-dare-dev/stability-mflds.git
 cd stability-mflds
 pip install -e ".[dev]"      # pytest + plotly + matplotlib
-sh scripts/install-hooks.sh  # activate the pre-commit hook (see below)
+sh scripts/setup-clone.sh    # configure this clone's local git settings (see below)
 ```
 
 The `[dev]` extra installs everything you need: `pytest>=7.4`, `plotly>=5.18`,
@@ -50,9 +50,9 @@ pip install -e .
 ```
 
 On Windows without a POSIX shell, run
-`powershell -ExecutionPolicy Bypass -File scripts\install-hooks.ps1` instead. Both
-scripts just set `git config core.hooksPath .githooks`; that setting is local to a
-clone and is not carried by `git clone`, which is why it must be run once.
+`powershell -ExecutionPolicy Bypass -File scripts\setup-clone.ps1` instead. The script
+sets two things in `.git/config` — `core.hooksPath` and the `obsidian-strip` clean
+filter. Neither is carried by `git clone`, which is why it must be run once per clone.
 
 ---
 
@@ -82,8 +82,32 @@ figures with `python examples/demo.py --figures`.
 3. add it to `ALLOWED_DOCS` in `.githooks/pre-commit`.
 
 Never cite an untracked document's path from a source docstring or a test — cite
-the goal or epic ID (`G3`, `E10`), which stays meaningful in a fresh clone. And do
-not add YAML frontmatter to a tracked document: vault metadata belongs in the vault.
+the goal or epic ID (`G3`, `E10`), which stays meaningful in a fresh clone.
+
+### Obsidian frontmatter
+
+This repository sits inside an Obsidian vault whose maintenance script stamps
+`project:` / `type:` / `authorship:` YAML frontmatter into `CLAUDE.md`, `README.md`
+and `docs/*.md`, and rewrites them with CRLF. **Leave that metadata in place** — the
+working tree is meant to have it.
+
+[`.gitattributes`](.gitattributes) routes those paths through the `obsidian-strip`
+**clean filter** ([`scripts/strip-obsidian-frontmatter.py`](scripts/strip-obsidian-frontmatter.py)),
+so git stores the clean, LF-normalized version while Obsidian keeps its metadata. The
+filter is conservative (it only removes a block carrying an Obsidian key) and fail-safe
+(on any error it passes content through unchanged, so it can never truncate a commit).
+
+The filter driver is **local git config**, which `git clone` does not carry —
+`scripts/setup-clone.sh` installs it. If you skip that step, the frontmatter is not
+stripped and [`.githooks/pre-commit`](.githooks/pre-commit) refuses the commit and tells
+you how to fix it, rather than quietly committing vault metadata.
+
+Occasionally `git status` will show these files as ` M` while `git diff` is empty. That
+is stat churn after the stamper rewrote them, not a content change. Clear it with:
+
+```bash
+git add --renormalize .
+```
 
 ---
 

@@ -25,7 +25,7 @@ python examples/demo.py             # print the corrected validated-value table
 python examples/demo.py --figures   # write figures/*.{html,png}  (untracked build output)
 # figure-review gallery (use `python` on Windows):
 python -m http.server 8765 --directory figures/mpl_review
-sh scripts/install-hooks.sh         # once per clone: activate .githooks/pre-commit
+sh scripts/setup-clone.sh           # once per clone: hooks + the Obsidian strip filter
 ```
 
 ## Module map
@@ -147,8 +147,21 @@ which stays meaningful without the file. To add a genuinely public document: lin
 it from `README.md`, un-ignore it in `.gitignore`, and add it to `ALLOWED_DOCS` in
 `.githooks/pre-commit`.
 
-Do not add YAML frontmatter to a tracked document; vault metadata belongs in the
-vault. Run `sh scripts/install-hooks.sh` once per clone to activate the hook.
+### Obsidian frontmatter is stripped, not forbidden
+
+This repo sits inside an Obsidian vault whose stamper writes `project:` / `type:` /
+`authorship:` frontmatter into `CLAUDE.md`, `README.md` and `docs/*.md` (and rewrites
+them CRLF), fired from a detached PostToolUse hook. **Leave it alone** — the working
+tree is supposed to carry it. `.gitattributes` routes those paths through the
+`obsidian-strip` clean filter (`scripts/strip-obsidian-frontmatter.py`), so git stores
+the clean, LF version. Never hand-strip it, and never commit it.
+
+Run **`sh scripts/setup-clone.sh`** once per clone: it sets `core.hooksPath` *and* the
+filter, both of which are local git config that `git clone` does not carry. Forget it
+and `.githooks/pre-commit` blocks the commit rather than letting metadata through.
+
+After the stamper runs, `git status` may show these files as ` M` while `git diff` is
+empty — stat churn, not content. Clear it with `git add --renormalize .`.
 
 ## Contributing / security
 
