@@ -22,6 +22,13 @@ venv/
 # how the work was done on one machine; they are not part of the library.
 /.claude/
 
+# AGENTS.md is the Codex-facing sibling of CLAUDE.md -- agent guidance, not a
+# project document.  CLAUDE.md is tracked only because the README and this repo's
+# own conventions lean on it; AGENTS.md duplicates it for a second tool and would
+# drift.  Keep it on disk, out of git.  (It is still listed in .gitattributes, so
+# the obsidian-strip filter applies if it is ever tracked deliberately.)
+/AGENTS.md
+
 # --- working documents: planning, research, handoffs -----------------------
 # POLICY.  This repository tracks only the standard project documents at the
 # root -- README.md, CLAUDE.md, CONTRIBUTING.md, SECURITY.md, LICENSE -- plus

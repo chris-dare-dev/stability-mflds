@@ -67,9 +67,10 @@ The library, its tests and examples, and a deliberately small set of documents:
 
 Everything else is a **working artifact and stays out of git**: planning and
 research documents (`docs/ROADMAP.md`, `docs/GOALS.md`, `docs/HANDOFF.md`, the
-literature surveys and gap analyses), agent tooling (`.claude/`), and generated
-output (`figures/`, `*junit*.xml`). They may exist in a maintainer's working tree;
-they are not part of the project's public surface, and they go stale fast.
+literature surveys and gap analyses), agent tooling (`.claude/` and `AGENTS.md`),
+and generated output (`figures/`, `*junit*.xml`). They may exist in a maintainer's
+working tree; they are not part of the project's public surface, and they go stale
+fast.
 
 `.gitignore` hides them; [`.githooks/pre-commit`](.githooks/pre-commit) refuses any
 commit that contains them, as a backstop against `git add -f`. Regenerate the
