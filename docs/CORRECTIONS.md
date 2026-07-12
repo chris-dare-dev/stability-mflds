@@ -947,6 +947,21 @@ soundness bug** — every A1–A6 fix reproduced correct — but three changes l
    and not the other. Extracted to `exceptional.certified_rank_cutoff(μ, R_max)`, the single source both
    P² decision procedures now call, so they cannot drift apart again.
 
-Recorded as follow-ups (not blockers): the two verdict engines (`_hirzebruch_verdict` vs. the tail)
-should be unified into one branch-derived builder; `is_semiexceptional_p2` rebuilds the ε-tree
-`is_exceptional` already built (efficiency, not a hot path).
+The two review follow-ups were then addressed (a second commit):
+
+- **The ε-tree double-build is gone.** `is_exceptional_slope` — the pure ε-recursion-membership test
+  that dominates a P² query's cost — is now `@lru_cache`-memoized, so `is_semiexceptional_p2`'s `m=1`
+  re-check of the slope `is_exceptional` already tested is a cache hit rather than a second full
+  enumeration. `Fraction(n)` hashes equal to `n`, so `int`/`Fraction` spellings of one slope share a
+  cache entry. The `m ≥ 1` contract (bit-for-bit agreement with the frozen oracle's
+  `reference_is_semiexceptional`) is unchanged — the alternative "start the loop at `m = 2`" was
+  rejected precisely because it would have broken that oracle-agreement contract.
+- **The two verdict engines were NOT merged — deliberately.** The finder read `_hirzebruch_verdict`
+  and the `moduli_nonempty` common tail as duplicated regimes; on inspection their *cores* encode
+  different theorems. The tail's non-emptiness signal is the **non-strict** `Δ ≥ δ(μ)` (CHW Thm 2.2 on
+  P²); `_hirzebruch_verdict`'s is the **strict** `env.certified_sharp ∧ Δ > δ_H` (CH Thm "deltaSurface"
+  (1)) plus an `emptiness_bound` band that exists only off P². A single "branch-derived builder" would
+  have to reconcile `>` vs `≥` and the band per surface — re-introducing exactly the boundary bug the
+  audit closed. So only the one genuinely-shared regime, the invalid-character verdict, was extracted
+  (`_invalid_character_verdict`, called by both engines); the divergent theorems stay in their own
+  engines, and both docstrings now record why a merge must not be attempted.

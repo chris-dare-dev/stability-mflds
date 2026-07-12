@@ -33,6 +33,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from fractions import Fraction
+from functools import lru_cache
 from typing import Dict, List, Set
 
 from .chern import ChernChar, Number, Q
@@ -273,6 +274,7 @@ def exceptional_slopes(mu: Number, r_max: int, reach: Number = 3) -> List[Fracti
     return [b.slope for b in enumerate_exceptional(m - reach, m + reach, r_max)]
 
 
+@lru_cache(maxsize=None)
 def is_exceptional_slope(alpha: Number, r_max: "int | None" = None) -> bool:
     """``True`` iff ``alpha`` is an exceptional slope: a member of the Drezet-Le Potier
     epsilon-recursion image (Theoreme A).  ``r_max`` defaults to ``denominator(alpha)`` --
@@ -280,6 +282,13 @@ def is_exceptional_slope(alpha: Number, r_max: "int | None" = None) -> bool:
     denominator exceeds ``r_max`` is rejected outright.  Generated epsilon-slope
     denominators strictly increase down the tree, so a slope of denominator ``q`` is
     produced iff it is genuinely in the image and ``r_max >= q``.
+
+    Memoized (pure function): a P^2 non-emptiness query computes ``is_exceptional(E)``
+    and then ``is_semiexceptional_p2`` re-checks the same ``m=1`` slope, so without the
+    cache the exceptional-slope enumeration -- the dominant cost -- was built twice per
+    query (E12 code-review follow-up).  ``Q(alpha)`` is hashable and ``Fraction(n)``
+    hashes equal to ``n``, so ``int`` and ``Fraction`` spellings of one slope share a
+    cache entry.
     """
     a = Q(alpha)
     if r_max is None:

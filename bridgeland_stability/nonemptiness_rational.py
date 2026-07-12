@@ -826,6 +826,27 @@ def _is_integral_c1(xi: SurfaceBundle) -> bool:
     return all(c.denominator == 1 for c in xi.c1)
 
 
+def _invalid_character_verdict(
+    disc: Fraction, dH: Fraction, mode: "HNMode"
+) -> "NonemptinessVerdict":
+    """The shared PROVEN-empty verdict for a character that is not the Chern character of
+    any coherent sheaf (non-integral ``c1`` or ``c2``).
+
+    ``M(xi)`` is then empty on EVERY surface for EVERY polarization -- a ``K_X``-independent
+    theorem (:func:`validate_character`).  Both verdict engines -- the native
+    :func:`_hirzebruch_verdict` and the :func:`moduli_nonempty` common tail -- short-circuit
+    to THIS, so the invalid-character verdict is identical (PROVEN_EMPTY, same certificate)
+    regardless of which engine a ``(surface, target)`` combination routes through.  This is
+    the one regime the two engines genuinely share; their *core* inequality logic is
+    deliberately NOT shared (see :func:`_hirzebruch_verdict`).
+    """
+    return NonemptinessVerdict(
+        False, disc, dH, mode, _INVALID_CHARACTER_CERT,
+        f"mode={mode.value}: invalid Chern character (c1 not in NS, or "
+        f"c2 = 1/2<c1,c1> - ch2 not integral): no coherent sheaf has this character "
+        f"-> PROVEN empty", False)
+
+
 def validate_character(
     r: int, c1: Sequence[Number], ch2: Number, surface: Surface
 ) -> bool:
@@ -874,6 +895,19 @@ def _hirzebruch_verdict(
 ) -> NonemptinessVerdict:
     """The E11-M6 / G18 verdict on an ample-polarized Hirzebruch surface.
 
+    Two verdict engines, intentionally NOT merged (E12 code-review follow-up).  This one
+    serves an ample ``F_e`` with a genuine CH envelope; the :func:`moduli_nonempty` common
+    tail serves ``P^2`` (closed-form DLP), K3 / abelian (Bogomolov floor), and the
+    certified-target path.  They share exactly one regime -- the invalid-character verdict,
+    routed through :func:`_invalid_character_verdict` -- and their *cores* deliberately
+    differ: this engine's non-emptiness signal is the STRICT ``env.certified_sharp and
+    Delta > delta_H`` (CH Thm "deltaSurface" (1) needs a strict inequality) plus an
+    ``emptiness_bound`` band that exists only off ``P^2``, whereas the tail uses the
+    NON-strict ``Delta >= delta(mu)`` (CHW Thm 2.2 on ``P^2``) with no emptiness_bound.
+    A single "branch-derived builder" would have to reconcile ``>`` vs ``>=`` and the band
+    per surface -- re-introducing exactly the boundary bug the audit closed.  So the shared
+    *shell* is extracted; the divergent theorems stay in their own engines.
+
     An invalid character (non-integral ``c1`` or ``c2``) short-circuits FIRST to a PROVEN empty
     verdict: it is not the Chern character of any sheaf, so no exceptional-bundle branch below
     may forge a PROVEN non-empty for it (A3, off ``P^2``).  The check is ``K_X``-independent
@@ -907,11 +941,7 @@ def _hirzebruch_verdict(
     # forge a PROVEN non-empty verdict for a class that is not the Chern character of any sheaf.
     # validate_character's c2 clause is K_X-independent, so this is exact on F_e today.
     if not validate_character(xi.r, xi.c1, xi.ch2, surface):
-        return NonemptinessVerdict(
-            False, disc, dH, mode, _INVALID_CHARACTER_CERT,
-            f"mode={mode.value}: invalid Chern character "
-            f"(c1 not in NS, or c2 = 1/2<c1,c1> - ch2 not integral): no coherent sheaf has "
-            f"this character -> PROVEN empty", False)
+        return _invalid_character_verdict(disc, dH, mode)
 
     integral = _is_integral_c1(xi)
     c1i = tuple(int(c) for c in xi.c1) if integral else None
@@ -1129,8 +1159,13 @@ def moduli_nonempty(
         dH = delta_H(xi, surface, R_max, rank_max)   # = 0 (Bogomolov floor)
         mode = HNMode.HEURISTIC
 
+    # Invalid character short-circuits to the SAME PROVEN-empty verdict the native
+    # _hirzebruch_verdict uses (shared helper) -- so an invalid character is PROVEN_EMPTY on
+    # every surface, not UNKNOWN on the K3/abelian tail (E12 code-review consistency fix).
+    if not validate_character(r, xi.c1, xi.ch2, surface):
+        return _invalid_character_verdict(disc, dH, mode)
+
     cert = _MODE_CERT[mode]
-    valid = validate_character(r, xi.c1, xi.ch2, surface)
     above_curve = disc >= dH
     # DLP exceptional-bundle disjunct on EVERY surface (the pinned P^2 detectors on P^2, the
     # ch2-guarded F_e detectors off P^2) -- so an exceptional/semiexceptional class fed its
@@ -1139,7 +1174,7 @@ def moduli_nonempty(
     # _hirzebruch_verdict's native disjunct, which the certified-target path previously
     # dropped off P^2 -> a PROVEN_EMPTY contradicting the same function's native verdict.
     exceptional, semiexceptional = _exceptional_disjunct(xi, surface)
-    nonempty = valid and (above_curve or exceptional or semiexceptional)
+    nonempty = above_curve or exceptional or semiexceptional   # character already validated above
     # Branch-derived rigor off P^2.  The CH non-emptiness theorem (Thm "deltaSurface" (1))
     # needs a STRICT inequality Delta > delta_H, and its converse "Delta < delta_H => empty"
     # is a theorem only BELOW the certified emptiness_bound -- which is strictly weaker than the
@@ -1153,16 +1188,8 @@ def moduli_nonempty(
     # exceptional/semiexceptional disjunct proves non-emptiness independently of the envelope and
     # so is never downgraded.  Off a Hirzebruch F_e (K3, abelian, nef-and-big F_n) there is no
     # emptiness_bound theory, so only the boundary Delta == delta_H is downgraded, as before.
-    # An invalid character is not the Chern character of ANY coherent sheaf, so M(xi)
-    # is empty on every surface for every polarization -- a K_X-independent theorem
-    # (validate_character's c2 clause).  Swap in the branch-derived PROVEN-empty cert
-    # so the verdict is PROVEN_EMPTY uniformly, matching _hirzebruch_verdict; without
-    # this the K3/abelian path (mode=HEURISTIC) under-claimed it as UNKNOWN while
-    # P^2/F_e reported PROVEN_EMPTY -- an inconsistency the E12 code review flagged.
     band_unknown = False
-    if not valid:
-        cert = _INVALID_CHARACTER_CERT
-    elif (mode in _CERTIFIED and not surface.is_p2
+    if (mode in _CERTIFIED and not surface.is_p2
             and not (exceptional or semiexceptional)):
         eb = _fe_emptiness_bound(xi, surface, rank_max)
         in_band = (disc == dH) or (eb is not None and eb <= disc <= dH)
@@ -1170,9 +1197,7 @@ def moduli_nonempty(
             cert = _BOUNDARY_CERT
             band_unknown = True
     reason = f"mode={mode.value}: Delta={disc} {'>=' if above_curve else '<'} delta_H={dH}"
-    if not valid:
-        reason += "; invalid Chern character (c1 or chi not integral): no sheaf exists"
-    elif exceptional and not above_curve:
+    if exceptional and not above_curve:
         reason += "; exceptional bundle: non-empty isolated point below the DLP curve"
     elif semiexceptional and not above_curve:
         reason += "; semiexceptional (m*ch(E)): non-empty polystable point below the DLP curve"
