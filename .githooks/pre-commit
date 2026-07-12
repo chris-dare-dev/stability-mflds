@@ -114,6 +114,33 @@ if [ -n "${frontmatter:-}" ]; then
 	exit 1
 fi
 
+# tests/oracle/ is the independent gate (E12-M0), and its rows are FROZEN.  The freeze
+# contract is asymmetric (see tests/test_oracle_integrity.py): APPENDING a new corpus
+# row is free -- the frozen map ignores unknown keys and the suite stays green -- but
+# MUTATING existing content (changing a row's status, or rewriting the reference logic
+# the differential sweep trusts) needs a two-way-verified CORRECTIONS.md entry
+# (exact-Fraction recompute + primary-source citation) in the same commit.
+#
+# So this keys on MUTATION, not on any touch: a staged oracle change trips the guard
+# only if it REMOVES or MODIFIES existing lines (git shows '-' lines under --unified=0).
+# A pure append is all '+' lines and passes freely.  (An earlier version required
+# CORRECTIONS.md for every oracle diff, including appends -- stricter than the freeze
+# semantics it was meant to enforce.)
+if git diff --cached --name-only -- 'tests/oracle/' | grep -q .; then
+	oracle_removed=$(git diff --cached --unified=0 -- 'tests/oracle/' | grep -E '^-' | grep -v '^---')
+	if [ -n "$oracle_removed" ]; then
+		if ! git diff --cached --name-only | grep -qx 'docs/CORRECTIONS.md'; then
+			printf '\npre-commit: refusing to MUTATE tests/oracle/ without docs/CORRECTIONS.md.\n\n'
+			printf 'The oracle corpus/reference is a frozen gate.  This commit removes or changes\n'
+			printf 'existing oracle content, which needs a CORRECTIONS.md entry (exact-Fraction\n'
+			printf 'recompute + primary-source citation) in the SAME commit.  (Appending a new\n'
+			printf 'corpus row is free and does not trip this guard.)\n\n'
+			printf 'Deliberate override: git commit --no-verify\n\n'
+			exit 1
+		fi
+	fi
+fi
+
 if [ -n "$violations" ]; then
 	printf '\npre-commit: refusing to commit working artifacts.\n\n'
 	printf '%s' "$violations"
