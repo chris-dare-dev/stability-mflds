@@ -52,6 +52,8 @@ zero-runtime-dependency invariant.
 
 References
 ----------
+* Coskun-Huizenga-Woolf, arXiv:1401.1613 Sec.2 Thm 2.2 -- the P^2 non-emptiness criterion this
+  module implements (integrality + Delta >= delta(mu) OR exceptional).
 * Coskun-Huizenga, "Existence of semistable sheaves on Hirzebruch surfaces",
   arXiv:1907.06739 [PROVEN] -- sharp Bogomolov inequalities ``Delta >= delta_H(c1/r)``
   with semistable sheaves existing iff the prioritary-sheaf HN filtration has length
@@ -69,7 +71,7 @@ References
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from fractions import Fraction
 from typing import Optional, Sequence, Union
@@ -80,30 +82,46 @@ from .dlp_hirzebruch import (
     discriminant,
     dlp_envelope,
     emptiness_bound,
+    exceptional_ch2,
     hirzebruch_index,
     is_ample,
     is_semiexceptional,
     is_stable_exceptional,
     total_slope,
 )
-from .exceptional import Bundle, enumerate_exceptional, is_exceptional
+from .exceptional import (
+    Bundle, P, certified_rank_cutoff, enumerate_exceptional, is_exceptional,
+    is_semiexceptional_p2,
+)
 from .exceptional_surface import SurfaceBundle
 from .rigor import Certificate, Rigor
 from .varieties import Surface, P2, P1xP1, hirzebruch, require_faithful_computation
 
 __all__ = [
     "HNMode",
+    "VerdictStatus",
     "NonemptinessVerdict",
+    "SharpBoundEvidence",
     "PaperDeltaHTarget",
     "discriminant",
     "discriminant_H",
     "delta_H",
     "hirzebruch_with_polarization",
     "moduli_nonempty",
+    "validate_character",
+    "is_semiexceptional_p2",
     "paper_delta_H_targets",
 ]
 
 Number = Union[int, Fraction]
+
+
+class VerdictStatus(str, Enum):
+    """Branch-derived tri-state, computed from (nonempty, certificate.rigor) -- never the mode."""
+
+    PROVEN_NONEMPTY = "proven_nonempty"
+    PROVEN_EMPTY = "proven_empty"
+    UNKNOWN = "unknown"
 
 
 class HNMode(str, Enum):
@@ -111,7 +129,7 @@ class HNMode(str, Enum):
 
     DLP = "dlp"            # PROVEN: P^2 Drezet-Le Potier closed form (HN length one implicit)
     PAPER = "paper"        # PROVEN: paper-tabulated HN-length-one datum (E11-M4 hook)
-    ORACLE = "oracle"      # PROVEN: M2/OSCAR-constructed HN filtration (E11-M5 hook)
+    ORACLE = "oracle"      # PROVEN: M2-constructed rank-1 ideal-sheaf witness (E11-M5 hook)
     HEURISTIC = "heuristic"  # HEURISTIC: no certified HN datum (Bogomolov floor)
     # -- E11-M6 / G18: the natively-computed Coskun-Huizenga envelope on F_e --------
     DLP_ANTICANONICAL = "dlp_anticanonical"  # e in {0,1}, H = -K: delta_H = DLP_{-K} (sharp)
@@ -143,10 +161,13 @@ _MODE_CERT = {
     ),
     HNMode.ORACLE: Certificate(
         Rigor.PROVEN,
-        ("HN-length-one datum supplied by an M2/OSCAR-constructed "
-         "prioritary-sheaf HN filtration (G16 oracle)",),
+        ("existence witnessed by a Macaulay2-constructed rank-1 ideal sheaf I_Z(c1) on P^2 "
+         "(length l = c1^2/2 - ch2 = c2 >= 0), torsion-free of rank 1 hence mu-stable: a "
+         "SUFFICIENT-ONLY construction returning True or None, never False; it does NOT compute "
+         "the Harder-Narasimhan filtration of a prioritary sheaf and does NOT handle F_n",),
         ("arXiv:1907.06739",),
-        "M2/OSCAR-constructed prioritary-sheaf HN filtration (E11-M5 oracle hook).",
+        "Macaulay2-constructed rank-1 ideal sheaf I_Z(c1) on P^2 (sufficient-only witness, "
+        "returns True|None; see oracle/m2.py::moduli_nonempty_by_construction).",
     ),
     HNMode.HEURISTIC: Certificate(
         Rigor.HEURISTIC,
@@ -157,6 +178,35 @@ _MODE_CERT = {
         "(E11-M4) or the M2/OSCAR oracle (E11-M5).",
     ),
 }
+
+#: Boundary certificate for an external (PAPER/ORACLE) target off P^2 with Delta == delta_H.
+#: CH Thm "deltaSurface" (1) requires a STRICT inequality off P^2, so the boundary is UNKNOWN,
+#: not PROVEN.  Rigor is non-PROVEN, so ``NonemptinessVerdict.status`` maps it to UNKNOWN;
+#: HEURISTIC matches ``_hirzebruch_verdict``'s own boundary handling.
+_BOUNDARY_CERT = Certificate(
+    Rigor.HEURISTIC,
+    ("Delta == delta_H off P^2: CH Thm 'deltaSurface' (1) requires a STRICT inequality; "
+     "the boundary is undecided",),
+    (_CH,),
+    "boundary Delta == delta_H off P^2 is UNKNOWN (a strict inequality is required).",
+)
+
+#: Certificate for a character that is not the Chern character of any coherent sheaf, so
+#: ``M(xi)`` is empty on EVERY surface for EVERY polarization.  A coherent sheaf has integral
+#: Chern classes -- ``c1 in NS`` and ``c2 = 1/2 <c1,c1> - ch2 in Z`` (``c2 in H^4(X,Z) = Z``) --
+#: and by Riemann-Roch (``c1.(c1 - K_X)`` is even on any surface, Wu) these two force ``chi in Z``,
+#: so the ``(c1, c2)``-integrality clause is the WHOLE Thm 2.2 integrality condition and needs no
+#: canonical class -- exact off ``P^2`` too.  ``PROVEN`` empty is honest and unfalsifiable here:
+#: the emptiness is a theorem (no counterexample can exist), matching the ``P^2`` path's verdict
+#: for the same defect (A3).
+_INVALID_CHARACTER_CERT = Certificate(
+    Rigor.PROVEN,
+    ("a coherent sheaf has integral Chern classes: c1 in NS and "
+     "c2 = 1/2 <c1,c1> - ch2 in Z; Riemann-Roch (c1.(c1 - K) even) then forces chi in Z",),
+    (_CH,),
+    "invalid Chern character (non-integral c1 or c2): no coherent sheaf has this character, "
+    "so M(xi) is empty for every polarization.",
+)
 
 
 @dataclass(frozen=True)
@@ -203,9 +253,103 @@ class NonemptinessVerdict:
         """``True`` iff the verdict's rigor is ``PROVEN`` (certified HN datum)."""
         return self.certificate.rigor == Rigor.PROVEN
 
+    @property
+    def status(self) -> VerdictStatus:
+        """PROVEN_NONEMPTY / PROVEN_EMPTY / UNKNOWN, derived from the branch (rigor), not the mode."""
+        if self.certificate.rigor is not Rigor.PROVEN:
+            return VerdictStatus.UNKNOWN
+        return VerdictStatus.PROVEN_NONEMPTY if self.nonempty else VerdictStatus.PROVEN_EMPTY
+
 
 # --------------------------------------------------------------------------
-# E11-M4 / G18b [RESEARCH]: the fixed finite paper-tabulated delta_H table.
+# E12-M4 / A5: class-bound sharp-bound evidence (retires the forgeable pair).
+#
+# The (delta_H_target, hn_source) pair let a caller assert ANY sharp bound for ANY
+# class and still mint Rigor.PROVEN (defect A5: delta_H_target=10**6, ORACLE ->
+# PROVEN).  A ``SharpBoundEvidence`` fixes both leaks:
+#   * it is BOUND to a specific class ``(surface, r, c1, ch2)`` via ``matches`` --
+#     evidence derived for one class can never certify another (crit. 1); and
+#   * it separates the two independent claims the audit called out (crit. 2): the
+#     VALUE claim "the sharp bound equals this" (``sharp_bound`` + its provenance
+#     ``sharp_bound_source``) from the SHEAF-THEORETIC claim "the generic
+#     prioritary HN filtration has length one" (``hn_length_one_source``).
+# The verdict is still PROVEN only when the supplied ``sharp_bound`` EQUALS the
+# package's OWN independently-certified sharp bound for that exact class
+# (:func:`_certified_sharp_bound`): a mismatch is a forged / mis-derived target
+# and raises ``ValueError``, never a PROVEN verdict (invariant 7).
+#
+# ORACLE-sourced evidence is a CAPABILITY object: it carries a module-private
+# token that only :func:`bridgeland_stability.oracle.mint_oracle_evidence` holds,
+# and that mint runs only after a real construction returned ``True`` (crit. 3).
+# A raw ``(delta_H_target, hn_source=ORACLE)`` pair can no longer forge one.
+# --------------------------------------------------------------------------
+#: Module-private capability token.  Only ``oracle.mint_oracle_evidence`` imports and
+#: passes it; a direct ORACLE-sourced construction lacks it and is refused (crit. 3).
+_ORACLE_TOKEN = object()
+
+
+@dataclass(frozen=True)
+class SharpBoundEvidence:
+    """A class-bound certificate that a sharp ``delta_H`` and an HN-length-one datum hold.
+
+    Retires the forgeable ``(delta_H_target, hn_source)`` pair (A5).  The evidence is
+    tied to one Chern character on one polarized surface (:meth:`matches`), and it
+    separates the two distinct claims the audit conflated into a single enum:
+
+    Attributes
+    ----------
+    surface, r, c1, ch2 :
+        The exact class this evidence was derived for.  :meth:`matches` refuses to let
+        it certify any other class (crit. 1).
+    sharp_bound : Fraction
+        CLAIM 1 (the VALUE claim): "the sharp non-emptiness bound ``delta_H`` for this
+        class equals this value".  :func:`moduli_nonempty` honours it only if it equals
+        the package's own :func:`_certified_sharp_bound` for the class.
+    sharp_bound_source : HNMode
+        Provenance of claim 1 (``DLP`` / ``PAPER`` / ``ORACLE``).
+    hn_length_one_source : HNMode
+        CLAIM 2 (the SHEAF-THEORETIC claim): the supplier of the "generic prioritary HN
+        filtration has length one" hypothesis.  This is the ``mode`` the verdict reports;
+        an ``ORACLE`` value requires the capability token (see ``__post_init__``).
+    citation : str
+        Free-text provenance note.
+    """
+
+    surface: Surface
+    r: int
+    c1: tuple
+    ch2: Fraction
+    sharp_bound: Fraction                 # CLAIM 1: "the sharp bound equals this value"
+    sharp_bound_source: HNMode            # provenance of claim 1 (DLP / PAPER / ORACLE)
+    hn_length_one_source: HNMode          # CLAIM 2: "the generic prioritary HN filtration has length one"
+    citation: str = ""
+    #: Kept out of equality/repr so value semantics are preserved; only the oracle mint sets it.
+    _oracle_token: object = field(default=None, repr=False, compare=False)
+
+    def __post_init__(self):
+        if self.hn_length_one_source is HNMode.ORACLE and self._oracle_token is not _ORACLE_TOKEN:
+            raise TypeError(
+                "ORACLE-sourced evidence must be minted via "
+                "bridgeland_stability.oracle.mint_oracle_evidence after a construction "
+                "actually returned True (E12-M4 crit. 3); it cannot be built directly."
+            )
+
+    def matches(self, r, c1, ch2, surface) -> bool:
+        """``True`` iff this evidence was derived for exactly the queried class."""
+        return (self.r == r
+                and tuple(Fraction(x) for x in self.c1) == tuple(Fraction(x) for x in c1)
+                and Fraction(self.ch2) == Fraction(ch2)
+                and self.surface == surface)
+
+
+# --------------------------------------------------------------------------
+# E11-M4 / G18b [RESEARCH]; relabelled E12-M5 (A12): REGRESSION FIXTURE of hand-derived
+# delta_H targets -- NOT a verbatim paper table.  Each delta_H is DERIVED from general
+# theorems (the Drezet-Le Potier closed form delta(mu) on P^2; DLP_{-K} on the del Pezzo
+# F_e) and independently REGRESSED against the package's own delta_H / dlp_envelope (see
+# tests/test_nonemptiness.py::test_paper_p2_targets_match_native_dlp and
+# ::test_paper_p1xp1_targets_match_native_envelope).  The per-entry arXiv citation names
+# the primary source for the EXISTENCE verdict, not for the numeric value.
 #
 # Each entry pins an EXACT ``Fraction`` delta_H target + the primary source's
 # yes/no verdict for one class ``(r, c1, ch2)`` on one polarized surface, fed
@@ -244,7 +388,7 @@ class NonemptinessVerdict:
 # --------------------------------------------------------------------------
 @dataclass(frozen=True)
 class PaperDeltaHTarget:
-    """One primary-source-tabulated ``delta_H`` target + verdict for a class.
+    """One hand-derived, regression-checked ``delta_H`` target + verdict for a class.
 
     Attributes
     ----------
@@ -329,21 +473,28 @@ _PAPER_DELTA_H_TABLE = (
         ),
         note=(
             "mu=1/3; discriminant_H=1/2*(1/3)^2-(-5/2)/3=1/18+15/18=8/9; "
-            "delta_H=delta(1/3)=chi(O)-Delta_{rk3 exc}=1-(1-1/3^2)/2=1-4/9=5/9; "
-            "c2=1/2-(-5/2)=3. Two-way: 8/9>=5/9 -> nonempty; matches dlp.moduli_nonempty."
+            "delta(1/3)=P(-1/3)-Delta_O=5/9-0=5/9, attained by O (rank 1, slope 0): "
+            "P(-1/3)=((1/3)^2-3*(1/3)+2)/2=(1/9+1)/2=5/9 and Delta_O=(1-1/1^2)/2=0. "
+            "There is NO rank-3 exceptional bundle (rank 3 is not Markov; Bundle.from_slope(1/3) "
+            "has c2=5/3 not integral, see test_rank3_pseudobundle_does_not_exist), so the earlier "
+            "chi(O)-minus-a-rank-3-exceptional-discriminant derivation was fictitious -- it agreed "
+            "only by the numerical coincidence P(-1/3)=1-4/9. c2=1/2-(-5/2)=3. Two-way: 8/9>=5/9 "
+            "-> nonempty; matches dlp.moduli_nonempty."
         ),
     ),
     PaperDeltaHTarget(
         surface=P2, r=5, c1=(2,), ch2=Fraction(-2),
         delta_H=Fraction(13, 25), paper_nonempty=True, delta_H_paper=Fraction(13, 25),
         citation=(
-            "Coskun-Huizenga arXiv:1907.06739 (abstract + Cor 9.13: exceptional "
-            "bundles are -K-stable on an anticanonically polarized del Pezzo); "
-            "class (5,(2),-2) is the rank-5 slope-2/5 exceptional bundle on P^2 "
-            "(Delta=Delta_E=12/25), H=-K=3H_0 (d=1). Nonempty via the exceptional "
-            "bundle itself -- NOT via Levine-Zhang arXiv:1910.14060 Thm 1.4, whose "
-            "Delta>1/2 hypothesis FAILS here (12/25<1/2). delta_H=delta(2/5)=13/25 "
-            "classical Drezet-Le Potier."
+            "Drezet-Le Potier, Ann. Sci. ENS 18 (1985), Thm A: the rank-5 slope-2/5 "
+            "exceptional bundle on P^2 EXISTS (2/5 is in the image of epsilon; rank 5 is "
+            "Markov), Delta=Delta_E=12/25; its moduli space is a single reduced point, so "
+            "M(5,(2),-2) is nonempty via the exceptional bundle itself -- NOT via Levine-Zhang "
+            "arXiv:1910.14060 Thm 1.4, whose Delta>1/2 hypothesis FAILS here (12/25<1/2). "
+            "delta(2/5)=P(0)-Delta_E=1-12/25=13/25 (classical DLP). Provenance (E12-M5/A12): CH "
+            "arXiv:1907.06739 Cor 9.13 states delta^{mu-s}_{1-e/2}(nu)=DLP_{-K}(nu) on the del "
+            "Pezzo F_e (e in {0,1}); the -K-stability of exceptional bundles is attributed to "
+            "Gorodentsev, NOT a statement of Cor 9.13. H=-K=3H_0 (d=1)."
         ),
         note=(
             "mu=2/5; discriminant_H=1/2*(2/5)^2-(-2)/5=2/25+10/25=12/25; "
@@ -392,15 +543,16 @@ _PAPER_DELTA_H_TABLE = (
 
 
 def paper_delta_H_targets() -> "tuple[PaperDeltaHTarget, ...]":
-    """The fixed finite table of primary-source ``delta_H`` targets (E11-M4).
+    """Regression fixture of hand-derived ``delta_H`` targets (E11-M4; relabelled E12-M5/A12).
 
-    Each entry carries an exact ``Fraction`` CH-package-normalized ``delta_H``, the
-    paper's yes/no verdict, and a per-entry arXiv citation (arXiv:1907.06739
-    Coskun-Huizenga / arXiv:1910.14060 Levine-Zhang) naming the exact statement and
-    the class.  Feed an entry into
+    **Not a verbatim paper table**: each ``delta_H`` is derived from general theorems plus the
+    package's own DLP machinery and regressed against it.  Each entry carries an exact
+    ``Fraction`` CH-package-normalized ``delta_H``, the paper's yes/no verdict, and a per-entry
+    arXiv citation (arXiv:1907.06739 Coskun-Huizenga / arXiv:1910.14060 Levine-Zhang) naming the
+    primary source for the EXISTENCE verdict, not for the numeric value.  Feed an entry into
     ``moduli_nonempty(e.r, e.c1, e.ch2, e.surface, delta_H_target=e.delta_H,
-    hn_source=HNMode.PAPER)`` to reproduce the paper verdict with a PROVEN
-    HN-length-one hypothesis.
+    hn_source=HNMode.PAPER)`` to reproduce the paper verdict with a PROVEN HN-length-one
+    hypothesis.
     """
     return _PAPER_DELTA_H_TABLE
 
@@ -417,10 +569,13 @@ def _is_p2_exceptional(xi: SurfaceBundle, surface: Surface) -> bool:
     ``M(xi)`` is non-empty iff ``Delta >= delta(mu)`` OR ``xi`` is (the Chern
     character of) an exceptional bundle -- a non-empty isolated point that may
     sit STRICTLY BELOW the curve.  This detects the second disjunct, delegating
-    to the pinned :func:`bridgeland_stability.exceptional.is_exceptional`
-    (``chi(E,E)=1`` and integral ``c2``), so ``moduli_nonempty`` agrees
-    bit-for-bit with :func:`bridgeland_stability.dlp.moduli_nonempty` and never
-    reports a PROVEN ``nonempty=False`` for a class that exists.
+    to the pinned :func:`bridgeland_stability.exceptional.is_exceptional`, whose
+    test is membership of the slope in the Drezet-Le Potier epsilon-recursion
+    image (DLP Theoreme A; ``chi(E,E)=1`` and integral ``c2`` are only a NECESSARY
+    pre-filter -- E12-M1 corrected the old ``chi==1``-only test that admitted
+    Markov-rank impostors such as ``(610,133,-581/2)``).  So ``moduli_nonempty``
+    agrees bit-for-bit with :func:`bridgeland_stability.dlp.moduli_nonempty` and
+    never reports a PROVEN ``nonempty=False`` for a class that exists.
 
     Guarded to ``P^2`` only (``Pic(P^2) = Z.H``): a non-``P^2`` surface, a
     higher-Picard class (``len(c1) != 1``), or a non-integral ``c1`` is never an
@@ -432,6 +587,67 @@ def _is_p2_exceptional(xi: SurfaceBundle, surface: Surface) -> bool:
     if c1.denominator != 1:
         return False
     return is_exceptional(Bundle(xi.r, int(c1), xi.ch2))
+
+
+def _is_p2_semiexceptional(xi: SurfaceBundle, surface: Surface) -> bool:
+    """True iff xi = m*ch(E) for an exceptional bundle E on P^2 (m>=1).  Guarded to P^2.
+
+    The m>=1 disjunct of the Drezet-Le Potier / Coskun-Huizenga non-emptiness theorem on
+    P^2 (arXiv:1907.06739 Ex.1.14: a semiexceptional bundle is a direct sum of copies of an
+    exceptional bundle).  Delegates to :func:`bridgeland_stability.exceptional.
+    is_semiexceptional_p2`, so it agrees with the oracle's ``reference_is_semiexceptional``.
+    A non-``P^2`` surface, a higher-Picard class, or a non-integral ``c1`` returns ``False``.
+    """
+    if not surface.is_p2 or len(xi.c1) != 1:
+        return False
+    c1 = xi.c1[0]
+    if c1.denominator != 1:
+        return False
+    return is_semiexceptional_p2(xi.r, int(c1), xi.ch2)
+
+
+def _exceptional_disjunct(xi: SurfaceBundle, surface: Surface) -> "tuple[bool, bool]":
+    """``(exceptional, semiexceptional)``: does ``xi`` satisfy the Drezet-Le Potier
+    *exceptional-bundle* non-emptiness disjunct on ``surface``?
+
+    A genuine (semi)exceptional class is a NON-empty moduli point (an exceptional bundle's
+    moduli space is a single reduced point; ``V^{+m}`` is Gieseker-semistable) that sits
+    STRICTLY BELOW the sharp envelope, so a ``Delta``-vs-``delta_H`` comparison alone
+    under-reports it.  :func:`moduli_nonempty` must OR this disjunct in on **every** surface
+    before it may conclude a PROVEN emptiness -- exactly as :func:`_hirzebruch_verdict` does
+    natively -- so the certified-target path can never forge a PROVEN "empty" for a class
+    fed its OWN correct sharp ``delta_H`` (E12-M2; the off-``P^2`` analogue of the pinned
+    ``test_paper_exceptional_coexists_with_target``).
+
+    * ``P^2`` -- the pinned P^2 detectors (:func:`_is_p2_exceptional` /
+      :func:`_is_p2_semiexceptional`).
+    * an **ample-polarized** ``F_e`` -- the surface-native
+      :func:`bridgeland_stability.dlp_hirzebruch.is_semiexceptional`.  It requires
+      ``Delta == Delta_V``, hence already subsumes the ``m = 1`` pure-exceptional case with
+      the correct ``ch2 == exceptional_ch2`` -- so it does NOT carry the A6 raw-
+      ``is_stable_exceptional`` bug (which is a function of ``(r, c1)`` only).  The ``m = 1``
+      sub-flag is re-derived under the SAME ``ch2`` guard, purely for an honest reason string.
+    * any surface with no wired exceptional-bundle theory (K3 / abelian / an ``F_n`` carrying
+      only the nef-and-big factory polarization) -- ``(False, False)``, unchanged.
+    """
+    if surface.is_p2:
+        return _is_p2_exceptional(xi, surface), _is_p2_semiexceptional(xi, surface)
+    try:                                    # only ample-polarized F_e carry the CH theory
+        hirzebruch_index(surface)
+    except NotImplementedError:
+        return False, False
+    if not is_ample(surface) or xi.r < 1 or not _is_integral_c1(xi):
+        return False, False
+    semiexceptional = is_semiexceptional(xi, surface)      # ch2-guarded (Delta == Delta_V)
+    c1i = tuple(int(c) for c in xi.c1)
+    # m = 1 iff xi is itself a mu_H-stable exceptional bundle AND its ch2 is the exceptional
+    # value; guarding on `semiexceptional` short-circuits and keeps A6's (r,c1)-only test out.
+    exceptional = bool(
+        semiexceptional
+        and is_stable_exceptional(xi.r, c1i, surface)
+        and xi.ch2 == exceptional_ch2(xi.r, c1i, surface)
+    )
+    return exceptional, semiexceptional
 
 
 def hirzebruch_with_polarization(n: int, H: Sequence[Number]) -> Surface:
@@ -461,6 +677,11 @@ def hirzebruch_with_polarization(n: int, H: Sequence[Number]) -> Surface:
     lat = P1xP1.ns_lattice if n == 0 else hirzebruch(n).ns_lattice
     if lat is None or lat.rank != 2:            # defensive
         raise ValueError("expected the rank-2 F_n NS lattice")
+    if any(int(x) != x for x in H):
+        raise ValueError(
+            f"hirzebruch_with_polarization needs an integral polarization vector "
+            f"(pass the primitive integer point on the ample ray, e.g. (3,2) not "
+            f"(3/2,1)); got {tuple(H)!r}")                     # A9: no silent int() truncation
     Hv = tuple(int(x) for x in H)
     if len(Hv) != 2:
         raise ValueError("H must be a length-2 NS vector (a f + b s)")
@@ -471,7 +692,8 @@ def hirzebruch_with_polarization(n: int, H: Sequence[Number]) -> Surface:
             f"factory H=({n},1) is only nef-and-big, and -K is not ample for n>=2)")
     d = lat.self_pairing(Hv)                     # = 2ab - n b^2, an exact integer
     return Surface(
-        name=f"F_{n} (H={a}f+{b}s, d={d})", d=int(d), K_H=-2, chi_O=1,
+        # K_{F_n} = -(n+2) f - 2 s (A8); derived K.H = (n-2)b - 2a on this polarization.
+        name=f"F_{n} (H={a}f+{b}s, d={d})", d=int(d), K=(-(n + 2), -2), chi_O=1,
         picard_rank=2, kind="hirzebruch",
         note=f"F_{n} strictly-ample H={Hv}; carries the CH Drezet-Le Potier envelope.",
         H=Hv, ns_lattice=lat,
@@ -516,6 +738,26 @@ def _hirzebruch_envelope(xi: SurfaceBundle, surface: Surface, rank_max: int):
     return dlp_envelope(total_slope(xi), surface, rank_max)
 
 
+def _fe_emptiness_bound(
+    xi: SurfaceBundle, surface: Surface, rank_max: int
+) -> Optional[Fraction]:
+    """``emptiness_bound(xi, surface)`` on an ample-polarized ``F_e``, else ``None``.
+
+    Mirrors :func:`_hirzebruch_envelope`'s guard: the certified emptiness theorem
+    (arXiv:1907.06739 Sec. 5.4 -- a ``mu_H``-stable exceptional bundle forcing ``chi <= 0``)
+    is defined only on a Hirzebruch surface carrying a strictly ample ``H``.  ``None`` signals
+    "no ``F_e`` emptiness theory here" to the certified-target tail of
+    :func:`moduli_nonempty`, which then falls back to the boundary-only downgrade.
+    """
+    try:
+        hirzebruch_index(surface)
+    except NotImplementedError:
+        return None                       # P^2, K3, abelian, ... : no F_e emptiness bound
+    if not is_ample(surface):
+        return None                       # the hirzebruch(n) factory H is only nef-and-big
+    return emptiness_bound(xi, surface, rank_max)
+
+
 def delta_H(
     xi: SurfaceBundle,
     surface: Surface,
@@ -545,14 +787,86 @@ def delta_H(
     require_faithful_computation(surface)  # G12 guard: torsion-canonical rows refused
     if surface.is_p2:
         mu = _mu(xi, surface)
+        R_max = certified_rank_cutoff(mu, R_max)   # shared with dlp.moduli_nonempty (A4b)
         bundles = enumerate_exceptional(mu - 3, mu + 3, R_max)
         return delta(mu, bundles)
     env = _hirzebruch_envelope(xi, surface, rank_max)
     return Fraction(0) if env is None else env.value
 
 
+def _certified_sharp_bound(
+    xi: SurfaceBundle, surface: Surface, R_max: int, rank_max: int
+) -> Optional[Fraction]:
+    """The package's OWN theorem-certified sharp ``delta_H`` for ``xi``, or ``None``.
+
+    A sharp bound is a THEOREM only where the package can prove one (E12-M4 gate):
+
+    * **P^2** -- the Drezet-Le Potier closed form :func:`delta` is always the sharp curve
+      ``delta(mu)`` (HN length one implicit), so this returns it unconditionally.
+    * an **ample F_e with ``env.certified_sharp``** -- ``e in {0,1}`` and ``H``
+      anticanonical, where CH Cor. "deltaDLP" gives ``delta_H^{mu-s}(nu) = DLP_{-K}(nu)``
+      and the rank truncation is certified exact.  Returns ``env.value``.
+    * everywhere else (a non-anticanonical ample ``F_e``, ``e >= 2``, K3, abelian, a
+      nef-and-big ``F_n``) -- **``None``**: no theorem gives a sharp bound, so an external
+      target cannot be verified against one and must be refused (invariant 7).
+
+    Byte-identical to the ``delta_H`` the accepted certified-target path already uses (both
+    read the same DLP curve / envelope value), so honouring a target that equals this value
+    changes no verdict.  Always exact (``Fraction``); never a float.
+    """
+    if surface.is_p2:
+        return delta_H(xi, surface, R_max)              # DLP closed form: always sharp
+    env = _hirzebruch_envelope(xi, surface, rank_max)
+    if env is not None and env.certified_sharp:
+        return env.value                                # CH Cor. deltaDLP: sharp on the -K del Pezzo ray
+    return None
+
+
 def _is_integral_c1(xi: SurfaceBundle) -> bool:
     return all(c.denominator == 1 for c in xi.c1)
+
+
+def validate_character(
+    r: int, c1: Sequence[Number], ch2: Number, surface: Surface
+) -> bool:
+    """Thm 2.2 integrality: the character is integral on EVERY surface, or ``M(xi)`` is empty.
+
+    A coherent sheaf has integral Chern classes -- ``r in Z``, ``c1 in NS`` and
+    ``c2 = 1/2 <c1,c1> - ch2 in Z`` (``c2 in H^4(X,Z) = Z``) -- so a character failing any of
+    these is not the Chern character of any sheaf and ``M(xi)`` is trivially empty.  All three
+    are checked here, on every surface:
+
+    * ``r >= 1`` and every ``c1`` coordinate integral (``c1 = r*mu in Z``, Thm 2.2);
+    * ``c2 = 1/2 <c1,c1> - ch2 in Z`` via the NS self-pairing (``surface.lattice`` -- a rank-1
+      shim on ``P^2``).  This is **K_X-independent** (it never touches the canonical class), so
+      it is exact off ``P^2`` and does NOT wait for the ``Surface.K_H`` repair (A8 / E12-M6).
+      Together with ``c1``-integrality it forces ``chi in Z`` by Riemann-Roch, because
+      ``c1.(c1 - K_X)`` is even on any surface (Wu); so ``(c1, c2)``-integrality is the WHOLE
+      Thm 2.2 integrality clause, not a fragment of it.
+
+    On ``P^2`` the equivalent literal ``chi = r(P(mu) - Delta) = ch2 + 3 c1/2 + r`` is
+    additionally checked, reproducing the oracle's ``_chi`` bit-for-bit
+    (tests/oracle/dlp_reference.py); there ``chi in Z <=> c2 in Z``, so it is redundant with the
+    ``c2`` test above but kept as the theorem's own form.
+    """
+    if r < 1:
+        return False
+    c1f = tuple(Fraction(x) for x in c1)
+    if any(x.denominator != 1 for x in c1f):
+        return False
+    # c2 = 1/2 <c1,c1> - ch2 must be an integer (Chern classes are integral).  K_X-independent,
+    # so this catches the off-P^2 A3 forge -- a non-integral c2 the P^2-only chi clause below
+    # never sees -- without the deferred K_H repair.
+    c2 = Fraction(1, 2) * surface.lattice.self_pairing(c1f) - Fraction(ch2)
+    if c2.denominator != 1:
+        return False
+    if surface.is_p2:
+        xi = SurfaceBundle(r, c1, ch2)
+        mu = _mu(xi, surface)                      # = c1/r on P^2 (d = 1)
+        chi = r * (P(mu) - discriminant(xi, surface))
+        if chi.denominator != 1:
+            return False
+    return True
 
 
 def _hirzebruch_verdict(
@@ -560,7 +874,11 @@ def _hirzebruch_verdict(
 ) -> NonemptinessVerdict:
     """The E11-M6 / G18 verdict on an ample-polarized Hirzebruch surface.
 
-    Four disjoint certified regimes, then an honest HEURISTIC remainder.
+    An invalid character (non-integral ``c1`` or ``c2``) short-circuits FIRST to a PROVEN empty
+    verdict: it is not the Chern character of any sheaf, so no exceptional-bundle branch below
+    may forge a PROVEN non-empty for it (A3, off ``P^2``).  The check is ``K_X``-independent
+    (:func:`validate_character`'s ``c2`` clause), hence exact on ``F_e`` today.  Then four
+    disjoint certified regimes, then an honest HEURISTIC remainder.
 
     1. ``Delta < 0`` -- Bogomolov: no ``mu_H``-semistable sheaf.  **PROVEN empty.**
     2. ``xi`` is a ``mu_H``-stable exceptional bundle, or ``V^{+m}`` for one.  Then
@@ -584,10 +902,29 @@ def _hirzebruch_verdict(
     """
     mode = HNMode.DLP_ANTICANONICAL if env.sharp else HNMode.DLP_LOWER
     dH = env.value
+
+    # A3 (off P^2): reject a non-integral character BEFORE any exceptional-bundle branch can
+    # forge a PROVEN non-empty verdict for a class that is not the Chern character of any sheaf.
+    # validate_character's c2 clause is K_X-independent, so this is exact on F_e today.
+    if not validate_character(xi.r, xi.c1, xi.ch2, surface):
+        return NonemptinessVerdict(
+            False, disc, dH, mode, _INVALID_CHARACTER_CERT,
+            f"mode={mode.value}: invalid Chern character "
+            f"(c1 not in NS, or c2 = 1/2<c1,c1> - ch2 not integral): no coherent sheaf has "
+            f"this character -> PROVEN empty", False)
+
     integral = _is_integral_c1(xi)
     c1i = tuple(int(c) for c in xi.c1) if integral else None
 
-    exceptional = bool(integral and is_stable_exceptional(xi.r, c1i, surface))
+    # A6 (E12-M3): `is_stable_exceptional` is a function of (r, c1) ONLY; a class is a genuine
+    # mu_H-stable exceptional bundle only if its ch2 is ALSO the forced exceptional value
+    # (ch2 == exceptional_ch2, i.e. Delta == Delta_V).  Without this guard the `exceptional or`
+    # short-circuit forged a PROVEN non-empty for an impostor with the right (r, c1) but wrong ch2.
+    exceptional = bool(
+        integral
+        and is_stable_exceptional(xi.r, c1i, surface)
+        and xi.ch2 == exceptional_ch2(xi.r, c1i, surface)
+    )
     semiexceptional = bool(integral and (exceptional or is_semiexceptional(xi, surface)))
 
     def _cert(rigor, hyps, note):
@@ -657,6 +994,7 @@ def moduli_nonempty(
     *,
     delta_H_target: Optional[Number] = None,
     hn_source: Optional[HNMode] = None,
+    evidence: Optional["SharpBoundEvidence"] = None,
     R_max: int = 60,
     rank_max: int = DEFAULT_RANK_MAX,
 ) -> NonemptinessVerdict:
@@ -669,15 +1007,32 @@ def moduli_nonempty(
 
     Mode selection
     --------------
-    * ``delta_H_target`` given -- use that certified external target; it MUST
-      come with a certified ``hn_source`` (``DLP`` / ``PAPER`` / ``ORACLE``),
-      else ``ValueError``.  (The E11-M4 paper-table / E11-M5 oracle entry point.)
+    * ``evidence`` or ``delta_H_target`` given -- an externally supplied sharp bound
+      (the E11-M4 paper-table / E11-M5 oracle entry point).  E12-M4 gate (A5): the
+      bound is honoured (-> PROVEN-eligible) **only** when it equals the package's OWN
+      theorem-certified sharp bound for this exact class (:func:`_certified_sharp_bound`
+      -- P^2, or an ample ``F_e`` with ``env.certified_sharp``).  A ``delta_H_target``
+      still needs a certified ``hn_source`` (``DLP`` / ``PAPER``); a raw
+      ``hn_source=ORACLE`` pair is refused outright (an ORACLE datum is the capability
+      object :func:`bridgeland_stability.oracle.mint_oracle_evidence` returns, minted
+      only after a real construction succeeded).  A bound bound to a different class, or
+      unequal to the certified one, or on a surface with no certified sharp bound, is a
+      ``ValueError`` -- never a forged PROVEN verdict (invariant 7).
     * else on ``P^2`` -- ``DLP`` mode, the closed-form ``delta_H`` (PROVEN).
-    * else (off ``P^2``, no target) -- ``HEURISTIC`` Bogomolov floor unless a
-      certified ``hn_source`` is passed (E11-M5 hook).
+    * else (off ``P^2``, no target) -- the native Coskun-Huizenga envelope verdict
+      (:func:`_hirzebruch_verdict` on an ample ``F_e``; the ``HEURISTIC`` Bogomolov
+      floor ``0`` on a K3 / abelian / nef-and-big ``F_n``).  A bare certified
+      ``hn_source`` (no ``delta_H_target``) does **not** upgrade this: it certifies
+      only the HN-length-one hypothesis, not a sharp ``delta_H``, so it is honoured
+      (``PROVEN``) solely where the native envelope is itself certified sharp
+      (``e in {0,1}``, ``H`` anticanonical) -- gated per-branch inside
+      ``_hirzebruch_verdict``, never by the source label.  The E11-M5 oracle must
+      pass its sharp ``delta_H`` as ``delta_H_target`` to reach ``PROVEN`` off ``P^2``.
 
     The verdict's certificate is ``PROVEN`` only for a certified mode; otherwise
-    ``HEURISTIC``.  The G12 faithful-computation guard runs first.
+    ``HEURISTIC``.  The G12 faithful-computation guard runs first, and every path enforces
+    Thm 2.2 character integrality (:func:`validate_character`) -- an invalid ``c1``/``c2`` is
+    ``PROVEN`` empty on **every** surface, never a forged non-empty (A3).
 
     P^2 exceptional disjunct.  The full DLP verdict is
     ``Delta >= delta_H`` **OR** (on ``P^2``) ``xi`` is an exceptional bundle
@@ -691,31 +1046,139 @@ def moduli_nonempty(
     xi = SurfaceBundle(r, c1, ch2)
     disc = discriminant(xi, surface)       # full-NS CH discriminant (G18a)
 
-    if delta_H_target is not None:
-        if hn_source not in _CERTIFIED:
-            raise ValueError(
-                "delta_H_target must come with a certified hn_source "
-                "(HNMode.DLP / HNMode.PAPER / HNMode.ORACLE): an externally "
-                "supplied sharp delta_H is only PROVEN when its HN-length-one "
-                "hypothesis is certified (E11-M4 paper table / E11-M5 oracle)."
+    if evidence is not None or delta_H_target is not None:
+        # E12-M4 (A5): an external sharp bound is honoured only when it is (1) bound to
+        # THIS class and (2) equal to the package's OWN certified sharp bound for it.
+        if evidence is None:
+            # Legacy (delta_H_target, hn_source) entry point -> wrap it as evidence.
+            if hn_source not in _CERTIFIED:
+                raise ValueError(
+                    "delta_H_target must come with a certified hn_source "
+                    "(HNMode.DLP / HNMode.PAPER / HNMode.ORACLE): an externally "
+                    "supplied sharp delta_H is only PROVEN when its HN-length-one "
+                    "hypothesis is certified (E11-M4 paper table / E11-M5 oracle)."
+                )
+            if hn_source is HNMode.ORACLE:
+                # A5: a raw ORACLE target is a forge.  An ORACLE datum is a capability
+                # object minted inside bridgeland_stability.oracle after a construction
+                # actually returned True -- never a bare (delta_H_target, ORACLE) pair.
+                raise ValueError(
+                    "an ORACLE HN datum is a capability object minted via "
+                    "bridgeland_stability.oracle.mint_oracle_evidence after a construction "
+                    "actually returned True (E12-M4); it cannot be passed as a raw "
+                    "(delta_H_target, hn_source=ORACLE) pair"
+                )
+            evidence = SharpBoundEvidence(
+                surface=surface, r=r, c1=tuple(xi.c1), ch2=xi.ch2,
+                sharp_bound=Fraction(delta_H_target),
+                sharp_bound_source=hn_source, hn_length_one_source=hn_source,
+                citation="caller-supplied legacy delta_H_target",
             )
-        dH, mode = Fraction(delta_H_target), hn_source
+        # (1) class-bound: evidence derived for another class cannot certify this one.
+        if not evidence.matches(r, tuple(xi.c1), xi.ch2, surface):
+            raise ValueError(
+                "evidence was derived for a different class than the one queried "
+                f"(evidence: r={evidence.r}, c1={tuple(evidence.c1)}, ch2={evidence.ch2}, "
+                f"surface={evidence.surface.name!r}; queried: r={r}, c1={tuple(xi.c1)}, "
+                f"ch2={xi.ch2}, surface={surface.name!r})"
+            )
+        # (2) value gate: the supplied bound must equal the package's OWN certified sharp
+        # bound for this class.  Where no theorem certifies one, an external target is
+        # unverifiable and is refused rather than trusted (invariant 7).
+        native = _certified_sharp_bound(xi, surface, R_max, rank_max)
+        if native is None:
+            raise ValueError(
+                "no theorem-certified sharp bound on this surface, so an external target "
+                "cannot be verified and is refused (invariant 7): the package certifies a "
+                "sharp bound only on P^2 (Drezet-Le Potier closed form) and on an ample "
+                "F_e with e in {0,1} and H anticanonical (CH Cor. deltaDLP)."
+            )
+        if evidence.sharp_bound != native:
+            raise ValueError(
+                f"delta_H_target {evidence.sharp_bound} != the package's own certified "
+                f"sharp bound {native} for this class: a forged / mis-derived target cannot "
+                "mint a PROVEN verdict (A5)"
+            )
+        dH, mode = evidence.sharp_bound, evidence.hn_length_one_source
     elif surface.is_p2:
         dH, mode = delta_H(xi, surface, R_max), HNMode.DLP
     else:
         env = _hirzebruch_envelope(xi, surface, rank_max)
-        if env is not None and hn_source is None:
+        if env is not None:
+            # Native Coskun-Huizenga envelope verdict.  _hirzebruch_verdict validates the
+            # character first (A3, so an invalid c1/c2 cannot reach a PROVEN non-empty branch)
+            # and gates PROVEN on env.certified_sharp PER BRANCH -- so a merely lower-bounding
+            # envelope (any ample H off the anticanonical del Pezzo ray, or e >= 2) never
+            # certifies existence.
+            #
+            # A bare certified hn_source (ORACLE/PAPER/DLP with NO delta_H_target) is
+            # deliberately NOT honoured on this path.  It certifies only the HN-length-one
+            # hypothesis, not a sharp delta_H; without an externally supplied sharp target the
+            # package has ONLY its own envelope to compare against.  Previously this path stamped
+            # _MODE_CERT[hn_source] = PROVEN over env.value while env.sharp was False, forging a
+            # false PROVEN_NONEMPTY for every class in the gap [env.value, sharp delta_H) -- a
+            # class that is EMPTY reported as PROVEN non-empty (invariant 7's worst outcome),
+            # reachable through the documented E11-M5 ORACLE hook with one public call.  The
+            # oracle MUST carry its sharp delta_H as delta_H_target (the first branch above) to
+            # reach PROVEN off P^2.  See docs/CORRECTIONS.md E12-M2 (IMPROVE round 4).
             return _hirzebruch_verdict(xi, surface, disc, env, rank_max)
-        dH = delta_H(xi, surface, R_max, rank_max)
-        mode = hn_source if hn_source in _CERTIFIED else HNMode.HEURISTIC
+        # env is None: K3 / abelian / a nef-and-big (non-ample) F_n -- no CH envelope at all,
+        # so delta_H falls back to the Bogomolov floor 0, which is never sharp.  A bare certified
+        # hn_source cannot certify existence against the floor either, so the verdict stays
+        # HEURISTIC (the E11-M5 oracle hook reaches PROVEN only via a real delta_H_target).
+        dH = delta_H(xi, surface, R_max, rank_max)   # = 0 (Bogomolov floor)
+        mode = HNMode.HEURISTIC
 
     cert = _MODE_CERT[mode]
+    valid = validate_character(r, xi.c1, xi.ch2, surface)
     above_curve = disc >= dH
-    exceptional = _is_p2_exceptional(xi, surface)  # DLP second disjunct (P^2 only)
-    nonempty = above_curve or exceptional
+    # DLP exceptional-bundle disjunct on EVERY surface (the pinned P^2 detectors on P^2, the
+    # ch2-guarded F_e detectors off P^2) -- so an exceptional/semiexceptional class fed its
+    # OWN correct sharp delta_H target is still reported non-empty here, never a false PROVEN
+    # "empty" for a class whose moduli space is a single reduced point (E12-M2).  Mirrors
+    # _hirzebruch_verdict's native disjunct, which the certified-target path previously
+    # dropped off P^2 -> a PROVEN_EMPTY contradicting the same function's native verdict.
+    exceptional, semiexceptional = _exceptional_disjunct(xi, surface)
+    nonempty = valid and (above_curve or exceptional or semiexceptional)
+    # Branch-derived rigor off P^2.  The CH non-emptiness theorem (Thm "deltaSurface" (1))
+    # needs a STRICT inequality Delta > delta_H, and its converse "Delta < delta_H => empty"
+    # is a theorem only BELOW the certified emptiness_bound -- which is strictly weaker than the
+    # envelope (CLAUDE.md invariant; emptiness_bound drops the non-theorem (nu-nu_V).H=0 branch).
+    # So, mirroring _hirzebruch_verdict, downgrade the certificate to HEURISTIC (-> UNKNOWN) for
+    # the whole band emptiness_bound <= Delta <= delta_H when no exceptional disjunct fires.  A
+    # flat "Delta < delta_H => PROVEN empty" over-claimed emptiness in the gap emptiness_bound <=
+    # Delta < delta_H that the SAME function's native envelope verdict reports UNKNOWN -- a
+    # non-theorem-backed false PROVEN_EMPTY (E12-M2, IMPROVE round 3).  Below emptiness_bound the
+    # verdict stays PROVEN empty (theorem); strictly above delta_H it stays PROVEN nonempty; the
+    # exceptional/semiexceptional disjunct proves non-emptiness independently of the envelope and
+    # so is never downgraded.  Off a Hirzebruch F_e (K3, abelian, nef-and-big F_n) there is no
+    # emptiness_bound theory, so only the boundary Delta == delta_H is downgraded, as before.
+    # An invalid character is not the Chern character of ANY coherent sheaf, so M(xi)
+    # is empty on every surface for every polarization -- a K_X-independent theorem
+    # (validate_character's c2 clause).  Swap in the branch-derived PROVEN-empty cert
+    # so the verdict is PROVEN_EMPTY uniformly, matching _hirzebruch_verdict; without
+    # this the K3/abelian path (mode=HEURISTIC) under-claimed it as UNKNOWN while
+    # P^2/F_e reported PROVEN_EMPTY -- an inconsistency the E12 code review flagged.
+    band_unknown = False
+    if not valid:
+        cert = _INVALID_CHARACTER_CERT
+    elif (mode in _CERTIFIED and not surface.is_p2
+            and not (exceptional or semiexceptional)):
+        eb = _fe_emptiness_bound(xi, surface, rank_max)
+        in_band = (disc == dH) or (eb is not None and eb <= disc <= dH)
+        if in_band:
+            cert = _BOUNDARY_CERT
+            band_unknown = True
     reason = f"mode={mode.value}: Delta={disc} {'>=' if above_curve else '<'} delta_H={dH}"
-    if exceptional and not above_curve:
+    if not valid:
+        reason += "; invalid Chern character (c1 or chi not integral): no sheaf exists"
+    elif exceptional and not above_curve:
         reason += "; exceptional bundle: non-empty isolated point below the DLP curve"
+    elif semiexceptional and not above_curve:
+        reason += "; semiexceptional (m*ch(E)): non-empty polystable point below the DLP curve"
+    elif band_unknown:
+        reason += ("; emptiness_bound <= Delta <= delta_H: emptiness is not a theorem in this "
+                   "band (the envelope is strictly stronger than emptiness_bound) -> UNKNOWN")
     if mode not in _CERTIFIED:
         reason += " (HEURISTIC: Bogomolov floor; no Drezet-Le Potier envelope applies)"
     return NonemptinessVerdict(nonempty, disc, dH, mode, cert, reason, exceptional)

@@ -72,11 +72,15 @@ def test_moduli_nonempty_above_curve():
 
 
 def test_moduli_empty_between_exceptional_and_curve():
-    # (4,2,-1) = ch of T(-1)^{+2}: Delta=3/8 < delta(1/2)=5/8, not exceptional -> empty
+    # CORRECTED (defect A1; see docs/CORRECTIONS.md sec.8 E12-M2).  (4,2,-1) = ch of T(-1)^{+2}
+    # is SEMIEXCEPTIONAL: Delta=3/8 < delta(1/2)=5/8 and it is NOT a single exceptional bundle
+    # (rank 4 != denom 2), yet T(-1)^{+2} is Gieseker-polystable, so M(4,2,-1) is a non-empty
+    # point (arXiv:1907.06739 Ex.1.14 + arXiv:1401.1613 Thm 2.2).
     E = Bundle(4, 2, F(-1))
     res = moduli_nonempty(E)
     assert res["discriminant"] == F(3, 8)
     assert res["exceptional"] is False
+    assert res["semiexceptional"] is True
     assert res["positive_dimensional"] is False
-    assert res["nonempty"] is False
-    assert "EMPTY" in res["reason"]
+    assert res["nonempty"] is True
+    assert "semiexceptional" in res["reason"]

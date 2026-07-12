@@ -26,8 +26,12 @@ class Surface:
     name : str
     d : int
         ``H^2`` (the degree of the polarization).
-    K_H : int
-        ``K_X . H``.
+    K : Tuple[int, ...]
+        The canonical class ``K_X`` as an integer NS-vector in the coordinates of
+        ``lattice`` (rank-1 shim: ``(-3,)`` on P^2, ``(0,)`` on K3/abelian).  The
+        intersection number ``K_X . H`` is the derived property :attr:`K_H`
+        (A8) -- it is NO LONGER a stored scalar, so it stays correct on every
+        F_n polarization instead of a ``-2`` placeholder.
     chi_O : int
         ``chi(O_X)``.
     picard_rank : int
@@ -44,7 +48,7 @@ class Surface:
 
     name: str
     d: int
-    K_H: int
+    K: Tuple[int, ...]                          # canonical class as an NS-vector (A8); K_H is derived
     chi_O: int
     picard_rank: int = 1
     canonical_order: int = 0   # torsion order of K_X in Pic (0 = none/genuinely trivial)
@@ -65,10 +69,44 @@ class Surface:
                 f"H has length {len(self.H)} but the NS lattice has rank {rank}")
         if any(int(x) != x for x in self.H):
             raise ValueError(f"H must be an integer vector; got {self.H!r}")
+        # K (canonical class as an NS-vector, A8): same rank as H, integral.  Validate
+        # integrality FIRST (so a fractional K raises rather than being truncated), then
+        # normalize to an int-tuple -- matching the `Tuple[int, ...]` annotation and making
+        # equality/hashing independent of whether the caller passed ints or Fractions
+        # (canonical_class re-coerces to Fraction via _Q where it needs them).
+        # A clean error when K is a scalar -- e.g. a caller using the OLD positional
+        # form Surface(name, d, -3, ...) where the 3rd field used to be the int K_H.
+        # Without this, `tuple(self.K)` raises a cryptic "'int' object is not iterable".
+        if isinstance(self.K, (int, float)) or not hasattr(self.K, "__iter__"):
+            raise ValueError(
+                f"K must be an NS-vector (a tuple like (-3,) or (0, 0)), not the scalar "
+                f"{self.K!r}.  Note: the old scalar `K_H` field was replaced by the NS-vector "
+                f"`K` (A8); `K_H` is now a derived property.")
+        Kt = tuple(self.K)
+        if len(Kt) != rank:
+            raise ValueError(
+                f"K has length {len(Kt)} but the NS lattice has rank {rank}")
+        if any(int(x) != x for x in Kt):
+            raise ValueError(f"K must be an integer NS-vector; got {self.K!r}")
+        object.__setattr__(self, "K", tuple(int(x) for x in Kt))
 
     @property
     def is_p2(self) -> bool:
         return self.kind == "P2"
+
+    @property
+    def K_H(self) -> int:
+        """``K_X . H`` computed from the canonical class and the polarization (A8).
+
+        ``<K, H>`` via ``lattice.pairing`` -- so it is correct on every F_n
+        polarization (``(n-2)b - 2a`` for ``H = a f + b s``), where the old stored
+        ``K_H = -2`` was a placeholder.  Asserted integral (a canonical
+        intersection number) and returned as an exact ``int`` -- no truncation.
+        """
+        val = self.lattice.pairing(self.K, self.H)
+        if val.denominator != 1:
+            raise ValueError(f"K.H = {val} is not integral for {self.name}")
+        return int(val)
 
     @property
     def trivial_canonical(self) -> bool:
@@ -130,7 +168,7 @@ class Threefold:
 P2 = Surface(
     name="P^2",
     d=1,
-    K_H=-3,  # K = -3H, K.H = -3
+    K=(-3,),  # K = -3H (rank-1 shim: K.H = <(-3,),(1,)> = -3)
     chi_O=1,
     picard_rank=1,
     kind="P2",
@@ -146,7 +184,7 @@ P2 = Surface(
 P1xP1 = Surface(
     name="P^1 x P^1",
     d=2,  # H = O(1,1) = f + s, H^2 = <f+s, f+s> = 2
-    K_H=-4,  # K = O(-2,-2), K.H = -4
+    K=(-2, -2),  # K = O(-2,-2); K.H = <(-2,-2),(1,1)> = -4 on Gram [[0,1],[1,0]]
     chi_O=1,
     picard_rank=2,
     kind="rational",
@@ -166,21 +204,25 @@ def hirzebruch(n: int) -> Surface:
     ``(1,1)`` (E8-M4 / G12.4).  The degree-``n`` polarization ``H = n f + s``
     (coordinate ``(n, 1)``) reproduces ``<H,H> = n = d``.  (``H = C_0 + n f`` is nef
     and big -- it sits on the nef boundary and is semiample, NOT strictly ample, for
-    ``n >= 1``; only ``<H,H> = n`` enters the slope/discriminant machinery.)  ``K_H = -2`` is a
-    placeholder for the standard fiber-class normalization (the slope/discriminant
-    machinery needs only ``d = H^2``).  For ``n <= 0`` (``F_0 = P^1 x P^1``, or a
-    degenerate input) this keeps the rank-1 backward-compat shim unchanged; use the
-    named catalog row :data:`P1xP1` for the genuine rank-2 ``F_0`` lattice.
+    ``n >= 1``; only ``<H,H> = n`` enters the slope/discriminant machinery.)  The canonical
+    class is stored as the NS-vector ``K = -(n+2) f - 2 s = (-(n+2), -2)`` (A8), so the
+    derived :attr:`Surface.K_H` is the true ``K.H = -(n+2)`` on this polarization, not the
+    old ``-2`` placeholder.  For ``n <= 0`` (``F_0 = P^1 x P^1``, or a degenerate input)
+    this keeps the rank-1 backward-compat shim unchanged (``K = (-2,)``, preserving
+    ``K.H = -2`` there); use the named catalog row :data:`P1xP1` for the genuine rank-2
+    ``F_0`` lattice.
     """
     if n >= 1:
         d, H, ns = n, (n, 1), NSLattice(2, ((0, 1), (1, -n)))
+        Kv = (-(n + 2), -2)                       # K_{F_n} = -(n+2) f - 2 s; K.H = -(n+2)
         note = ("Hirzebruch surface (Coskun-Huizenga non-emptiness algorithm "
                 "applies); NS Gram [[0,1],[1,-n]], H = n f + s.")
     else:  # F_0 = P^1 x P^1 (see P1xP1) or degenerate input: rank-1 shim, unchanged
         d, H, ns = 1, RANK1_AMPLE, None
+        Kv = (-2,)                                # rank-1 shim: K.H = -2 (old placeholder)
         note = "Hirzebruch surface (Coskun-Huizenga non-emptiness algorithm applies)."
     return Surface(
-        name=f"F_{n}", d=d, K_H=-2, chi_O=1, picard_rank=2, kind="hirzebruch",
+        name=f"F_{n}", d=d, K=Kv, chi_O=1, picard_rank=2, kind="hirzebruch",
         note=note, H=H, ns_lattice=ns,
     )
 
@@ -192,7 +234,7 @@ def K3(h2: int = 2) -> Surface:
     return Surface(
         name=f"K3 (H^2={h2})",
         d=h2,
-        K_H=0,
+        K=(0,),  # K = 0 (rank-1 shim: K.H = 0)
         chi_O=2,
         picard_rank=1,
         kind="K3",
@@ -222,7 +264,7 @@ def abelian_surface(h2: int = 2) -> Surface:
     return Surface(
         name=f"abelian surface (H^2={h2})",
         d=h2,
-        K_H=0,
+        K=(0,),  # K = 0 (rank-1 shim: K.H = 0)
         chi_O=0,
         picard_rank=1,
         kind="abelian",
@@ -250,7 +292,7 @@ def enriques(h2: int = 2) -> Surface:
                          "(the Enriques lattice U + E8(-1) is even)")
     return Surface(
         name=f"Enriques surface (H^2={h2})",
-        d=h2, K_H=0, chi_O=1,
+        d=h2, K=(0,), chi_O=1,  # K numerically trivial (2-torsion): K.H = 0
         picard_rank=10, canonical_order=2, kind="enriques",
         note="K_X 2-torsion (numerically trivial); record-only row -- faithful "
              "walls need the NS-lattice refactor (G12).",
@@ -287,7 +329,7 @@ def bielliptic(h2: int = 2) -> Surface:
                          "chi(O(D)) = D^2/2 in Z by Riemann-Roch)")
     return Surface(
         name=f"bielliptic surface (H^2={h2})",
-        d=h2, K_H=0, chi_O=0,
+        d=h2, K=(0,), chi_O=0,  # K torsion, numerically trivial: K.H = 0
         picard_rank=2, canonical_order=2, kind="bielliptic",
         note="K_X torsion (order 2 here; orders 2,3,4,6 occur), numerically "
              "trivial; record-only row -- faithful walls need the NS-lattice "

@@ -9,10 +9,13 @@ from bridgeland_stability.exceptional import (
     chi,
     enumerate_exceptional,
     exceptional_mediant,
+    exceptional_slopes,
     is_exceptional,
+    is_exceptional_slope,
     is_markov_number,
     markov_numbers,
 )
+from bridgeland_stability.dlp import delta
 
 
 def test_line_bundles_are_exceptional_with_zero_discriminant():
@@ -103,3 +106,67 @@ def test_enumeration_sorted_and_bounded():
     assert all(b.r <= 20 for b in bundles)
     slopes = [b.slope for b in bundles]
     assert slopes == sorted(slopes)
+
+
+# --------------------------------------------------------------------------
+# E12-M1: epsilon-membership exceptionality (A2) + certified rank cutoff (A4).
+# The rank IS a Markov number for every impostor below, so a "rank is Markov"
+# heuristic would still accept them; only epsilon-image membership rejects them.
+# --------------------------------------------------------------------------
+_IMPOSTORS = [(133, 610), (477, 610), (183, 985), (802, 985), (182, 1325), (1143, 1325)]
+
+
+def test_is_exceptional_rejects_epsilon_impostors():
+    assert is_exceptional(Bundle(10, 3, F(-9, 2))) is False       # 3/10, denom 10 not Markov
+    assert is_exceptional(Bundle(610, 133, F(-581, 2))) is False  # rank 610 IS Markov, slope not eps
+    for p, q in _IMPOSTORS:
+        ch2 = F(p * p - q * q + 1, 2 * q)     # the exceptional ch2 at p/q -> chi(E,E)=1
+        assert is_exceptional(Bundle(q, p, ch2)) is False, (p, q)
+        assert is_exceptional_slope(F(p, q)) is False, (p, q)
+
+
+def test_is_exceptional_accepts_genuine_epsilon_bundles():
+    # (r, c1, ch2) = (q, p, (p^2-q^2+1)/(2q)) at a genuine epsilon-slope p/q.
+    assert is_exceptional(Bundle(2, 1, F(-1, 2))) is True     # 1/2  ch2=(1-4+1)/4=-1/2
+    assert is_exceptional(Bundle(5, 2, F(-2))) is True        # 2/5  ch2=(4-25+1)/10=-2
+    assert is_exceptional(Bundle(1, 0, F(0))) is True         # O
+    assert is_exceptional(Bundle(13, 5, F(-11, 2))) is True   # 5/13 ch2=(25-169+1)/26=-143/26=-11/2
+
+
+def test_is_exceptional_slope_membership():
+    for s in (F(0), F(3), F(1, 2), F(2, 5), F(3, 5), F(5, 13), F(8, 13)):
+        assert is_exceptional_slope(s) is True, s
+    for s in (F(1, 3), F(2, 3), F(1, 4), F(3, 10), F(1, 5), F(133, 610)):
+        assert is_exceptional_slope(s) is False, s
+    # r_max below the slope's denominator rejects outright:
+    assert is_exceptional_slope(F(5, 13), 12) is False
+    assert is_exceptional_slope(F(133, 610), 600) is False
+
+
+def test_exceptional_slopes_helper():
+    got = set(exceptional_slopes(F(1, 2), 13))
+    for s in (F(0), F(1), F(1, 2), F(2, 5), F(3, 5), F(5, 13), F(8, 13)):
+        assert s in got, s
+    assert F(1, 3) not in got and F(1, 5) not in got
+
+
+def test_certified_cutoff_stable_under_margin():
+    """Empirical confirmation of the certified rank cutoff (CORRECTIONS section 8).
+
+    For 400 random slopes ``mu``, enumerating epsilon-slopes to ``denominator(mu)``
+    already captures every DLP cusp: extending the rank bound by a large margin ``K``
+    never changes ``delta(mu)``.  A single mismatch would falsify the theorem that
+    ``R_max = denominator(mu)`` is exact (no epsilon-cusp of rank > denom(mu) contributes).
+    Seed fixed for reproducibility.
+    """
+    import random
+
+    rng = random.Random(12345)
+    K = 200
+    for _ in range(400):
+        q = rng.randint(1, 300)
+        p = rng.randint(-2 * q, 2 * q)
+        mu = F(p, q)
+        d_cut = delta(mu, enumerate_exceptional(mu - 3, mu + 3, mu.denominator))
+        d_wide = delta(mu, enumerate_exceptional(mu - 3, mu + 3, mu.denominator + K))
+        assert d_cut == d_wide, (mu, d_cut, d_wide)

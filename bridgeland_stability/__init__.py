@@ -46,6 +46,8 @@ from .exceptional import (
     P,
     chi,
     is_exceptional,
+    is_exceptional_slope,
+    exceptional_slopes,
     exceptional_mediant,
     enumerate_exceptional,
     markov_numbers,
@@ -73,6 +75,7 @@ from .nonemptiness_rational import (
     discriminant_H,
     hirzebruch_with_polarization,
     NonemptinessVerdict,
+    SharpBoundEvidence,
     HNMode,
     moduli_nonempty as moduli_nonempty_rational,
 )
@@ -178,6 +181,8 @@ __all__ = [
     "P",
     "chi",
     "is_exceptional",
+    "is_exceptional_slope",
+    "exceptional_slopes",
     "exceptional_mediant",
     "enumerate_exceptional",
     "markov_numbers",
@@ -199,6 +204,7 @@ __all__ = [
     "discriminant_H",
     "hirzebruch_with_polarization",
     "NonemptinessVerdict",
+    "SharpBoundEvidence",
     "HNMode",
     "moduli_nonempty_rational",
     # E11-M6 / G18: the polarization-dependent Drezet-Le Potier envelope on F_e

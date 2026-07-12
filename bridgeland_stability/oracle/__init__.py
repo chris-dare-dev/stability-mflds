@@ -20,6 +20,7 @@ from .m2 import (
     chi_via_ext,
     ext_dims,
     find_m2,
+    mint_oracle_evidence,
     moduli_nonempty_by_construction,
     require_m2,
 )
@@ -32,4 +33,5 @@ __all__ = [
     "chi_via_ext",
     "ext_dims",
     "moduli_nonempty_by_construction",
+    "mint_oracle_evidence",
 ]

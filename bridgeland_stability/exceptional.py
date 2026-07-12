@@ -147,8 +147,40 @@ def chi(E: Bundle, F: Bundle) -> Fraction:
 
 
 def is_exceptional(E: Bundle) -> bool:
-    """True iff ``E`` is a genuine exceptional bundle: ``chi(E,E)=1`` and ``c2`` integral."""
-    return chi(E, E) == 1 and E.c2.denominator == 1
+    """True iff ``E`` is a genuine exceptional bundle: its slope lies in the Drezet-Le
+    Potier epsilon-recursion image (Theoreme A), with rank = slope denominator and the
+    exceptional ``ch2 = Bundle.from_slope(slope).ch2``.  ``chi(E,E)=1`` and integral
+    ``c2`` are a cheap NECESSARY pre-filter only -- they are met by infinitely many
+    non-exceptional integral classes (e.g. the Markov-rank impostor ``(610,133,-581/2)``,
+    whose rank 610 = 2*5*61 IS a Markov number).  See docs/CORRECTIONS.md section 8.
+    """
+    if chi(E, E) != 1 or E.c2.denominator != 1:      # cheap necessary pre-filter
+        return False
+    mu = E.slope
+    if mu.denominator != E.r:                         # rank must equal the reduced denominator
+        return False
+    if E.ch2 != Bundle.from_slope(mu).ch2:            # the unique exceptional ch2 at this slope
+        return False
+    return is_exceptional_slope(mu, E.r)              # sufficiency: epsilon-image membership
+
+
+def is_semiexceptional_p2(r: int, c1: int, ch2: Number) -> bool:
+    """True iff (r, c1, ch2) = m * ch(E) for an exceptional bundle E on P^2 and m >= 1.
+
+    Coskun-Huizenga arXiv:1907.06739 Ex.1.14: a semiexceptional bundle is a direct sum of
+    copies of an exceptional bundle.  m=1 makes every exceptional bundle semiexceptional.
+    The P^2 analogue of dlp_hirzebruch.is_semiexceptional; agrees with the oracle's
+    reference_is_semiexceptional (tests/oracle/dlp_reference.py) bit-for-bit.
+    """
+    ch2 = Q(ch2)
+    if r < 1:
+        return False
+    for m in range(1, r + 1):
+        if r % m or c1 % m:
+            continue
+        if is_exceptional(Bundle(r // m, c1 // m, ch2 / m)):
+            return True
+    return False
 
 
 # --------------------------------------------------------------------------
@@ -208,6 +240,54 @@ def enumerate_exceptional(
         stack.append((g, b))
 
     return [found[k] for k in sorted(found)]
+
+
+def certified_rank_cutoff(mu: Number, R_max: int = 0) -> int:
+    """The certified-exact rank cutoff for evaluating ``delta(mu)`` on ``P^2``.
+
+    An exceptional slope ``alpha`` of rank ``rho`` lifts ``delta`` above ``1/2`` only
+    inside its control interval of half-width ``x_rho <= 0.382/rho^2``; and if
+    ``alpha != mu`` with ``q = denominator(mu)`` then ``|mu - alpha| >= 1/(q rho)``,
+    which forces ``rho < 0.382 q``.  The only remaining case is ``alpha = mu``
+    (``rho = q``).  So enumerating exceptional bundles up to rank ``denominator(mu)``
+    resolves ``delta(mu)`` EXACTLY -- it is a theorem, not a truncation
+    (docs/CORRECTIONS.md sec.8).  Returns ``max(R_max, denominator(mu))`` so a caller's
+    larger explicit budget is still honoured.
+
+    This is the SINGLE source of the cutoff shared by both P^2 decision procedures
+    (:func:`bridgeland_stability.dlp.moduli_nonempty` and
+    :func:`bridgeland_stability.nonemptiness_rational.delta_H`); they must agree by
+    construction, and defect A4b was exactly a cutoff that landed in one and not the
+    other.  Do not re-inline ``max(R_max, mu.denominator)`` at a call site.
+    """
+    return max(int(R_max), Q(mu).denominator)
+
+
+def exceptional_slopes(mu: Number, r_max: int, reach: Number = 3) -> List[Fraction]:
+    """The exceptional (DLP epsilon-recursion image) slopes within ``[mu-reach, mu+reach]``
+    of rank (= slope denominator) ``<= r_max``, sorted.  Wraps :func:`enumerate_exceptional`
+    -- no new recursion -- so it generates exactly the same epsilon-image.  ``reach=3``
+    matches the ``|mu-alpha| < 3`` DLP window used by :func:`bridgeland_stability.dlp.delta`.
+    """
+    m = Q(mu)
+    return [b.slope for b in enumerate_exceptional(m - reach, m + reach, r_max)]
+
+
+def is_exceptional_slope(alpha: Number, r_max: "int | None" = None) -> bool:
+    """``True`` iff ``alpha`` is an exceptional slope: a member of the Drezet-Le Potier
+    epsilon-recursion image (Theoreme A).  ``r_max`` defaults to ``denominator(alpha)`` --
+    the certified-exact cutoff (docs/CORRECTIONS.md section 8) -- and a slope whose
+    denominator exceeds ``r_max`` is rejected outright.  Generated epsilon-slope
+    denominators strictly increase down the tree, so a slope of denominator ``q`` is
+    produced iff it is genuinely in the image and ``r_max >= q``.
+    """
+    a = Q(alpha)
+    if r_max is None:
+        r_max = a.denominator
+    if a.denominator > r_max:
+        return False
+    lo = math.floor(a)
+    return any(b.slope == a for b in enumerate_exceptional(lo, lo + 1, r_max))
 
 
 # --------------------------------------------------------------------------

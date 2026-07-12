@@ -40,7 +40,15 @@ from fractions import Fraction
 from typing import List, Optional, Tuple
 
 from .chern import ChernChar, Number, Q
-from .exceptional import Bundle, P, chi, enumerate_exceptional, is_exceptional
+from .exceptional import (
+    Bundle,
+    P,
+    certified_rank_cutoff,
+    chi,
+    enumerate_exceptional,
+    is_exceptional,
+    is_semiexceptional_p2,
+)
 from .varieties import Surface, P2, require_faithful_computation
 
 # Re-export so callers can do ``from bridgeland_stability.dlp import P``.
@@ -154,7 +162,7 @@ def moduli_nonempty(
     Returns a dict with keys: ``mu``, ``discriminant`` (CH), ``delta``,
     ``exceptional`` (bool), ``positive_dimensional`` (Delta >= delta),
     ``integral`` (c1, chi integral), ``nonempty`` (bool), ``moduli_dim``
-    (= r^2(2*Delta_brief - 1) + 1 when positive-dimensional, else 0), ``reason``.
+    (= r^2(2*Delta_CH - 1) + 1 when positive-dimensional, else 0), ``reason``.
 
     The DLP / exceptional-bundle machinery is P^2-only; the optional ``surface``
     parameter (default :data:`P2`, backward-compatible) exists solely to route
@@ -167,30 +175,39 @@ def moduli_nonempty(
     mu = E.slope
     Dm = E.discriminant  # CH
     exceptional = is_exceptional(E)
-    # enumerate around mu
+    semiexceptional = is_semiexceptional_p2(E.r, E.c1, E.ch2)  # A1: m>=1 disjunct
+    # A4b: carry E12-M1's certified-exact cutoff into the DECISION (a truncated
+    # decision is dishonest where a truncated picture is fine); dlp_curve keeps R_max=50.
+    # Shared helper -> this and nonemptiness_rational.delta_H cannot drift apart.
+    R_max = certified_rank_cutoff(mu, R_max)
     bundles = enumerate_exceptional(mu - 3, mu + 3, R_max)
     d_val = delta(mu, bundles)
     positive_dim = Dm >= d_val
     # integrality: c1 in Z (given) and chi(E) = r(P(mu) - Delta) in Z
     chi_E = E.r * (P(mu) - Dm)
     integral = (E.c2.denominator == 1) and (chi_E.denominator == 1)
-    nonempty = integral and (positive_dim or exceptional)
-    # Drezet-Le Potier dimension r^2(2 Delta - 1) + 1; Delta here in the brief's
-    # doubled convention (= 2*CH) so dim = r^2(2*Delta_brief - 1)+1.
-    dim = E.r * E.r * (2 * E.discriminant_brief - 1) + 1 if positive_dim else 0
+    nonempty = integral and (positive_dim or exceptional or semiexceptional)
+    # CHW arXiv:1401.1613 sec.2 dimension in the CH convention:
+    #   dim M(xi) = r^2 (2 Delta_CH - 1) + 1   (equivalently r^2(Delta_brief - 1)+1).
+    # (A7) E.discriminant is the CH discriminant; E.discriminant_brief = 2*Delta_CH
+    # doubled the expression, returning 4n instead of 2n on P^2[n]=(1,0,-n).
+    dim = E.r * E.r * (2 * E.discriminant - 1) + 1 if positive_dim else 0
     if exceptional and not positive_dim:
         reason = "exceptional bundle: isolated point below the DLP curve"
+    elif semiexceptional and not positive_dim:
+        reason = "semiexceptional bundle (m*ch(E)): non-empty polystable point below the DLP curve"
     elif positive_dim and integral:
         reason = f"Delta={Dm} >= delta({mu})={d_val}: positive-dimensional moduli"
     elif not integral:
         reason = "non-integral Chern data (c2 or chi not an integer)"
     else:
-        reason = f"Delta={Dm} < delta({mu})={d_val} and not exceptional: EMPTY"
+        reason = f"Delta={Dm} < delta({mu})={d_val} and not (semi)exceptional: EMPTY"
     return {
         "mu": mu,
         "discriminant": Dm,
         "delta": d_val,
         "exceptional": exceptional,
+        "semiexceptional": semiexceptional,
         "positive_dimensional": positive_dim,
         "integral": integral,
         "nonempty": nonempty,

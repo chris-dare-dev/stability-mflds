@@ -427,7 +427,9 @@ def _surface_from_key(key: Tuple) -> Surface:
     e, H, gram, K, chi_O = key
     lat = NSLattice(2, gram)
     d = lat.self_pairing(tuple(Fraction(x) for x in H))
-    return Surface(name=f"F_{e} (H={H})", d=int(d), K_H=-2, chi_O=chi_O,
+    # K is canonical_class(original) = (-(e+2), -2) (A8); reuse it directly so the
+    # reconstructed surface's derived K.H matches the original, not the -2 placeholder.
+    return Surface(name=f"F_{e} (H={H})", d=int(d), K=K, chi_O=chi_O,
                    picard_rank=2, kind="hirzebruch", H=H, ns_lattice=lat)
 
 

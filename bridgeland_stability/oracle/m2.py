@@ -53,6 +53,7 @@ __all__ = [
     "chi_via_ext",
     "ext_dims",
     "moduli_nonempty_by_construction",
+    "mint_oracle_evidence",
 ]
 
 #: Environment variables consulted (in order) to locate M2 before a PATH lookup.
@@ -363,3 +364,40 @@ def moduli_nonempty_by_construction(
     if got == (1, int(c1), Fraction(ch2)):
         return True
     return None
+
+
+# --- E12-M4 / A5: the sole ORACLE-sourced SharpBoundEvidence mint -------------
+def mint_oracle_evidence(r: int, c1, ch2: Fraction, X, sharp_bound, citation: str = ""):
+    """Mint an ``ORACLE``-sourced :class:`~bridgeland_stability.nonemptiness_rational.
+    SharpBoundEvidence` -- ONLY after a real construction verified the class is nonempty.
+
+    This is the single trust boundary for ORACLE evidence (E12-M4 crit. 3).  It lives
+    inside ``oracle/`` so it is the only holder of the module-private
+    ``_ORACLE_TOKEN``; ``SharpBoundEvidence.__post_init__`` refuses any ORACLE-sourced
+    object built without that token, so a raw ``(delta_H_target, hn_source=ORACLE)``
+    pair can no longer forge one.
+
+    The mint is gated on :func:`moduli_nonempty_by_construction` returning ``True`` --
+    i.e. Macaulay2 actually BUILT and verified a Gieseker-semistable sheaf of this class
+    (a sufficient-only witness; it never returns ``False``).  With no witness there is no
+    evidence to mint, so this raises ``ValueError``.  The core imports are deferred to the
+    body, so ``import bridgeland_stability.oracle.m2`` stays standard-library-only and the
+    ``oracle -> core`` import direction never becomes a cycle.
+
+    On this host Macaulay2 is absent, so :func:`moduli_nonempty_by_construction` raises
+    :class:`M2NotFoundError` first (via :func:`require_m2`) -- this mint runs only where a
+    user provisions M2, exactly like the ``@requires_m2`` tests.
+    """
+    from ..nonemptiness_rational import SharpBoundEvidence, HNMode, _ORACLE_TOKEN
+
+    if moduli_nonempty_by_construction(r, c1, ch2, X) is not True:
+        raise ValueError(
+            "oracle construction did not return True (no verified witness); refusing to "
+            "mint ORACLE evidence (E12-M4): a construction failure is not a sharp bound."
+        )
+    return SharpBoundEvidence(
+        surface=X, r=r, c1=tuple(c1), ch2=Fraction(ch2),
+        sharp_bound=Fraction(sharp_bound), sharp_bound_source=HNMode.ORACLE,
+        hn_length_one_source=HNMode.ORACLE, citation=citation,
+        _oracle_token=_ORACLE_TOKEN,
+    )

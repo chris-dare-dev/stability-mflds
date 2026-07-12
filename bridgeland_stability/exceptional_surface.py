@@ -99,15 +99,21 @@ class SurfaceBundle:
 
     @classmethod
     def line_bundle(cls, c1: Sequence[Number], surface: Surface) -> "SurfaceBundle":
-        """The line bundle ``O(D)`` for ``D = c1``:  ``ch = (1, D, D^2/2)``.
+        """The line bundle ``O(D)`` for an INTEGRAL divisor class ``D = c1``:
+        ``ch = (1, D, D^2/2)``.
 
         ``ch2 = (1/2) <D, D>`` from the surface's intersection form, so on
         P^1 x P^1 ``O(1,1)`` has ``ch2 = (1/2)*2 = 1`` and ``O(1,0)`` has
-        ``ch2 = (1/2)*0 = 0``.
+        ``ch2 = (1/2)*0 = 0``.  A fractional ``D`` is rejected (A10): ``O(D)`` is
+        undefined for a non-integral divisor class -- there is no such line bundle.
         """
-        d = tuple(_Q(x) for x in c1)
-        ch2 = Fraction(1, 2) * surface.lattice.self_pairing(d)
-        return cls(1, d, ch2)
+        dvec = tuple(_Q(x) for x in c1)
+        if any(x.denominator != 1 for x in dvec):
+            raise ValueError(
+                f"line_bundle needs an integral divisor class D; O(D) is undefined "
+                f"for fractional D={tuple(c1)!r}")
+        ch2 = Fraction(1, 2) * surface.lattice.self_pairing(dvec)
+        return cls(1, dvec, ch2)
 
     def dual(self) -> "SurfaceBundle":
         """The dual class ``E^v = (r, -c1, ch2)`` (ch2 is even in the dual)."""
@@ -117,43 +123,30 @@ class SurfaceBundle:
 def canonical_class(surface: Surface) -> NSVector:
     """The canonical class ``K_X`` as an NS-vector in ``surface.lattice``'s basis.
 
-    Two exact paths cover everything E11-M1/M2 needs:
+    Returns the genuine stored ``Surface.K`` field (A8), coerced to ``Fraction``:
+    ``P^2 -> (-3,)``, ``P^1 x P^1 -> (-2,-2)``, ``F_n -> (-(n+2), -2)``, and the
+    numerically-trivial ``K3 / abelian -> (0,...)``.
 
-    * Picard-rank-1 rows (``ns_lattice is None``): ``Pic(X) tensor Q = Q.H``, so
-      ``K_X = (K.H / H^2) . H`` exactly -- ``P^2 -> (-3,)``, ``K3/abelian ->
-      (0,)`` -- read off the genuine scalar datum ``surface.K_H`` and ``d``.
-    * Explicit rank-2 fiber/section lattices with Gram ``[[0,1],[1,-n]]``
-      (``P^1 x P^1``: ``n=0``; ``F_n``: ``n = -gram[1][1]``):
-      ``K_{F_n} = -2 s - (n+2) f``, i.e. coordinate ``(-(n+2), -2)`` in the basis
-      ``(f, s)``.  This path does NOT use ``surface.K_H`` -- ``hirzebruch``'s
-      ``K_H = -2`` is a documented PLACEHOLDER (not ``K.H``; the true
-      ``K_{F_n}.H = -(n+2)``).
+    Because ``K`` is now stored, this NEVER infers the canonical class from the Gram
+    matrix -- which is the real content of A11.  The fiber/section Gram
+    ``[[0,1],[1,-n]]`` is shared by ``F_0`` and a K3 with ``NS = U``; the old
+    Gram-pattern match returned a false ``K=(-2,-2)`` for that K3, whereas returning
+    the stored field gives its true ``K=(0,0)``.  (An earlier E12-M6 revision keyed
+    on ``surface.kind`` and *raised* for K3 / abelian; that was broader than A11
+    required and silently broke the general-purpose :func:`chi` / :func:`euler_gram`
+    on those surfaces -- a K-trivial Riemann-Roch that is well-defined and was
+    previously correct.  Restored here per the E12 code review.)
 
-    Torsion-canonical surfaces (Enriques / bielliptic, ``canonical_order != 0``)
-    and any unrecognized lattice raise ``NotImplementedError``: their ``K_X`` is
-    not determined by the numerical ``(K.H, d)`` data alone (needs the
-    torsion-aware NS lattice, G12).
+    Only a **torsion-canonical** surface (Enriques / bielliptic,
+    ``canonical_order != 0``) raises: there ``K_X`` is a torsion class that a single
+    NS-vector cannot represent (needs the torsion-aware NS lattice, G12).
     """
     if surface.canonical_order != 0:
         raise NotImplementedError(
             f"{surface.name}: K_X is torsion (canonical_order="
             f"{surface.canonical_order}); its NS-vector is not determined by the "
-            "numerical (K.H, d) data (needs the torsion-aware NS lattice, G12)."
-        )
-    if surface.ns_lattice is None:
-        # Picard-rank-1: K_X = (K.H / d) . H  (exact on P^2, K3, abelian).
-        scalar = Fraction(surface.K_H, surface.d)
-        return tuple(scalar * _Q(h) for h in surface.H)
-    gram = surface.ns_lattice.gram
-    if surface.ns_lattice.rank == 2 and gram[0][0] == 0 and gram[0][1] == 1:
-        # fiber/section normalization f^2=0, f.s=1, s^2=-n:  K = -(n+2) f - 2 s.
-        n = -gram[1][1]
-        return (Fraction(-(n + 2)), Fraction(-2))
-    raise NotImplementedError(
-        f"{surface.name}: canonical_class is implemented for Picard-rank-1 "
-        "surfaces (K_X = (K.H/d).H) and rank-2 fiber/section lattices "
-        f"[[0,1],[1,-n]]; got Gram {gram!r}."
-    )
+            "numerical data (needs the torsion-aware NS lattice, G12).")
+    return tuple(_Q(x) for x in surface.K)
 
 
 def chi(E: SurfaceBundle, F: SurfaceBundle, surface: Surface) -> int:
