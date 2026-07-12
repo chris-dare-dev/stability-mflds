@@ -92,6 +92,11 @@ from .dlp_hirzebruch import (
     is_stable_exceptional,
     total_slope,
 )
+from .reduction import (
+    reduce as reduce_character,   # avoid shadowing functools.reduce at the package top level
+    reduce_to_del_pezzo,
+    pi_c1,
+)
 from .walls import (
     Wall,
     VerticalWall,
@@ -219,6 +224,10 @@ __all__ = [
     "is_semiexceptional",
     "is_stable_exceptional",
     "total_slope",
+    # E13-M1 / G18: the F_e -> F_{e-2} reduction map pi (arXiv:1907.06739 Sec.11.1)
+    "reduce_character",
+    "reduce_to_del_pezzo",
+    "pi_c1",
     "Wall",
     "VerticalWall",
     "ActualWall",

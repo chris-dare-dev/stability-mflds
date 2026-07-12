@@ -965,3 +965,84 @@ The two review follow-ups were then addressed (a second commit):
   audit closed. So only the one genuinely-shared regime, the invalid-character verdict, was extracted
   (`_invalid_character_verdict`, called by both engines); the divergent theorems stay in their own
   engines, and both docstrings now record why a merge must not be attempted.
+
+---
+
+## 9. The F_e -> F_{e-2} reduction map `π` (E13-M1 / G18)
+
+**Not a correction of the brief — a new exact structure**, recorded here under the same two-way
+standard because it is math-load-bearing (it decides which envelope values are honest lower bounds
+vs. sharp), and because E13-M1 appends an independent oracle reference (`reference_reduce_pi`), which
+the freeze contract pairs with a `docs/CORRECTIONS.md` entry.
+
+**The map.** Coskun–Huizenga (arXiv:1907.06739 §11.1) reduce the whole `F_e` non-emptiness problem to
+the del Pezzo cases `F_0` / `F_1` by a linear map on Chern characters. In their `(E, F)` basis (`E` the
+section, `F` the fiber),
+
+> `π(r, aE + bF, d) = (r, aE′ + (b − a)F′, d)`   (their `d` is `ch₂`).
+
+This package stores `NS(F_e)` in the basis `(f, s) = (F, E)` with Gram `G_e = [[0,1],[1,−e]]`
+(`f² = 0`, `f·s = 1`, `s² = −e`). Writing `c₁ = x·f + y·s` — so `x` is the fiber (`= b`) and `y` the
+section (`= a`) coefficient — the same map is the **`r`- and `ch₂`-fixing** NS map
+
+> `π(r, (x, y), ch₂) = (r, (x − y, y), ch₂)`,   matrix `M = [[1, −1], [0, 1]]` on the column `(x, y)`.
+
+`M ∈ SL₂(ℤ)` (`det M = 1·1 − (−1)·0 = 1`, **unimodular**), and — the key identity —
+
+> `Mᵀ · G_{e−2} · M = [[1,0],[−1,1]]·[[0,1],[1,−(e−2)]]·[[1,−1],[0,1]] = [[0,1],[1,−e]] = G_e`,
+
+so **`π` is an isometry `NS(F_e) → NS(F_{e−2})`** (verified exactly for `e = 2..6` in
+`tests/test_reduction.py::test_pi_is_an_isometry_M_T_G_M_equals_G`). From unimodular + isometric +
+`(r, ch₂)`-fixed, **every** Lemma 11.3 property follows, because each invariant is built only from
+`⟨·,·⟩`, `r`, `ch₂`, `K_X`, and `χ(O_X)`:
+
+- **(1) pairing** `⟨πu, πv⟩_{e−2} = ⟨u, v⟩_e` (isometry). E.g. `u=(3,1), v=(1,2), e=2`: both `= 3`.
+- **(2) discriminant** `Δ = ½⟨ν,ν⟩ − ch₂/r`, `ν = c₁/r`: isometry + fixed `ch₂/r` ⟹ `Δ(πv) = Δ(v)`.
+- **(3) `π(K)`, `π(O)`.** `K_{F_e} = (−(e+2), −2)`, `π(K_{F_e}) = (−(e+2)+2, −2) = (−e, −2) =
+  K_{F_{e−2}}`; the `−K` ray `(e+2, 2) ↦ (e, 2)`. `ch(O) = (1,(0,0),0)` is fixed. `K² = 8` on every
+  `F_e`, so `ch(O(K)) = (1, K, 4)` transports with `ch₂ = 4` unchanged.
+- **(4) `χ(v)`, `χ(v,w)`; integral→integral, primitive→primitive.** `χ(O_X) = 1` on every `F_e`; the RR
+  Euler form and `c₂ = ½⟨c₁,c₁⟩ − ch₂` are isometry/`r`/`ch₂`-built, hence preserved. `M` unimodular ⟹
+  the integral lattice bijects onto itself (`c₂ ∈ ℤ` preserved) and `gcd(x−y, y) = gcd(x, y)` (primitive
+  → primitive).
+- **(5) polarization / Hilbert.** `A_m = −½K_{F_e} + mF ↦ A′_m = −½K_{F_{e−2}} + mF′`
+  (`π(A_m) = ((e+2)/2 + m − 1, 1) = (e/2 + m, 1) = A′_m`); `μ_{A_m}` and `hilbert_P(ν)` are preserved.
+- **(6) direct sums.** `π` is additive on Chern characters (`r, c₁, ch₂` all add under `⊕` and `M` is
+  linear), so `π(A⊕B⊕C) = πA ⊕ πB ⊕ πC`. The paper's *named* §11.1(6) character is now pinned exactly
+  (closing what was open item O1): `O(−E+(n−1)F)^A ⊕ O^B ⊕ O(−F)^C ↦ O(−E′+nF′)^A ⊕ O′^B ⊕ O(−F′)^C`,
+  since in the `(f,s)` basis `O(−E+(n−1)F)` has `c₁=(n−1,−1) ↦ (n,−1)=O(−E′+nF′)`, `O(−F)=(−1,0)` and
+  `O=(0,0)` are fixed, and the isometry forces the matching `ch₂`
+  (`test_lemma_113_6_named_direct_sum_character`).
+
+**Two worked characters (hand-computed, then confirmed by the package).**
+
+| source (`F_e`, `H`, `d`) | `π` target (`F_{e−2}`, `H′`, `d`) | `Δ` | `χ` | `μ_H` | `hilbert_P(ν)` | `c₂` |
+|---|---|---|---|---|---|---|
+| `(2,(3,1),−1)` / F₂, `H=A₁=(3,1)`, `d=4` | `(2,(2,1),−1)` / F₀, `H′=A′₁=(2,1)`, `d=4` | `1` | `4` | `1/2` | `3` | `3` |
+| `(2,(2,1),−1/2)` / F₃, `H=(4,1)`, `d=5` | `(2,(1,1),−1/2)` / F₁, `H′=(3,1)`, `d=5` | `3/8` `(=Δ_V(2))` | — | — | — | `1` |
+
+Exact recompute of row 1: source `ν=(3/2,1/2)` on `G₂=[[0,1],[1,−2]]` gives `⟨ν,ν⟩ = 2·(3/2)(1/2) −
+2·(1/2)² = 3/2 − 1/2 = 1`, so `Δ = ½·1 − (−1)/2 = 1`; `⟨c₁,c₁⟩ = 4`, `c₂ = ½·4 − (−1) = 3`; `⟨c₁,H⟩ = 4`,
+`μ_H = 4/(2·4) = 1/2`; `⟨ν,K⟩ = −3`, `hilbert_P = 1 + ½(1 − (−3)) = 3`; `χ(O,·) = 4`. On the `F₀` image
+`ν=(1,1/2)` on `G₀=[[0,1],[1,0]]`: `⟨ν,ν⟩ = 2·1·(1/2) = 1` — every invariant matches (the isometry). Row 2:
+`Δ = 3/8 = ½ − 1/(2·2²) = Δ_V(2)` on both sides, `c₂ = 1`. **Telescope** `(3,(3,1),0)` / F₄ `H=(5,1)` →
+F₂ (`H=(4,1)`) → F₀ (`H=(3,1)`): `Δ = 1/9` at both ends (`⟨(1,1/3),(1,1/3)⟩ = 2/3 − 4/9 = 2/9`,
+`Δ = ½·2/9 = 1/9`).
+
+**Honest scope — the reduced envelope is a lower bound equal to the direct one, not a sharp value.**
+E11-M6's `DLP_H(ν)` is sharp (`= δ_H^{μ-s}`) only for `e ∈ {0,1}` with the **anticanonical** `H`.
+Reducing a *strictly ample* `F_e` (`e ≥ 2`) can never land on that anticanonical ray: `π` is a bijection
+with `π(−K_{F_e}) = −K_{F_{e−2}}`, so `π(H) ∝ −K_{F_{e−2}}` iff `H ∝ −K_{F_e}`, and `−K_{F_e}` is **not
+ample** for `e ≥ 2` (Nakai: `−K = (e+2, 2)` has `a − e·b = 2 − e ≤ 0`). Consequently both envelopes carry
+`sharp = False`, and by Lemma 11.3 the reduced value **equals** the direct one: the flagship slope gives
+`dlp_envelope(ν, F₂).value = dlp_envelope(π(ν), F₀).value = 1`, and a genuine cusp slope
+`ν = (2/3, 1/3)` / F₂ → `(1/3, 1/3)` / F₀ gives `10/9` on **both** sides (both non-sharp);
+`emptiness_bound` transports identically (`1/2 = 1/2`). So the acceptance inequality
+`lower_bound ≤ reduced` holds as an **exact equality**. Obtaining a *strictly sharper* `δ_H` off the
+`−K` ray needs the sharp non-anticanonical theory (the prioritary bound `δ^p_n`); that is **open
+question O2**, deferred to E13-M2/M3.
+
+*Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §11.1 and Lemma 11.3 (Coskun–Huizenga,
+"Existence of semistable sheaves on Hirzebruch surfaces"). Package: `bridgeland_stability/reduction.py`
+(`pi_c1`, `reduce`/`reduce_character`, `reduce_to_del_pezzo`, `REDUCTION_MATRIX`); tests in
+`tests/test_reduction.py`; independent oracle `tests/oracle/dlp_reference.py::reference_reduce_pi`.

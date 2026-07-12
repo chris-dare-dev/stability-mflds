@@ -282,3 +282,27 @@ def reference_nonempty(r: int, c1: int, ch2: Number) -> Status:
     if reference_is_semiexceptional(r, c1, ch2):
         return Status.NONEMPTY
     return Status.EMPTY
+
+
+# --------------------------------------------------------------------------- #
+# F_e -> F_{e-2} reduction reference (E13-M1; arXiv:1907.06739 Sec.11.1).       #
+# Independent transcription of pi in the package's (f, s) basis. Imports        #
+# nothing from the package; exact int/Fraction only; no floating point, no      #
+# irrational arithmetic.                                                        #
+#                                                                               #
+# In the (E, F) basis the paper writes                                          #
+#     pi(r, aE + bF, d) = (r, aE' + (b - a)F', d).                              #
+# The (f, s) = (F, E) basis stores c1 = x f + y s with x = b, y = a, so         #
+#     pi(x, y) = (x - y, y),                                                    #
+# with r and ch2 (= the paper's d) fixed and the Hirzebruch index dropping by   #
+# two.  This is the naive column action of M = [[1, -1], [0, 1]].               #
+# --------------------------------------------------------------------------- #
+def reference_reduce_pi(r, c1, ch2, e):
+    """pi(r, (x, y), ch2) = (r, (x - y, y), ch2); F_e index drops by 2 (e >= 2).
+
+    Returns ``(r, (x - y, y), Fraction(ch2), e - 2)``.  Exact integer/Fraction only.
+    """
+    if e < 2:
+        raise ValueError("reduction needs e >= 2")
+    x, y = c1
+    return (r, (x - y, y), Fraction(ch2), e - 2)
