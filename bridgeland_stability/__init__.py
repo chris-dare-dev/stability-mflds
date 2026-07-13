@@ -103,6 +103,16 @@ from .prioritary import (
     generic_prioritary_index,
     delta_prioritary_bundle,
 )
+from .hn_filtration import (
+    HNRegion,
+    HNVerdict,
+    hn_verdict,
+    semistable_exists,
+    generic_hn_length,
+    hn_region,
+    THM_1_13_MIN_DELTA,
+    THM_1_13_MAX_NON_SEMIEXCEPTIONAL_FACTORS,
+)
 from .walls import (
     Wall,
     VerticalWall,
@@ -239,6 +249,15 @@ __all__ = [
     "prioritary_nonempty",
     "generic_prioritary_index",
     "delta_prioritary_bundle",
+    # E13-M3a / G18: HN-length-one existence criterion + Thm 1.13 structure
+    "HNRegion",
+    "HNVerdict",
+    "hn_verdict",
+    "semistable_exists",
+    "generic_hn_length",
+    "hn_region",
+    "THM_1_13_MIN_DELTA",
+    "THM_1_13_MAX_NON_SEMIEXCEPTIONAL_FACTORS",
     "Wall",
     "VerticalWall",
     "ActualWall",

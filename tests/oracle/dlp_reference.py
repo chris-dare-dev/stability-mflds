@@ -284,6 +284,23 @@ def reference_nonempty(r: int, c1: int, ch2: Number) -> Status:
     return Status.EMPTY
 
 
+def reference_semistable_exists(r: int, c1: int, ch2: Number) -> bool:
+    """True iff a semistable sheaf of character (r, c1, ch2) exists on P^2.
+
+    The HN-length-one existence criterion ([CH] Sec.1.6: an H_m-semistable sheaf
+    exists iff the generic H_m-Harder-Narasimhan filtration has length 1), which on
+    P^2 is the Drezet-Le Potier verdict [CH] Ex.1.9 (non-exceptional mu-stable
+    sheaves exist iff Delta >= delta(mu)) OR the always-non-empty (semi)exceptional
+    disjunct [CH] Ex.1.14.  Both are the NONEMPTY branch of reference_nonempty, so:
+
+        reference_nonempty -> NONEMPTY  =>  True   (length-1 region: sheaves exist)
+        reference_nonempty -> EMPTY     =>  False  (destabilized: length >= 2)
+        reference_nonempty -> INVALID   =>  False  (not a Chern character; M(xi) is
+                                                    empty on every polarization)
+    """
+    return reference_nonempty(r, c1, ch2) is Status.NONEMPTY
+
+
 # --------------------------------------------------------------------------- #
 # F_e -> F_{e-2} reduction reference (E13-M1; arXiv:1907.06739 Sec.11.1).       #
 # Independent transcription of pi in the package's (f, s) basis. Imports        #

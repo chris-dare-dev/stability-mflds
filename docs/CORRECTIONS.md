@@ -1140,3 +1140,89 @@ surfaces"). Package: `bridgeland_stability/prioritary.py` (`delta_prioritary`, `
 `generic_prioritary_index`, `delta_prioritary_bundle`); tests in `tests/test_prioritary.py`; independent
 oracle `tests/oracle/dlp_reference.py::reference_delta_prioritary` (purely rational — no square root,
 unlike the sharp `δ^{μ-s}`).
+
+## 11. The HN-length-one existence criterion + Thm 1.13 structure (E13-M3a / G18)
+
+**Not a correction of the brief — a new exact interface**, recorded here under the two-way standard
+because it is the first partial closure of open question **O2** of §9 (the sharp *semistable-sheaf*
+bound `δ^{μ-s}` off the anticanonical ray) and because E13-M3a appends an independent oracle reference
+(`reference_semistable_exists`), which the freeze contract pairs with a `docs/CORRECTIONS.md` entry.
+
+**The load-bearing theorem (arXiv:1907.06739 §1.6, verbatim).**
+
+> "there exists an `H_m`-semistable sheaf with Chern character `v` **if and only if the generic
+> `H_m`-Harder-Narasimhan filtration has length 1**."
+
+That HN-length-one datum is exactly what the E11-M3 numerical evaluator *delegated* ("genuinely
+sheaf-theoretic, not pure Chern arithmetic"). On the decidable regions of a del Pezzo `F_e` (`e ∈ {0,1}`)
+and on `P²` the generic HN length is **already determined by the shipped `moduli_nonempty` verdict**, so
+E13-M3a is a thin, faithful reframing — it re-derives **no** envelope/verdict logic (which would
+re-introduce the `>`-vs-`≥` boundary over-claim the E12 audit closed), it delegates and maps the
+branch-derived `VerdictStatus`:
+
+| `moduli_nonempty(...).status` | `semistable_exists` | region | generic HN length |
+|---|---|---|---|
+| `PROVEN_NONEMPTY` | `True`  | `S`     | `1` |
+| `PROVEN_EMPTY`    | `False` | `EMPTY` | `None` (≥ 2; the exact value is M3b) |
+| `UNKNOWN`         | `None`  | `K`     | `None` (pending M3b) |
+
+Region **S** (length 1) is `Δ > δ_H^{μ-s}` (sharp) OR the character is (semi)exceptional — a non-empty
+point below the envelope, the `F_e` analogue of the Drezet–Le Potier disjunct. Region **EMPTY** is the
+certified obstruction `Δ < 0` (Bogomolov) or `Δ <` the certified `emptiness_bound`. The remaining band
+`emptiness_bound ≤ Δ ≤ δ_H` (and the boundary `Δ = δ_H`) is the length-2 **Kronecker** region **K**,
+where the sharp `δ_H^{μ-s}` *is* a Kronecker-module computation — **deferred to E13-M3b** and honestly
+`None`, never a fabricated verdict (invariant 7).
+
+**Thm 1.13 = Cor 7.7 structure (§7; Example 1.14).** For `e ∈ {0,1}`, `Δ ≥ 3/8`, and `H` sufficiently
+close to `−K`: if there are no `H`-semistable sheaves then **at most one HN factor of the general
+prioritary sheaf is not a semiexceptional bundle** (that one factor is the Kronecker module of region K).
+The threshold `THM_1_13_MIN_DELTA = 3/8` and the shape `THM_1_13_MAX_NON_SEMIEXCEPTIONAL_FACTORS = 1` are
+pinned. **Two-way:** `3/8 = exceptional_discriminant(2) = ½ − 1/(2·2²) = ½ − 1/8 = 3/8` — the rank-2
+exceptional discriminant `Δ_V = ½ − 1/(2r²)` at `r = 2`, the smallest `Δ_V` above the rank-1 floor `0`.
+
+**The flagship K-region example (probe-confirmed, hand-recomputed).** `(2,(1,1),0)` on `F_0`
+(`H=(1,1)`, `d=2`, Gram `[[0,1],[1,0]]`) **is** `O(1,0) ⊕ O(0,1)`: `ch(O(1,0)) = (1,(1,0),0)`,
+`ch(O(0,1)) = (1,(0,1),0)` (each `ch₂ = ½⟨D,D⟩ = 0`), sum `(2,(1,1),0)`. Its slope `ν = (½,½)`,
+`⟨ν,ν⟩ = 2·½·½ = ½`, so `Δ = ½·½ − 0 = 1/4`. The certified-sharp `dlp_envelope((½,½)) = DLP_{−K}(½,½) = 3/4`
+and `emptiness_bound = 1/4`, so `Δ = 1/4 ∈ [1/4, 3/4]` — **region K**. Both summands individually exist
+(each is a line bundle, region S), so the class is **genuinely non-empty**, yet M3a honestly returns
+`None`: the sharp `δ_H^{μ-s}` in this length-2 band is the M3b Kronecker datum. This is the honest UNKNOWN,
+the E13-M1 O2 / E13-M2 discipline applied to the Gieseker bound.
+
+**Pinned anchors (all probe-confirmed; `Δ = ½⟨ν,ν⟩ − ch₂/r`, full-NS — invariant 2, never `discriminant_H`).**
+
+| class `(r, c₁, ch₂)` | surface | `ν` | `Δ` | region | `exists` | why |
+|---|---|---|---|---|---|---|
+| `(1,(0),−5)` | `P²` | `0` | `5` | S | `True` | `5 ≥ δ(0) = 1` |
+| `(2,(1),−½)` = `T(−1)` | `P²` | `½` | `3/8` | S | `True` | exceptional (below `δ(½)=5/8`) |
+| `(5,(2),−2)` | `P²` | `2/5` | `12/25` | S | `True` | rank-5 exceptional (below `δ(2/5)=13/25`) |
+| `(3,(0),−2)` | `P²` | `0` | `2/3` | EMPTY | `False` | `2/3 < δ(0)=1`, rank 3 not Markov |
+| `(2,(0,0),−4)` | `F_0` | `(0,0)` | `2` | S | `True` | `2 > DLP_{−K}=1` |
+| `(3,(1,1),−1)` | `F_0` | `(⅓,⅓)` | `4/9` | S | `True` | rank-3 `μ_H`-stable exceptional |
+| `(2,(1,1),0)` | `F_0` | `(½,½)` | `1/4` | **K** | **`None`** | `emptiness_bound=1/4 ≤ Δ ≤ 3/4` (flagship) |
+| `(3,(0,0),−1)` | `F_0` | `(0,0)` | `1/3` | EMPTY | `False` | `1/3 <` `emptiness_bound=1` |
+| `(2,(0,0),½)` | `F_0` | `(0,0)` | `−1/4` | EMPTY | `False` | Bogomolov `Δ < 0` |
+| `(2,(0,0),−4)` | `F_1` | `(0,0)` | `2` | S | `True` | `2 > DLP_{−K}=1` |
+| `(2,(0,0),−2)` | `F_1` | `(0,0)` | `1` | **K** | **`None`** | boundary `Δ = DLP_{−K} = emptiness_bound = 1` (strict-inequality open question) |
+| `(2,(1,1),0)` | `F_1` | `(½,½)` | `1/8` | EMPTY | `False` | `1/8 <` `emptiness_bound=5/8` |
+
+(`F_1` = `H=(3,2)`, `d=8`, Gram `[[0,1],[1,−1]]`. Row `(2,(1,1),0)/F_1`: `⟨ν,ν⟩ = 2·½·½ − (½)² = ½ − ¼ = ¼`,
+`Δ = ½·¼ = 1/8`. Reconstruction round-trip verified: from `(r, ν, Δ)` the criterion rebuilds
+`c₁ = r·ν`, `ch₂ = r(½⟨ν,ν⟩ − Δ)`, e.g. `(5,(2/5),12/25) → c₁=(2), ch₂=−2`.)
+
+**Honest scope.** M3a decides region **S** (HN length 1 → semistable sheaves exist) and the **certified-empty**
+regions (`Δ < 0`; `Δ <` `emptiness_bound`) on `P²` and the ample anticanonical del Pezzo `F_0`/`F_1`. `P²` is
+**total** (the DLP closed form is sharp everywhere — never `None`, no K region); `F_0`/`F_1` have a genuine
+`None` (K / boundary) region, deferred to **E13-M3b** (the Kronecker-module invariants). `e ≥ 2` is out of
+scope (a `NotImplementedError`) — **E13-M3c** assembles it via the E13-M1 reduction `π`. A K3 / abelian /
+nef-and-big factory `F_n` carries no del Pezzo CH theory and is refused. On the anticanonical del Pezzo ray
+the verdict's `sharp_bound` is bit-for-bit the certified-sharp `dlp_envelope.value` (a regression tying M3a
+to the shipped sharp theory), and `semistable_exists` equals the `moduli_nonempty` status-map over a P²/F_0/F_1
+grid (the no-fabrication guarantee).
+
+*Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §1.6, §5 (generic HN filtration; Thm 1.6),
+§7 (Thm 1.13 = Cor 7.7), Example 1.9, Example 1.14 (Coskun–Huizenga, "Existence of semistable sheaves on
+Hirzebruch surfaces"). Package: `bridgeland_stability/hn_filtration.py` (`semistable_exists`,
+`generic_hn_length`, `hn_region`, `hn_verdict`, `HNRegion`, `HNVerdict`, `THM_1_13_MIN_DELTA`,
+`THM_1_13_MAX_NON_SEMIEXCEPTIONAL_FACTORS`); tests in `tests/test_hn_filtration.py`; independent oracle
+`tests/oracle/dlp_reference.py::reference_semistable_exists` (imports nothing from the package; no float).
