@@ -97,6 +97,12 @@ from .reduction import (
     reduce_to_del_pezzo,
     pi_c1,
 )
+from .prioritary import (
+    delta_prioritary,
+    prioritary_nonempty,
+    generic_prioritary_index,
+    delta_prioritary_bundle,
+)
 from .walls import (
     Wall,
     VerticalWall,
@@ -228,6 +234,11 @@ __all__ = [
     "reduce_character",
     "reduce_to_del_pezzo",
     "pi_c1",
+    # E13-M2 / G18: the prioritary sharp bound delta^p_n (arXiv:1907.06739 Prop 4.15 / Cor 4.17)
+    "delta_prioritary",
+    "prioritary_nonempty",
+    "generic_prioritary_index",
+    "delta_prioritary_bundle",
     "Wall",
     "VerticalWall",
     "ActualWall",

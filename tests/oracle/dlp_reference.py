@@ -306,3 +306,60 @@ def reference_reduce_pi(r, c1, ch2, e):
         raise ValueError("reduction needs e >= 2")
     x, y = c1
     return (r, (x - y, y), Fraction(ch2), e - 2)
+
+
+# --------------------------------------------------------------------------- #
+# Prioritary sharp bound delta^p_n reference (E13-M2; arXiv:1907.06739 Prop     #
+# 4.15 + Cor 4.17 + Remark 4.13).  Independent transcription in the paper's own #
+# (eps, phi) = (E-coeff, F-coeff) coordinates.  Imports nothing from the         #
+# package; exact int/Fraction only; NO floating point, NO square roots --        #
+# delta^p is purely rational (this is exactly why it is a clean oracle target,   #
+# unlike the square-root-bearing Gieseker delta^{mu-s}).  ceil/floor are the      #
+# module's own exact integer helpers _ceil / _floor above, never math.floor.     #
+#                                                                               #
+# On F_e, nu = eps E + phi F.  On the triangle T with vertices                   #
+# (eps, phi) = (-1, n-1), (0, 0), (0, -1):                                        #
+#     lam1 = -eps,  lam3 = -((n-1) eps + phi),  lam2 = 1 - lam1 - lam3,           #
+#     delta^p_n = max{ 1/2 lam1 (lam2 (e+2n-2) + lam3 (e+2n)), 0 }.               #
+# For eps in Z, delta^p_n = 0 (Def 4.11).  A general (eps, phi) is twist/dual     #
+# reduced into T (Remark 4.13): twist E so eps in (-1, 0), twist F so             #
+# lam3 in [0, 1); if lam2 < 0, dualize (eps, phi) -> (-eps, -phi) and re-twist    #
+# once.  Every step is a symmetry of delta^p, so the value is preserved.         #
+# --------------------------------------------------------------------------- #
+def _prioritary_reduce_to_triangle(eps, phi, n):
+    """Twist/dual-reduce (eps, phi) into T (eps assumed not integer).  Exact."""
+    # Twist E: eps -> eps - ceil(eps) in (-1, 0).
+    eps = eps - _ceil(eps)
+    # Twist F: phi -> phi + floor(lam3) so lam3 in [0, 1).
+    lam3 = -((n - 1) * eps + phi)
+    phi = phi + _floor(lam3)
+    lam1 = -eps
+    lam3 = -((n - 1) * eps + phi)
+    lam2 = 1 - lam1 - lam3
+    if lam2 < 0:
+        eps, phi = -eps, -phi
+        eps = eps - _ceil(eps)
+        lam3 = -((n - 1) * eps + phi)
+        phi = phi + _floor(lam3)
+    return eps, phi
+
+
+def reference_delta_prioritary(eps, phi, n, e):
+    """delta^p_n(nu) for nu = eps E + phi F on F_e (Prop 4.15 + Remark 4.13).
+
+    ``eps, phi`` are ``int``/``Fraction`` (the ``(E, F)`` = ``(section, fiber)``
+    coefficients of the slope); ``n, e`` are ``int``.  Returns an exact
+    ``Fraction >= 0``.  No float, no square root anywhere.
+    """
+    eps = Fraction(eps)
+    phi = Fraction(phi)
+    n = int(n)
+    e = int(e)
+    if eps.denominator == 1:                       # Def 4.11: integer section slope
+        return Fraction(0)
+    eps, phi = _prioritary_reduce_to_triangle(eps, phi, n)
+    lam1 = -eps
+    lam3 = -((n - 1) * eps + phi)
+    lam2 = 1 - lam1 - lam3
+    val = Fraction(1, 2) * lam1 * (lam2 * (e + 2 * n - 2) + lam3 * (e + 2 * n))
+    return val if val > 0 else Fraction(0)

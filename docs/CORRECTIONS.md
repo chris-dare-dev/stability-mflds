@@ -1046,3 +1046,97 @@ question O2**, deferred to E13-M2/M3.
 "Existence of semistable sheaves on Hirzebruch surfaces"). Package: `bridgeland_stability/reduction.py`
 (`pi_c1`, `reduce`/`reduce_character`, `reduce_to_del_pezzo`, `REDUCTION_MATRIX`); tests in
 `tests/test_reduction.py`; independent oracle `tests/oracle/dlp_reference.py::reference_reduce_pi`.
+
+
+## 10. The prioritary sharp bound `δ^p_n(ν)` (E13-M2 / G18)
+
+**Not a correction of the brief — a new exact structure**, recorded here under the two-way standard
+because it is math-load-bearing (it is the first genuine *sharpening* of the `F_e` non-emptiness program
+past the E13-M1 reduction, and it partially closes open question O2 of §9) and because E13-M2 appends an
+independent oracle reference (`reference_delta_prioritary`), which the freeze contract pairs with a
+`docs/CORRECTIONS.md` entry.
+
+Notation on `F_e` (package basis `(f, s) = (F, E)`, Gram `[[0,1],[1,−e]]`): total slope
+`ν = ε·E + φ·F`, so a package NS-vector `(v0, v1)` has **`ε = v1`** (the `s = E` coeff) and
+**`φ = v0`** (the `f = F` coeff). Discriminant `Δ = ½⟨ν,ν⟩ − ch₂/r` — the full-NS
+`dlp_hirzebruch.discriminant` (invariant 2), **never** the H-projected `discriminant_H`.
+
+**Prioritary sheaves (Def 2.1).** A torsion-free `V` is `L`-prioritary if `Ext²(V, V(−L)) = 0` — weaker
+than `μ_H`-semistability. The relevant polarizations are the fiber `F` and `H_m = E + (m+e)F`
+(so `H_m·F = 1`); `P_{F,H_n}(v)` is the stack of `F`- and `H_n`-prioritary sheaves, `P_F(v)` irreducible
+(Walter) and nonempty whenever `Δ ≥ 0`. Coskun–Huizenga (Thm 1.2 = Prop 4.15 + Cor 4.17) give an
+explicitly computable `δ^p_n(ν)` with, for `v = (r, ν, Δ) ∈ K(F_e)`, `Δ ≥ 0`:
+
+> **`P_{F,H_n}(v) ≠ ∅  ⟺  Δ ≥ δ^p_n(ν)`**   (Cor 4.17, an `iff` — `Rigor.PROVEN`).
+
+**The rank-free master formula (Prop 4.15).** On the triangle `T` with vertices
+`(ε,φ) = (−1, n−1), (0,0), (0,−1)`, write `(ε,φ) = λ₁(−1,n−1) + λ₂(0,0) + λ₃(0,−1)`, i.e.
+`λ₁ = −ε`, `λ₃ = −((n−1)ε + φ)`, `λ₂ = 1 − λ₁ − λ₃`. The direct sum
+`V = O(−E+(n−1)F)^A ⊕ O^B ⊕ O(−F)^C` with `A = rλ₁, B = rλ₂, C = rλ₃` has rank `r`, slope `ν`, and is
+`F`- and `H_n`-prioritary. From `ch(V) = (A+B+C, −A·E + (A(n−1)−C)·F, ½A(−e−2(n−1)))` one computes,
+using `E² = −e, E·F = 1, F² = 0`, `⟨c₁,c₁⟩ = −A²(e+2n−2) + 2AC` and `ch₂/r = −A(e+2n−2)/(2r)`, so
+
+> `Δ(V) = ½⟨ν,ν⟩ − ch₂/r = A/(2r²)·(B(e+2n−2) + C(e+2n))`,   and — the `r`-factors **cancel** —
+> **`δ^p_n(ν) = max{ ½·λ₁·( λ₂·(e+2n−2) + λ₃·(e+2n) ), 0 }`   on `T`.**
+
+If `ε ∈ ℤ` then `δ^p_n(ν) = 0` (Def 4.11). For `n ≤ −e` the coefficient `e+2n ≤ 0`, so the bracket is
+`≤ 0` everywhere and `δ^p_n ≡ 0` (Example 4.12).
+
+**Reduction to `T` for arbitrary `ν` (Remark 4.13).** `δ^p_n` is invariant under integer *twists*
+`(ε,φ) ↦ (ε+a, φ+b)` (`V ↦ V⊗O(aE+bF)`: both `Δ` and the prioritary condition are twist-invariant) and
+*duals* `(ε,φ) ↦ (−ε,−φ)`. `T` and `−T` each have area `½`; up to an integer translation `{T, −T}` tile a
+`ℤ²`-fundamental domain (the parallelogram spanned by `(1, 1−n)` and `(1, −n)`, `det = −1`). Algorithm:
+twist `E` so `ε ∈ (−1,0)` (i.e. `ε ↦ ε − ⌈ε⌉`), twist `F` so `λ₃ ∈ [0,1)` (i.e. `φ ↦ φ + ⌊λ₃⌋`); if the
+remaining `λ₂ = 1 − λ₁ − λ₃ < 0`, dualize once and re-normalize. **Proof it lands in `T`.** In `(λ₁, λ₃)`
+coordinates the normalized region is the unit square `(0,1)×[0,1)`; its lower-left triangle `λ₁+λ₃ ≤ 1`
+is `T`, the upper-right `λ₁+λ₃ > 1` is `T′`. The dual-plus-renormalize map is `ρ(λ₁,λ₃) = (1−λ₁, 1−λ₃)`
+(for `λ₃ > 0`; `E`-twist sends `λ₁ ↦ 1−λ₁`, `F`-twist sends `λ₃ = (n−1)−λ₃_old ↦ frac = 1−λ₃`), so for
+`(λ₁,λ₃) ∈ T′` the image has `λ₂ = 1 − (1−λ₁) − (1−λ₃) = λ₁+λ₃−1 > 0` — **in `T`**, and one dual suffices.
+Every step is a symmetry, so the value is preserved. *Verified:* interior slope `(ε,φ) = (−½,−¼)` and its
+twists (package `(−1/4,−1/2)`, `(−13/4,3/2)`, `(19/4,−3/2)`) and dual `(1/4,1/2)` all return
+`δ^p_1 = 1/8` on `F_0` (`test_delta_p_twist_dual_invariant`).
+
+**Two worked characters (hand-computed, then confirmed by the package's own `discriminant`).**
+
+| slope `ν` (`ε,φ`) | `n`, `F_e` | `λ = (λ₁,λ₂,λ₃)` | `δ^p_n` (formula) | witness `V = (r, c₁, ch₂)` | `discriminant(V)` |
+|---|---|---|---|---|---|
+| `−½E − ¼F` | `1`, `F_0` (`e=0`) | `(½, ¼, ¼)` | `½·½·(¼·0 + ¼·2) = 1/8` | `(4, (−1,−2), 0)` | `1/8` |
+| `−½E − ¼F` | `1`, `F_1` (`e=1`) | `(½, ¼, ¼)` | `½·½·(¼·1 + ¼·3) = 1/4` | `(4, (−1,−2), −1)` | `1/4` |
+
+Exact recompute of row 1 (`F_0`, Gram `[[0,1],[1,0]]`): `V = O(−E)² ⊕ O ⊕ O(−F)`, `c₁ = 2·(0,−1) +
+(0,0) + (−1,0) = (−1,−2)` in `(f,s)`, `ch₂ = 2·½⟨(0,−1),(0,−1)⟩ + ½⟨(−1,0),(−1,0)⟩ = 0`; `ν = (−¼,−½)`,
+`⟨ν,ν⟩ = 2·(−¼)(−½) = ¼`, `Δ = ½·¼ − 0 = 1/8`. Row 2 (`F_1`, Gram `[[0,1],[1,−1]]`): same `c₁`,
+`ch₂ = 2·½·⟨(0,−1),(0,−1)⟩ = ½·2·(−1) = −1`; `⟨ν,ν⟩ = 2·(−¼)(−½) − (−½)² = ¼ − ¼ = 0`,
+`Δ = 0 − (−1)/4 = 1/4`. The monotone sequence on `F_1` at `ν = (−¼,−½)` is
+`[δ^p_n]_{n=−2..4} = [0, 0, 0, 1/4, 1/2, 3/4, 1]` (`test_delta_p_monotonic_in_n`).
+
+**Cor 4.18 (generic prioritary index), Example 4.9 / Figure 2 anchor.** For `ε ∉ ℤ`, with L-Gaeta parameter
+`ψ = φ + ½e(⌈ε⌉−ε) − Δ/(1−(⌈ε⌉−ε))` and `L₀ = ⌈ε⌉E + ⌈ψ⌉F`,
+`ρ_gen(v) = ⌊ Δ/((⌈ε⌉−ε)(ε−⌊ε⌋)) − e/2 + 1 − (⌈ψ⌉−ψ) ⌋`, and `P_{F,H_n}(v) ≠ ∅ ⟺ n ≤ ρ_gen`. The paper's
+Example 4.9 / Figure 2 (`ν = ½E + ⅓F`, `Δ = 11/10`, `e = 1`): `ψ = ⅓ + ½·½ − (11/10)/(½) = ⅓ + ¼ − 11/5 = −97/60`,
+`L₀ = ⌈½⌉E + ⌈−97/60⌉F = (1,−1)` (matching the Figure 2 caption `(a₀,b₀) = (1,−1)`), and
+`ρ_gen = ⌊ (11/10)/(¼) − ½ + 1 − 37/60 ⌋ = ⌊257/60⌋ = 4` (`test_generic_prioritary_index_figure2`). `ψ` and the
+`ρ_gen = 4` conclusion are from Example 4.9's text; the Figure 2 caption carries only `ν, Δ, e, (a₀,b₀)`.
+
+**Form note (Prop 4.15 vs Cor 4.18).** The code writes the `ψ`-denominator as `1 − (⌈ε⌉ − ε)` (the Prop 4.15
+proof form) while Cor 4.18's printed form is `ε − ⌊ε⌋`. For `ε ∉ ℤ` these are equal (`⌈ε⌉ − ⌊ε⌋ = 1`, so
+`1 − (⌈ε⌉ − ε) = ε − ⌊ε⌋`), and `ε ∉ ℤ` is a precondition of both — so the two are interchangeable here.
+
+**Honest scope — `δ^p` is the *prioritary* bound, NOT the Gieseker / semistable bound.** By the strong
+Bogomolov inequality (Remark 1.4), `δ^{μ-s}_m(ν) ≥ δ^p_{⌈m⌉+1}(ν) ≥ 0`: `δ^p` sits **between** Bogomolov
+(`Δ ≥ 0`) and the sharp `μ`-stable Gieseker bound `δ^{μ-s}` that E11-M6 computes as `dlp_envelope`. It is
+a **lower** bound for `δ^{μ-s}`, *not itself* the semistable-sheaf existence bound — that is E13-M3, which
+assembles the E13-M1 reduction, this `δ^p`, `is_stable_exceptional`, and the generic-HN filtration
+(Thm 1.6 / §5) into the sharp `δ^{μ-s}` off the `−K` ray and finally retires O2. On both anticanonical del
+Pezzo cases `dlp_envelope = δ^{μ-s}` exactly, and both use `n = 2` (`F_0`, `H=(1,1)=H_1`, `m=1`,
+`⌈1⌉+1=2`; `F_1`, `H=(3,2)=H_{1/2}`, `m=½`, `⌈½⌉+1=2`); over a slope sweep
+`dlp_envelope(ν).value ≥ δ^p_2(ν)` with **zero** violations, and on `F_1` the bound is *tight* at the
+`ε = ±½` slopes (`δ^p_2 = 5/8 = dlp_envelope`, e.g. `ν = ±½E`), so the check is not vacuously met by the
+`½` floor (`test_remark_1_4_vs_certified_sharp_envelope_F0/F1`).
+
+*Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §2.4, §4.1–4.3, Prop 4.15, Cor 4.17,
+Cor 4.18, Remark 1.4, Remark 4.13 (Coskun–Huizenga, "Existence of semistable sheaves on Hirzebruch
+surfaces"). Package: `bridgeland_stability/prioritary.py` (`delta_prioritary`, `prioritary_nonempty`,
+`generic_prioritary_index`, `delta_prioritary_bundle`); tests in `tests/test_prioritary.py`; independent
+oracle `tests/oracle/dlp_reference.py::reference_delta_prioritary` (purely rational — no square root,
+unlike the sharp `δ^{μ-s}`).
