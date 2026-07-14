@@ -147,10 +147,14 @@ _CH = "arXiv:1907.06739"          # Coskun-Huizenga, Existence of semistable she
 _MODE_CERT = {
     HNMode.DLP: Certificate(
         Rigor.PROVEN,
-        ("HN filtration has length one (implicit): the P^2 Drezet-Le Potier "
-         "closed-form delta-curve supplies the sharp bound delta_H = delta(mu)",),
+        ("the P^2 Drezet-Le Potier closed-form delta-curve supplies the sharp bound "
+         "delta_H = delta(mu), a theorem for EVERY character: M(xi) is nonempty iff "
+         "Delta >= delta(mu) or xi is (semi)exceptional.  The hypothesis certifies the "
+         "BOUND; it asserts nothing about the queried class's own HN filtration -- a "
+         "PROVEN_EMPTY class has generic HN length >= 2 (E13 re-audit R5a)",),
         ("Drezet-Le Potier, Ann. Sci. ENS 18 (1985)", "arXiv:1611.02674"),
-        "P^2 DLP closed form: delta_H = delta(mu) is a theorem (HN length one).",
+        "P^2 DLP closed form: delta_H = delta(mu) is a theorem, sharp for both the "
+        "nonempty and empty branches.",
     ),
     HNMode.PAPER: Certificate(
         Rigor.PROVEN,
@@ -857,7 +861,8 @@ def validate_character(
     these is not the Chern character of any sheaf and ``M(xi)`` is trivially empty.  All three
     are checked here, on every surface:
 
-    * ``r >= 1`` and every ``c1`` coordinate integral (``c1 = r*mu in Z``, Thm 2.2);
+    * ``r`` a positive INTEGER (``r in Z``, ``r >= 1``) and every ``c1`` coordinate
+      integral (``c1 = r*mu in Z``, Thm 2.2);
     * ``c2 = 1/2 <c1,c1> - ch2 in Z`` via the NS self-pairing (``surface.lattice`` -- a rank-1
       shim on ``P^2``).  This is **K_X-independent** (it never touches the canonical class), so
       it is exact off ``P^2`` and does NOT wait for the ``Surface.K_H`` repair (A8 / E12-M6).
@@ -870,7 +875,11 @@ def validate_character(
     (tests/oracle/dlp_reference.py); there ``chi in Z <=> c2 in Z``, so it is redundant with the
     ``c2`` test above but kept as the theorem's own form.
     """
-    if r < 1:
+    # E13 re-audit R3: the rank of a coherent sheaf is a POSITIVE INTEGER.  The old
+    # ``r < 1`` test let a non-integral r >= 1 (e.g. Fraction(3,2)) through, and the
+    # downstream theorem APIs int()-truncated it -- a verdict for a different character.
+    r = Fraction(r)
+    if r.denominator != 1 or r < 1:
         return False
     c1f = tuple(Fraction(x) for x in c1)
     if any(x.denominator != 1 for x in c1f):

@@ -84,3 +84,16 @@ def test_moduli_empty_between_exceptional_and_curve():
     assert res["positive_dimensional"] is False
     assert res["nonempty"] is True
     assert "semiexceptional" in res["reason"]
+
+
+def test_moduli_nonempty_non_integral_is_internally_consistent():
+    # E13 re-audit R5b: (1, 0, -3/2) has c2 = 3/2 not in Z, so NO sheaf carries it and
+    # the moduli space is empty on every count.  The dict used to advertise
+    # positive_dimensional=True / moduli_dim=3 alongside integral=False / nonempty=False
+    # -- a self-contradiction.  A non-integral character never claims a moduli dimension.
+    res = moduli_nonempty(Bundle(1, 0, F(-3, 2)))
+    assert res["integral"] is False
+    assert res["nonempty"] is False
+    assert res["positive_dimensional"] is False
+    assert res["moduli_dim"] == 0
+    assert "non-integral" in res["reason"]

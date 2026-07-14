@@ -259,23 +259,42 @@ def chi_via_ext(E, F, X) -> int:
 
 
 # --- E10-M3 constructive (sufficient-only) non-emptiness witness -------------
+def _scalar_c1(c1) -> Optional[Fraction]:
+    """Normalize a P^2 first Chern class to its scalar, or ``None`` if it has no
+    scalar form.
+
+    Accepts the scalar spelling (``0``, ``Fraction(2)``) AND the length-1 NS-vector
+    spelling ``(0,)`` that every core P^2 API uses (``SurfaceBundle.c1`` is a tuple;
+    ``P2.lattice`` is the rank-1 shim).  E13 re-audit R4: the oracle previously
+    required the scalar for the construction but executed ``tuple(c1)`` when minting
+    evidence, so NO input shape could reach a successful mint.
+    """
+    if hasattr(c1, "__iter__"):
+        t = tuple(c1)
+        if len(t) != 1:
+            return None
+        c1 = t[0]
+    try:
+        return Fraction(c1)
+    except (TypeError, ValueError):
+        return None
+
+
 def _rank1_ideal_length(r: int, c1, ch2) -> Optional[int]:
     """Length l (= c2) of the ideal-sheaf witness I_Z(c1) realizing the rank-1
     class (1, c1, ch2) on P^2, or None if this class is not constructible by the
     ideal-sheaf-of-points routine.
 
     ch(I_Z(c1)) = (1, c1, c1^2/2 - l), so l = c1^2/2 - ch2 = c2.  Returns l only
-    when r == 1, c1 is an integer, and l is a NON-NEGATIVE INTEGER (the P^2
-    Chern-lattice integrality c2 in Z plus effectivity l >= 0); otherwise None.
+    when r == 1, c1 is an integer (scalar or length-1 NS vector, via _scalar_c1),
+    and l is a NON-NEGATIVE INTEGER (the P^2 Chern-lattice integrality c2 in Z
+    plus effectivity l >= 0); otherwise None.
     All arithmetic is exact Fraction -- never int '/' (which is float in Py3).
     """
     if r != 1:
         return None
-    try:
-        c1f = Fraction(c1)
-    except (TypeError, ValueError):
-        return None
-    if c1f.denominator != 1:
+    c1f = _scalar_c1(c1)
+    if c1f is None or c1f.denominator != 1:
         return None
     ell = Fraction(c1f * c1f, 2) - Fraction(ch2)   # = c2
     if ell < 0 or ell.denominator != 1:
@@ -359,9 +378,10 @@ def moduli_nonempty_by_construction(
         return None
     if not (getattr(X, "is_p2", False) or getattr(X, "kind", "") == "P2"):
         return None
-    out = _run_m2(_moduli_witness_m2(X, int(c1), ell))
+    c1s = int(_scalar_c1(c1))     # integral: _rank1_ideal_length already vetted it (R4)
+    out = _run_m2(_moduli_witness_m2(X, c1s, ell))
     got = _parse_witness(out)
-    if got == (1, int(c1), Fraction(ch2)):
+    if got == (1, c1s, Fraction(ch2)):
         return True
     return None
 
@@ -390,13 +410,24 @@ def mint_oracle_evidence(r: int, c1, ch2: Fraction, X, sharp_bound, citation: st
     """
     from ..nonemptiness_rational import SharpBoundEvidence, HNMode, _ORACLE_TOKEN
 
-    if moduli_nonempty_by_construction(r, c1, ch2, X) is not True:
+    # E13 re-audit R4: normalize c1 BEFORE anything else.  The witness family needs the
+    # scalar; the minted evidence needs the length-1 NS-vector spelling that
+    # SharpBoundEvidence.matches compares against tuple(SurfaceBundle.c1) on P^2.  The
+    # old code demanded the scalar for the construction and then executed tuple(c1)
+    # on it -- a TypeError on the success branch, so NO input shape could ever mint.
+    c1s = _scalar_c1(c1)
+    if c1s is None:
+        raise ValueError(
+            f"c1 = {c1!r} has no scalar P^2 form (expected a scalar or a length-1 "
+            "NS vector); the ORACLE witness family is rank-1 ideal sheaves on P^2."
+        )
+    if moduli_nonempty_by_construction(r, c1s, ch2, X) is not True:
         raise ValueError(
             "oracle construction did not return True (no verified witness); refusing to "
             "mint ORACLE evidence (E12-M4): a construction failure is not a sharp bound."
         )
     return SharpBoundEvidence(
-        surface=X, r=r, c1=tuple(c1), ch2=Fraction(ch2),
+        surface=X, r=r, c1=(c1s,), ch2=Fraction(ch2),
         sharp_bound=Fraction(sharp_bound), sharp_bound_source=HNMode.ORACLE,
         hn_length_one_source=HNMode.ORACLE, citation=citation,
         _oracle_token=_ORACLE_TOKEN,

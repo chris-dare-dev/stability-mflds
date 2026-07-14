@@ -160,9 +160,11 @@ def moduli_nonempty(
     """Decide whether the P^2 moduli space M(E) is non-empty, with full reasoning.
 
     Returns a dict with keys: ``mu``, ``discriminant`` (CH), ``delta``,
-    ``exceptional`` (bool), ``positive_dimensional`` (Delta >= delta),
-    ``integral`` (c1, chi integral), ``nonempty`` (bool), ``moduli_dim``
-    (= r^2(2*Delta_CH - 1) + 1 when positive-dimensional, else 0), ``reason``.
+    ``exceptional`` (bool), ``positive_dimensional`` (integral AND Delta >= delta:
+    a non-integral character has no sheaves, so it never advertises a
+    positive-dimensional moduli -- E13 re-audit R5b), ``integral`` (c1, chi
+    integral), ``nonempty`` (bool), ``moduli_dim`` (= r^2(2*Delta_CH - 1) + 1 when
+    positive-dimensional, else 0), ``reason``.
 
     The DLP / exceptional-bundle machinery is P^2-only; the optional ``surface``
     parameter (default :data:`P2`, backward-compatible) exists solely to route
@@ -182,10 +184,14 @@ def moduli_nonempty(
     R_max = certified_rank_cutoff(mu, R_max)
     bundles = enumerate_exceptional(mu - 3, mu + 3, R_max)
     d_val = delta(mu, bundles)
-    positive_dim = Dm >= d_val
     # integrality: c1 in Z (given) and chi(E) = r(P(mu) - Delta) in Z
     chi_E = E.r * (P(mu) - Dm)
     integral = (E.c2.denominator == 1) and (chi_E.denominator == 1)
+    # E13 re-audit R5b: a non-integral character has NO sheaves, so it can carry no
+    # positive-dimensional moduli and no dimension.  The bare Delta >= delta comparison
+    # used to leak through as positive_dimensional=True / moduli_dim=3 alongside
+    # nonempty=False -- a self-contradictory dict.
+    positive_dim = integral and (Dm >= d_val)
     nonempty = integral and (positive_dim or exceptional or semiexceptional)
     # CHW arXiv:1401.1613 sec.2 dimension in the CH convention:
     #   dim M(xi) = r^2 (2 Delta_CH - 1) + 1   (equivalently r^2(Delta_brief - 1)+1).

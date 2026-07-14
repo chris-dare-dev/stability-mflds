@@ -230,6 +230,20 @@ def test_p2_invalid_character_is_empty():            # A3
     assert validate_character(4, (2,), F(-1), P2) is True        # chi = 6
 
 
+def test_non_integral_rank_is_invalid():             # E13 re-audit R3
+    """validate_character documents r in Z but only tested r < 1: Fraction(3,2)
+    passed, and downstream theorem APIs int()-truncated it -- theorem-level answers
+    for a DIFFERENT character than the caller supplied."""
+    assert validate_character(F(3, 2), (0, 0), 0, P1xP1) is False
+    assert validate_character(F(3, 2), (0,), F(0), P2) is False
+    assert validate_character(F(4, 2), (0,), F(0), P2) is True    # 4/2 == 2 in Z: fine
+    assert validate_character(0, (0,), F(0), P2) is False         # r < 1 still refused
+    # end-to-end: the verdict is the invalid-character PROVEN_EMPTY, never a
+    # silently truncated verdict for the r=1 character.
+    v = moduli_nonempty(F(3, 2), (0, 0), 0, P1xP1)
+    assert v.status is VerdictStatus.PROVEN_EMPTY and "invalid" in v.reason
+
+
 def test_fe_invalid_character_is_empty_not_forged_nonempty():   # A3 off P^2 (E12-M2 IMPROVE)
     # The native F_e envelope path must reject a non-integral character BEFORE any
     # exceptional-bundle branch can forge a PROVEN non-empty verdict.  Each class below has a
@@ -263,6 +277,35 @@ def test_fe_invalid_character_is_empty_not_forged_nonempty():   # A3 off P^2 (E1
     assert vK.nonempty is True and vK.exceptional is True
     assert vK.status is VerdictStatus.PROVEN_NONEMPTY
     assert vK.certificate.rigor == Rigor.PROVEN
+
+
+def test_k3_with_hyperbolic_ns_never_mints_a_proof():   # E13 re-audit R1
+    """A projective K3 with NS = U, H = (2,1), ch = (5,(-3,1),-3): the NS Gram is
+    F_0-shaped, and Gram-only dispatch used to classify it as F_0 and return
+    PROVEN_NONEMPTY via the exceptional-bundle branch.  The verdict is FALSE on a K3:
+    the Mukai vector is v = (5,(-3,1),2), v^2 = <c1,c1> - 2 r s = -6 - 20 = -26 < -2,
+    and c1.H = -1 is coprime to r = 5 (semistable => stable), so a stable sheaf would
+    need v^2 >= -2 -- the moduli space is EMPTY.  Post-R1 the surface never enters the
+    CH F_e theory: the verdict falls back to the honest HEURISTIC Bogomolov floor
+    (UNKNOWN), and hirzebruch_index refuses the surface outright."""
+    from bridgeland_stability.nslattice import NSLattice
+    from bridgeland_stability.varieties import Surface
+    from bridgeland_stability.dlp_hirzebruch import hirzebruch_index
+
+    U = NSLattice(2, ((0, 1), (1, 0)))
+    fake = Surface(name="K3 (NS = U)", d=4, K=(0, 0), chi_O=2, picard_rank=2,
+                   kind="K3", H=(2, 1), ns_lattice=U)
+    # Two-way: the Mukai arithmetic asserted above, recomputed exactly.
+    c1 = (F(-3), F(1))
+    assert U.self_pairing(c1) == F(-6)
+    assert U.self_pairing(c1) - 2 * 5 * (5 + (-3)) == -26        # v^2, s = r + ch2
+    assert U.pairing(c1, (F(2), F(1))) == F(-1)                  # c1.H, gcd(5,1)=1
+    with pytest.raises(NotImplementedError):
+        hirzebruch_index(fake)
+    v = moduli_nonempty(5, (-3, 1), -3, fake)
+    assert v.status is VerdictStatus.UNKNOWN                    # never PROVEN_NONEMPTY
+    assert v.exceptional is False
+    assert v.certificate.rigor is not Rigor.PROVEN
 
 
 def test_verdict_status_is_branch_derived():

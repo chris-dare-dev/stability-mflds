@@ -226,3 +226,48 @@ def test_moduli_witness_is_sufficient_only():
     assert r_neg is None and r_neg is not False
     r_rk2 = moduli_nonempty_by_construction(2, 0, Fraction(-3), P2)  # rank!=1 witness
     assert r_rk2 is None and r_rk2 is not False
+
+
+# ---------------------------------------------------------------------------
+# E13 re-audit R4: the ORACLE evidence mint must have a usable input shape.
+# The old mint required the SCALAR c1 for the construction and then executed
+# tuple(c1) on it when building the evidence -- a TypeError on the success
+# branch -- while the vector spelling (0,) never reached that branch (the
+# length gate needed the scalar).  So no input shape could ever mint, and the
+# six @requires_m2 skips hid it.  These tests force the success branch with
+# the same canned transcript the E10-M3 gate/parse tests use (no M2 needed).
+# ---------------------------------------------------------------------------
+_CANNED_SUCCESS_1_0_M2 = "CHI 0 -1\nCHI 1 1\nCHI 2 4\nOK\n"   # (r,c1,ch2)=(1,0,-2)
+
+
+def test_mint_oracle_evidence_accepts_scalar_and_vector_c1(monkeypatch):
+    monkeypatch.setenv("BRIDGELAND_M2", "/nonexistent/path/to/M2")
+    monkeypatch.setattr(m2mod, "_run_m2", lambda code, **kw: _CANNED_SUCCESS_1_0_M2)
+    # sharp bound for (1,(0),-2) on P^2: mu = 0 -> delta(0) = 1 (the O-cusp value),
+    # matching the package's own certified sharp bound (the E12-M4 value gate).
+    for c1 in (0, (0,)):
+        ev = m2mod.mint_oracle_evidence(1, c1, Fraction(-2), P2, Fraction(1))
+        # class-bound to the CORE spelling: the length-1 NS vector of SurfaceBundle.c1
+        assert ev.matches(1, (0,), Fraction(-2), P2)
+        assert tuple(Fraction(x) for x in ev.c1) == (Fraction(0),)
+
+
+def test_minted_oracle_evidence_is_honoured_end_to_end(monkeypatch):
+    """The repaired capability path: mint -> moduli_nonempty(evidence=...) -> PROVEN."""
+    from bridgeland_stability.nonemptiness_rational import (
+        HNMode, VerdictStatus, moduli_nonempty,
+    )
+
+    monkeypatch.setenv("BRIDGELAND_M2", "/nonexistent/path/to/M2")
+    monkeypatch.setattr(m2mod, "_run_m2", lambda code, **kw: _CANNED_SUCCESS_1_0_M2)
+    ev = m2mod.mint_oracle_evidence(1, 0, Fraction(-2), P2, Fraction(1))
+    v = moduli_nonempty(1, (0,), Fraction(-2), P2, evidence=ev)
+    assert v.status is VerdictStatus.PROVEN_NONEMPTY
+    assert v.mode is HNMode.ORACLE
+
+
+def test_mint_oracle_evidence_refuses_shapeless_c1(monkeypatch):
+    monkeypatch.setenv("BRIDGELAND_M2", "/nonexistent/path/to/M2")
+    monkeypatch.setattr(m2mod, "_run_m2", lambda code, **kw: _CANNED_SUCCESS_1_0_M2)
+    with pytest.raises(ValueError, match="no scalar P\\^2 form"):
+        m2mod.mint_oracle_evidence(1, (0, 0), Fraction(-2), P2, Fraction(1))

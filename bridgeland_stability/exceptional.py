@@ -5,9 +5,14 @@ An exceptional bundle on P^2 is a stable bundle E with Ext^1(E,E) = 0
 
   * the RANKS of exceptional bundles are exactly the MARKOV NUMBERS
     {1, 2, 5, 13, 29, 34, 89, 169, ...} (solutions feeding x^2+y^2+z^2=3xyz),
-  * their SLOPES are the "Markov fractions": a slope p/q (lowest terms) is
-    exceptional iff q is a Markov number, and then the bundle has rank r = q,
-    c1 = p, and  ch2 = (p^2 - q^2 + 1)/(2q),  Delta = (1/2)(1 - 1/r^2).
+  * their SLOPES are exactly the image of the Drezet-Le Potier epsilon recursion
+    (Theoreme A) -- that membership is what ``is_exceptional`` decides.  A slope
+    p/q (lowest terms) in the image has rank r = q (so q IS a Markov number),
+    c1 = p, and  ch2 = (p^2 - q^2 + 1)/(2q),  Delta = (1/2)(1 - 1/r^2).  A Markov
+    denominator is NECESSARY, never sufficient: infinitely many p/q with Markov q
+    lie outside the epsilon image (e.g. 133/610 -- rank 610 = 2*5*61 is Markov,
+    yet (610, 133, -581/2) is an impostor; docs/CORRECTIONS.md section 8 /
+    E13 re-audit R5c).
 
 The slopes are produced by the Drezet-Le Potier  epsilon : Z[1/2] -> slopes
 recursion (Coskun-Huizenga survey, section 4.2):
@@ -97,8 +102,9 @@ class Bundle:
         """The exceptional bundle of slope ``alpha = p/q`` (lowest terms): rank q.
 
         Uses  r = q,  c1 = p,  ch2 = (p^2 - q^2 + 1)/(2q).  This is a genuine
-        bundle only when ``q`` is a Markov number; otherwise ``is_exceptional``
-        on the result is ``False`` (its c2 is not an integer).
+        bundle only when ``alpha`` lies in the Drezet-Le Potier epsilon-recursion
+        image (so ``q`` is in particular a Markov number -- necessary, not
+        sufficient); otherwise ``is_exceptional`` on the result is ``False``.
         """
         a = Q(alpha)
         p, q = a.numerator, a.denominator

@@ -237,9 +237,12 @@ def prioritary_nonempty(
     ``ValueError``.  Raises ``ValueError`` on ``Delta < 0`` (Cor 4.17 assumes the
     Bogomolov floor) and ``NotImplementedError`` off ``F_e``.
     """
-    r = int(r)
-    if r < 1:
-        raise ValueError("rank must be >= 1")
+    # E13 re-audit R3: never int()-truncate the rank -- Fraction(3,2) used to be
+    # silently answered as r = 1, a Cor 4.17 verdict for a different character.
+    r_frac = Fraction(r)
+    if r_frac.denominator != 1 or r_frac < 1:
+        raise ValueError(f"rank must be a positive integer; got {r!r}")
+    r = int(r_frac)
     Delta = Fraction(Delta)
     if Delta < 0:
         raise ValueError("Cor 4.17 assumes the Bogomolov floor Delta >= 0")
@@ -259,7 +262,8 @@ def prioritary_nonempty(
 
 
 def generic_prioritary_index(nu: Sequence[Number], Delta: Number, surface: Surface) -> int:
-    """Cor 4.18: the generic prioritary index ``rho_gen(v)`` (requires ``eps not in Z``).
+    """Cor 4.18: the generic prioritary index ``rho_gen(v)`` (requires ``Delta >= 0``
+    and ``eps not in Z``).
 
     ``P_{F, H_n}(v) != empty  <=>  n <= rho_gen(v)``.  Returns the exact integer
 
@@ -274,6 +278,11 @@ def generic_prioritary_index(nu: Sequence[Number], Delta: Number, surface: Surfa
     """
     e = hirzebruch_index(surface)                    # NotImplementedError off F_e
     Delta = Fraction(Delta)
+    if Delta < 0:
+        # E13 re-audit R3: same domain as Cor 4.17 -- the prioritary stack P_F(v) is
+        # nonempty iff Delta >= 0 (Walter), so rho_gen is defined only on the Bogomolov
+        # floor; below it the formula returned a meaningless index (e.g. -4 at Delta=-1).
+        raise ValueError("Cor 4.18 rho_gen assumes the Bogomolov floor Delta >= 0")
     eps, phi = _eps_phi(nu)
     if eps.denominator == 1:
         raise ValueError("Cor 4.18 rho_gen needs eps not in Z (integer section slope)")
@@ -301,9 +310,13 @@ def delta_prioritary_bundle(
     e = hirzebruch_index(surface)                    # NotImplementedError off F_e
     if n != int(n):
         raise ValueError("n must be an integer polarization index")
-    n, r = int(n), int(r)
-    if r < 1:
-        raise ValueError("rank must be >= 1")
+    n = int(n)
+    # E13 re-audit R3: never int()-truncate the rank -- Fraction(3,2) used to yield
+    # the Prop 4.15 witness for r = 1, a different character than the caller supplied.
+    r_frac = Fraction(r)
+    if r_frac.denominator != 1 or r_frac < 1:
+        raise ValueError(f"rank must be a positive integer; got {r!r}")
+    r = int(r_frac)
     eps, phi = _eps_phi(nu)
     lam1, lam2, lam3 = _lambda_coords(eps, phi, n)
     A, B, C = r * lam1, r * lam2, r * lam3

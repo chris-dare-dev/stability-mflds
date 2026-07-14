@@ -263,6 +263,23 @@ def test_generic_prioritary_index_figure2():
     # eps in Z is out of Cor 4.18's domain
     with pytest.raises(ValueError):
         generic_prioritary_index((F(1, 3), F(2)), F(1), F1)
+    # Delta < 0 is out of Cor 4.18's domain too: the prioritary stack P_F(v) is
+    # nonempty iff Delta >= 0 (Walter), so rho_gen is undefined below the Bogomolov
+    # floor -- the formula used to return a meaningless -4 here (E13 re-audit R3).
+    with pytest.raises(ValueError):
+        generic_prioritary_index((F(1, 3), F(1, 2)), F(-1), P1xP1)
+
+
+def test_non_integral_rank_is_never_truncated():
+    """E13 re-audit R3: r = Fraction(3,2) used to be int()-truncated to r = 1, making
+    prioritary_nonempty answer Cor 4.17 -- and delta_prioritary_bundle mint a Prop 4.15
+    witness -- for a DIFFERENT character than the caller supplied."""
+    with pytest.raises(ValueError, match="positive integer"):
+        prioritary_nonempty(F(3, 2), (F(0), F(0)), F(0), 1, P1xP1)
+    with pytest.raises(ValueError, match="positive integer"):
+        delta_prioritary_bundle((F(0), F(-1, 2)), 1, F(3, 2), P1xP1)
+    # An integral-valued Fraction is fine (4/2 == 2 in Z).
+    assert prioritary_nonempty(F(4, 2), (F(0), F(0)), F(0), 1, P1xP1) is True
 
 
 # --------------------------------------------------------------------------- #

@@ -181,12 +181,36 @@ def exceptional_discriminant(r: int) -> Fraction:
 # --------------------------------------------------------------------------
 # F_e recognition + polarization predicates
 # --------------------------------------------------------------------------
-def hirzebruch_index(surface: Surface) -> int:
-    """The index ``e`` of ``F_e``, read off the NS Gram ``[[0,1],[1,-e]]``.
+#: Family tags that are never a Hirzebruch surface, refused outright even when the
+#: caller hands them an F_e-shaped Gram matrix (E13 re-audit R1: a projective K3 with
+#: NS = U carries the F_0 Gram, and rebased the F_e Gram for every even e).
+_NON_HIRZEBRUCH_KINDS = frozenset({"P2", "K3", "abelian", "enriques", "bielliptic"})
 
-    ``P^1 x P^1`` is ``F_0``.  Raises ``NotImplementedError`` for any surface whose NS
-    lattice is not in this fiber/section normalization -- the CH theory is stated for
-    Hirzebruch surfaces and this module never silently mis-models another surface.
+
+def hirzebruch_index(surface: Surface) -> int:
+    """The index ``e`` of ``F_e``, AUTHENTICATED -- never read off the Gram matrix alone.
+
+    The NS Gram ``[[0,1],[1,-e]]`` supplies the candidate ``e``, but the Gram does not
+    identify the surface family: a projective K3 with ``NS(X) = U`` carries the ``F_0``
+    Gram (and, in a rebased ``(f, s - k f)`` basis, the ``F_{2k}`` Gram), yet has
+    ``K_X = 0`` and ``chi(O_X) = 2``.  Dispatching such a surface into the CH theory
+    minted a false PROVEN_NONEMPTY -- ``ch = (5,(-3,1),-3)`` on that K3 has Mukai
+    self-pairing ``v^2 = -26 < -2`` with ``gcd(r, c1.H) = 1``, so its moduli space is
+    empty (E13 re-audit, defect R1).  So beyond the Gram shape this now requires the
+    invariants a genuine ``F_e`` must carry:
+
+    * ``e >= 0``;
+    * ``surface.K == (-(e+2), -2)`` -- ``K_{F_e} = -(e+2) f - 2 s`` in the ``(f, s)``
+      basis (the Lemma 11.3(3) normalization; ``K = 0`` fails this for every ``e``);
+    * ``surface.chi_O == 1`` (``chi(O_{F_e}) = 1``; a K3 has ``chi(O) = 2``);
+    * ``surface.kind`` is not a declared non-Hirzebruch family
+      (:data:`_NON_HIRZEBRUCH_KINDS`).
+
+    ``(Gram, K, chi(O))`` jointly pin the family: a smooth projective surface with this
+    rank-2 NS lattice, ``K^2 = 8`` and ``chi(O) = 1`` is a minimal rational surface,
+    hence a Hirzebruch surface.  ``P^1 x P^1`` is ``F_0``.  Raises
+    ``NotImplementedError`` for anything else -- the CH theory is stated for Hirzebruch
+    surfaces and this module never silently mis-models another surface.
     """
     lat = surface.ns_lattice
     if lat is None or lat.rank != 2:
@@ -197,7 +221,27 @@ def hirzebruch_index(surface: Surface) -> int:
     if not (g[0][0] == 0 and g[0][1] == 1 and g[1][0] == 1):
         raise NotImplementedError(
             f"{surface.name}: expected the F_e fiber/section Gram [[0,1],[1,-e]]; got {g!r}.")
-    return -g[1][1]
+    e = -g[1][1]
+    if e < 0:
+        raise NotImplementedError(
+            f"{surface.name}: Gram [[0,1],[1,{-e}]] has e = {e} < 0; not an F_e lattice "
+            "in the fiber/section normalization.")
+    # E13 re-audit R1: authenticate the surface FAMILY, not just the lattice shape.
+    if surface.kind in _NON_HIRZEBRUCH_KINDS:
+        raise NotImplementedError(
+            f"{surface.name}: kind={surface.kind!r} is not a Hirzebruch surface; the CH "
+            "F_e theory does not apply even though the NS Gram is F_e-shaped.")
+    if tuple(surface.K) != (-(e + 2), -2):
+        raise NotImplementedError(
+            f"{surface.name}: K = {tuple(surface.K)} != (-(e+2), -2) = {(-(e + 2), -2)}, "
+            f"the canonical class of F_{e} in the (f, s) basis: not a Hirzebruch surface "
+            "(a K3/abelian surface with NS = U has K = 0 and MUST be refused here; "
+            "treating it as F_e forges non-emptiness proofs).")
+    if surface.chi_O != 1:
+        raise NotImplementedError(
+            f"{surface.name}: chi(O) = {surface.chi_O} != 1 = chi(O_{{F_e}}): not a "
+            "Hirzebruch surface.")
+    return e
 
 
 def is_ample(surface: Surface) -> bool:

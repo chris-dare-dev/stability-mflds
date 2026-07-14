@@ -198,6 +198,27 @@ def test_reduce_raises_off_hirzebruch():
         reduce(SurfaceBundle(2, (1,), F(0)), P2)
 
 
+def test_reduce_refuses_a_disguised_k3():
+    """E13 re-audit R1: a projective K3 with NS = U, written in the F_2-shaped basis
+    (f, s - f) (Gram [[0,1],[1,-2]]), used to slip through Gram-only recognition and be
+    'reduced' to F_0 -- but pi(K_X) = pi((0,0)) = (0,0) != (-2,-2) = K_{F_0} and
+    chi(O) = 2 != 1, so BOTH Lemma 11.3(3)/(4) target identities fail.  The surface must
+    be refused at the hirzebruch_index authentication gate."""
+    from bridgeland_stability.nslattice import NSLattice
+    from bridgeland_stability.varieties import Surface
+
+    lat = NSLattice(2, ((0, 1), (1, -2)))
+    fake = Surface(name="K3 (NS = U, F_2 basis)", d=2, K=(0, 0), chi_O=2,
+                   picard_rank=2, kind="K3", H=(3, 1), ns_lattice=lat)
+    # Two-way: the Lemma 11.3 identities the disguise breaks, recomputed exactly.
+    assert tuple(pi_c1((0, 0))) == (0, 0)          # pi(K_X) = (0,0) != K_{F_0} = (-2,-2)
+    assert fake.chi_O == 2                          # chi_X(O,O) = 2 != 1 = chi_{F_e}(O,O)
+    with pytest.raises(NotImplementedError):
+        reduce(SurfaceBundle(2, (1, 1), F(0)), fake)
+    with pytest.raises(NotImplementedError):
+        reduce_to_del_pezzo(SurfaceBundle(2, (1, 1), F(0)), fake)
+
+
 # --------------------------------------------------------------------------- #
 # Lemma 11.3 (1)-(6), each as an exact identity over a sweep + both parities.  #
 # --------------------------------------------------------------------------- #

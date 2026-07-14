@@ -1220,9 +1220,120 @@ the verdict's `sharp_bound` is bit-for-bit the certified-sharp `dlp_envelope.val
 to the shipped sharp theory), and `semistable_exists` equals the `moduli_nonempty` status-map over a P²/F_0/F_1
 grid (the no-fabrication guarantee).
 
+**Erratum (E13 adversarial re-audit — corrected in §12).** Three claims above over-reached and are
+retracted by §12 (R2): (1) the undecided band is now labelled **`UNCLASSIFIED`**, not `K` — an epistemic
+UNKNOWN is not evidence of a Kronecker region, and the flagship itself refutes the `K` label (it is the
+polystable `O(1,0) ⊕ O(0,1)`, so a semistable sheaf *exists* and the §1.6 criterion gives generic HN
+length **one**; its `Δ = 1/4 < 3/8` is also outside Thm 1.13's stated range). `HNRegion.K` is reserved
+for M3b, which will actually compute HN factors. Read the two **K** rows of the anchor table above as
+**UNCLASSIFIED**. (2) "P² … no K region" holds only for the package's **existence boolean** (totality);
+Example 1.14's S/K/R/empty generic-HN *shapes* occur on P² too — the region label describes the verdict,
+never the sheaf's HN structure. (3) Thm 1.13 bounds the count of non-semiexceptional factors; it does
+**not** assert an exactly length-two Kronecker filtration.
+
 *Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §1.6, §5 (generic HN filtration; Thm 1.6),
 §7 (Thm 1.13 = Cor 7.7), Example 1.9, Example 1.14 (Coskun–Huizenga, "Existence of semistable sheaves on
 Hirzebruch surfaces"). Package: `bridgeland_stability/hn_filtration.py` (`semistable_exists`,
 `generic_hn_length`, `hn_region`, `hn_verdict`, `HNRegion`, `HNVerdict`, `THM_1_13_MIN_DELTA`,
 `THM_1_13_MAX_NON_SEMIEXCEPTIONAL_FACTORS`); tests in `tests/test_hn_filtration.py`; independent oracle
 `tests/oracle/dlp_reference.py::reference_semistable_exists` (imports nothing from the package; no float).
+
+## 12. The E13 adversarial re-audit remediation (R1–R5)
+
+The E13 re-audit (2026-07-13; report on disk as `docs/E12_E13_ADVERSARIAL_REAUDIT.md`, untracked) found
+one theorem-level false `PROVEN_NONEMPTY` and four supporting defects. All five are fixed; each is
+recorded here with two-way evidence. Suite: 465 → 478 items (13 new regressions), 6 Macaulay2 skips
+unchanged.
+
+### R1 — Gram-only `F_e` recognition minted a false proof on a K3 [P1]
+
+`hirzebruch_index` identified `F_e` solely from the NS Gram `[[0,1],[1,-e]]`. A projective K3 with
+`NS(X) ≅ U` carries the `F_0` Gram (and, rebased to `(f, s−f)`, the `F_2` Gram), so with ample
+`H = (2,1)` and `ch = (5,(−3,1),−3)` the package returned `PROVEN_NONEMPTY` ("exceptional bundle").
+**That verdict is false.** Exact evidence: `ν = (−3/5, 1/5)`, `⟨ν,ν⟩ = −6/25`,
+`Δ = ½(−6/25) − (−3)/5 = 12/25 = Δ_exc(5)` — which is *why* the exceptional branch fired — but the Mukai
+vector is `v = (r, c₁, r + ch₂) = (5, (−3,1), 2)` with `v² = ⟨c₁,c₁⟩ − 2rs = −6 − 20 = −26 < −2`, and
+`c₁.H = −1` is coprime to `r = 5` (semistable ⇒ stable), so a stable K3 sheaf would need `v² ≥ −2`
+(Mukai; equivalently RR + Serre duality force `ext¹ ≥ 0`). The moduli space is **empty**. The same
+disguise (U in the `F_2` basis) slipped past the E13-M1 reduction `π` while breaking both Lemma 11.3
+target identities: `π(K_X) = (0,0) ≠ (−2,−2) = K_{F_0}` and `χ_X(O,O) = 2 ≠ 1`.
+
+**Fix.** `hirzebruch_index` — the single dispatch choke point for the whole CH `F_e` theory (`reduce`,
+`delta_prioritary`, `hn_verdict`, `_hirzebruch_envelope`, `is_ample`, …) — now authenticates the surface
+*family*, not just the lattice shape: `e ≥ 0`, `K == (−(e+2), −2)` (the Lemma 11.3(3) normalization),
+`chi_O == 1`, and `kind` not in {P2, K3, abelian, enriques, bielliptic}. `(Gram, K, χ(O))` jointly pin
+the deformation class: a smooth projective surface with this rank-2 NS, `K² = 8`, `χ(O) = 1` is a minimal
+rational surface, hence Hirzebruch. The disguised K3 now falls back to the honest HEURISTIC Bogomolov
+floor (`UNKNOWN`) in `moduli_nonempty` and is refused outright by every `F_e`-native API. Tests:
+`test_dlp_hirzebruch.py::test_k3_with_hyperbolic_ns_is_not_F0` / `…_is_not_F2_either` /
+`…_wrong_K_or_chi_O_is_refused_even_untagged` / `…_genuine_hirzebruch_surfaces_still_authenticate`,
+`test_nonemptiness.py::test_k3_with_hyperbolic_ns_never_mints_a_proof`,
+`test_reduction.py::test_reduce_refuses_a_disguised_k3`.
+
+### R2 — M3a fabricated region K from epistemic `UNKNOWN` [P1]
+
+`hn_verdict` mapped every underlying `UNKNOWN` to `HNRegion.K` ("length-2 Kronecker region"). The
+flagship `(2,(1,1),0)` on `F_0` is itself the counterexample: it *is* `O(1,0) ⊕ O(0,1)`, the summands
+share a reduced Hilbert polynomial, so the direct sum is polystable — a semistable sheaf **exists** and
+§1.6 gives generic HN length **one**; and `Δ = 1/4 < 3/8` is outside Thm 1.13's range, so nothing
+licensed a Kronecker claim. **Fix:** a new `HNRegion.UNCLASSIFIED` carries the undecided band; `K` is
+reserved for M3b (never returned today); the P²-totality and Thm 1.13 prose were narrowed (§11 erratum).
+`None` remains the honest existence answer — possibly a conservative under-claim, never a structural
+claim. Tests: `test_hn_filtration.py::test_flagship_unclassified_is_a_genuinely_nonempty_undecided_class`,
+`::test_P2_existence_verdict_is_total_over_grid`.
+
+### R3 — integral-rank validation was bypassable [P1]
+
+`validate_character` documented `r ∈ Z` but tested only `r < 1`, so `Fraction(3,2)` passed; and
+`prioritary_nonempty`, `delta_prioritary_bundle`, `hn_verdict` silently `int()`-truncated it —
+theorem-level answers/witnesses **for a different character than the caller supplied** (e.g.
+`prioritary_nonempty(Fraction(3,2), …) == True` answered Cor 4.17 for `r = 1`). Also
+`generic_prioritary_index(ν, −1, F₀) == −4` although Cor 4.18's prioritary stack lives on the Bogomolov
+floor (`P_F(v) ≠ ∅ ⇔ Δ ≥ 0`, Walter — the same domain `prioritary_nonempty` already enforced for
+Cor 4.17). **Fix:** `validate_character` rejects non-integral `r` (a coherent sheaf's rank is a positive
+integer, so a fractional rank is the invalid-character `PROVEN_EMPTY` on every surface); the prioritary
+APIs raise `ValueError("rank must be a positive integer…")`; `hn_verdict` passes a non-integral `r`
+through to the invalid-character verdict instead of truncating; `generic_prioritary_index` requires
+`Δ ≥ 0`. Tests: `test_nonemptiness.py::test_non_integral_rank_is_invalid`,
+`test_prioritary.py::test_non_integral_rank_is_never_truncated`,
+`test_hn_filtration.py::test_non_integral_rank_is_never_truncated`.
+
+### R4 — the ORACLE evidence mint had no usable input shape [P2]
+
+`mint_oracle_evidence` required the *scalar* P² `c1` for the construction gate (`_rank1_ideal_length`
+does `Fraction(c1)`) but then executed `tuple(c1)` when minting — a `TypeError` on the success branch;
+the vector spelling `(0,)` could never reach that branch (the length gate needed the scalar). No input
+shape could mint, and the six `@requires_m2` skips hid it. **Fix:** a `_scalar_c1` normalizer accepts
+both the scalar and the length-1 NS-vector spelling everywhere on the capability path; the minted
+evidence stores `c1 = (scalar,)` — the spelling `SharpBoundEvidence.matches` compares against
+`tuple(SurfaceBundle.c1)`. The repaired path is exercised **without** M2 via the canned-transcript
+monkeypatch (the E10-M3 technique): mint → `moduli_nonempty(evidence=…)` → `PROVEN_NONEMPTY`
+end-to-end. Tests: `test_oracle.py::test_mint_oracle_evidence_accepts_scalar_and_vector_c1`,
+`::test_minted_oracle_evidence_is_honoured_end_to_end`,
+`::test_mint_oracle_evidence_refuses_shapeless_c1`.
+
+### R5 — three recorded inconsistencies
+
+* **(a)** `_MODE_CERT[DLP]`'s hypothesis read "HN filtration has length one (implicit)…" and was stamped
+  on **every** P² verdict — contradicting a `PROVEN_EMPTY` verdict (whose class has generic HN length
+  ≥ 2). Reworded: the hypothesis certifies the *bound* (`delta_H = delta(mu)` is a theorem for every
+  character), asserting nothing about the queried class's own HN filtration.
+* **(b)** `dlp.moduli_nonempty(Bundle(1, 0, −3/2))` returned `integral=False, nonempty=False` **and**
+  `positive_dimensional=True, moduli_dim=3`. A non-integral character carries no sheaves; both fields are
+  now gated on integrality (`test_dlp.py::test_moduli_nonempty_non_integral_is_internally_consistent`).
+* **(c)** `exceptional.py`'s module docstring still said a reduced slope `p/q` is exceptional **iff** `q`
+  is a Markov number, contradicting the corrected ε-image-membership implementation (§8): a Markov
+  denominator is necessary, never sufficient — e.g. `133/610` has Markov `q = 610 = 2·5·61` yet
+  `(610, 133, −581/2)` is exactly the §8 impostor. The docstring now states the ε-image (Théorème A) as
+  the test.
+
+**What the re-audit confirmed sound** (recorded for scope): the P² DLP differential gate survived three
+widened passes (≈23,000 characters, denominators past 11,983, ranks to 100) with zero package/reference
+disagreements, and 337,000+ exact `F_e` probes found no E13-M1/M2 formula failure. The escape was in
+surface-family *dispatch*, outside those gates — which is why R1's fix authenticates at the dispatch
+choke point rather than adding another numeric gate.
+
+*Sources:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) (Lemma 11.3, Prop 4.15, Cor 4.17/4.18,
+§1.6, Thm 1.13 = Cor 7.7, Example 1.14); the `v² ≥ −2` bound for stable sheaves on a K3 (Mukai; see
+Huybrechts, *Lectures on K3 Surfaces*, Ch. 10). Package files: `dlp_hirzebruch.py`, `hn_filtration.py`,
+`nonemptiness_rational.py`, `prioritary.py`, `dlp.py`, `exceptional.py`, `oracle/m2.py`.

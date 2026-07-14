@@ -109,14 +109,14 @@ ANCHORS = (
     Anchor("F0_S_diag", 2, (2, 2), F(-2), F0, F(2), True, HNRegion.S),
     Anchor("F0_exc_rank3", 3, (1, 1), F(-1), F0, F(4, 9), True, HNRegion.S),
     Anchor("F0_exc_rank5", 5, (1, 2), F(-2), F0, F(12, 25), True, HNRegion.S),
-    Anchor("F0_K_flagship", 2, (1, 1), F(0), F0, F(1, 4), None, HNRegion.K),
+    Anchor("F0_unclassified_flagship", 2, (1, 1), F(0), F0, F(1, 4), None, HNRegion.UNCLASSIFIED),
     Anchor("F0_empty_band", 2, (1, 1), F(1, 2), F0, F(0), False, HNRegion.EMPTY),
     Anchor("F0_empty_below_eb", 3, (0, 0), F(-1), F0, F(1, 3), False, HNRegion.EMPTY),
     Anchor("F0_bogomolov", 2, (0, 0), F(1, 2), F0, F(-1, 4), False, HNRegion.EMPTY),
     # ---- F_1, H=(3,2), d=8, Gram [[0,1],[1,-1]]. ------------------------------
     Anchor("F1_S", 2, (0, 0), F(-4), F1, F(2), True, HNRegion.S),
     Anchor("F1_bogomolov", 2, (0, 0), F(1), F1, F(-1, 2), False, HNRegion.EMPTY),
-    Anchor("F1_K_boundary", 2, (0, 0), F(-2), F1, F(1), None, HNRegion.K),
+    Anchor("F1_unclassified_boundary", 2, (0, 0), F(-2), F1, F(1), None, HNRegion.UNCLASSIFIED),
     Anchor("F1_empty", 2, (1, 1), F(0), F1, F(1, 8), False, HNRegion.EMPTY),
 )
 
@@ -162,19 +162,24 @@ def test_p2_is_a_total_verdict_over_a_grid():
                 assert isinstance(v, bool)
 
 
-def test_flagship_K_region_is_a_genuinely_nonempty_undecided_class():
-    """The flagship: (2,(1,1),0) on F_0 IS O(1,0) (+) O(0,1) -- a genuinely non-empty
-    decomposable sheaf (both summands exist, region S), yet it sits in the length-2
-    Kronecker band (Delta=1/4 in [emptiness_bound=1/4, DLP_{-K}(1/2,1/2)=3/4]), so M3a
-    honestly declines to decide it (region K, exists None).  This is the honest UNKNOWN,
-    not a fabricated verdict."""
+def test_flagship_unclassified_is_a_genuinely_nonempty_undecided_class():
+    """The flagship: (2,(1,1),0) on F_0 IS O(1,0) (+) O(0,1) -- polystable (the summands
+    share a reduced Hilbert polynomial), so a semistable sheaf EXISTS and the Sec. 1.6
+    criterion gives generic HN length one.  M3a's machinery cannot see that (it sits in
+    the band Delta=1/4 in [emptiness_bound=1/4, DLP_{-K}(1/2,1/2)=3/4]), so the verdict
+    is the honest UNKNOWN (exists None) -- and the region label must be UNCLASSIFIED,
+    never K: an epistemic UNKNOWN is not evidence of a Kronecker region, and this very
+    class is the counterexample (E13 re-audit R2).  Its Delta=1/4 < 3/8 is also outside
+    Thm 1.13's stated range."""
     # Both rank-1 summands O(1,0) and O(0,1) exist (region S).
     assert se(1, (1, 0), F(0), F0) is True
     assert se(1, (0, 1), F(0), F0) is True
     assert region(1, (1, 0), F(0), F0) is HNRegion.S
-    # Their direct sum has ch = (2,(1,1),0), yet is honestly undecided.
+    # Their direct sum has ch = (2,(1,1),0), honestly undecided by M3a...
     assert se(2, (1, 1), F(0), F0) is None
-    assert region(2, (1, 1), F(0), F0) is HNRegion.K
+    # ...and labelled UNCLASSIFIED -- no structural Kronecker claim (R2).
+    assert region(2, (1, 1), F(0), F0) is HNRegion.UNCLASSIFIED
+    assert region(2, (1, 1), F(0), F0) is not HNRegion.K
     # The band structure: emptiness_bound <= Delta <= DLP_{-K}, strictly.
     xi = SurfaceBundle(2, (1, 1), F(0))
     assert discriminant(xi, F0) == F(1, 4)
@@ -184,12 +189,13 @@ def test_flagship_K_region_is_a_genuinely_nonempty_undecided_class():
 def test_F1_boundary_is_undecided():
     """F_1 (2,(0,0),-2): Delta=1 lands exactly ON the sharp envelope DLP_{-K}(0,0)=1 and
     on emptiness_bound=1.  CH Thm 'deltaSurface' (1) needs a STRICT inequality, so the
-    boundary is honestly undecided (region K, exists None) -- a recorded open question."""
+    boundary is honestly undecided (region UNCLASSIFIED, exists None) -- a recorded open
+    question, not a Kronecker-region claim (E13 re-audit R2)."""
     xi = SurfaceBundle(2, (0, 0), F(-2))
     assert discriminant(xi, F1) == F(1)
     assert dlp_envelope(total_slope(xi), F1).value == F(1)
     assert se(2, (0, 0), F(-2), F1) is None
-    assert region(2, (0, 0), F(-2), F1) is HNRegion.K
+    assert region(2, (0, 0), F(-2), F1) is HNRegion.UNCLASSIFIED
 
 
 # --------------------------------------------------------------------------- #
@@ -302,32 +308,38 @@ def test_thm_1_13_at_most_one_non_semiexceptional_factor():
     assert THM_1_13_MAX_NON_SEMIEXCEPTIONAL_FACTORS == 1
 
 
-def test_example_1_14_region_labels_on_P2_and_F0():
-    """Example 1.14's region labels reproduced where the DLP curve is known:
-    S (length 1) / K (length-2 Kronecker) / EMPTY.  P^2 exhibits only S and EMPTY
-    (no K, since DLP is sharp everywhere); F_0 exhibits all three including the
-    flagship K class."""
+def test_verdict_region_labels_on_P2_and_F0():
+    """The package's verdict-region labels where the DLP curve is known: S (PROVEN
+    length 1) / UNCLASSIFIED (honest UNKNOWN band) / EMPTY (certified).  These label
+    the VERDICT, not the sheaf's generic-HN shape (E13 re-audit R2): Example 1.14's
+    S/K/R/empty shapes occur on P^2 too, but the P^2 existence boolean is total, so
+    UNCLASSIFIED never fires there."""
     assert region(1, (0,), F(-5), P2) is HNRegion.S
     assert region(3, (0,), F(-2), P2) is HNRegion.EMPTY
     assert region(2, (0, 0), F(-4), F0) is HNRegion.S
-    assert region(2, (1, 1), F(0), F0) is HNRegion.K
+    assert region(2, (1, 1), F(0), F0) is HNRegion.UNCLASSIFIED
     assert region(2, (0, 0), F(1, 2), F0) is HNRegion.EMPTY
 
 
-def test_P2_has_no_K_region_over_grid():
-    """P^2 is fully decidable: the Kronecker region K never occurs there."""
+def test_P2_existence_verdict_is_total_over_grid():
+    """P^2's existence boolean is total (DLP sharp everywhere), so the UNCLASSIFIED
+    band never occurs there -- and region K is reserved for M3b, so it never occurs
+    anywhere yet.  This asserts verdict totality only, NOT 'P^2 has no Kronecker
+    generic-HN shapes' (it does -- E13 re-audit R2)."""
     for r in range(1, 6):
         for c1 in range(-6, 7):
             for c2 in range(0, 6):
                 ch2 = F(c1 * c1, 2) - c2
-                assert region(r, (c1,), ch2, P2) is not HNRegion.K, (r, c1, ch2)
+                reg = region(r, (c1,), ch2, P2)
+                assert reg in (HNRegion.S, HNRegion.EMPTY), (r, c1, ch2)
 
 
 def test_hn_verdict_fields_are_consistent():
     """The HNVerdict dataclass exposes a consistent tri-state (exists / length / region)."""
-    v = verdict(2, (1, 1), F(0), F0)                 # the K flagship
+    v = verdict(2, (1, 1), F(0), F0)                 # the UNCLASSIFIED flagship
     assert isinstance(v, HNVerdict)
-    assert v.exists is None and v.generic_hn_length is None and v.region is HNRegion.K
+    assert v.exists is None and v.generic_hn_length is None
+    assert v.region is HNRegion.UNCLASSIFIED
     assert v.discriminant == F(1, 4) and v.sharp_bound == F(3, 4)
     v2 = verdict(1, (0,), F(-5), P2)                  # region S
     assert v2.exists is True and v2.generic_hn_length == 1 and v2.region is HNRegion.S
@@ -348,6 +360,18 @@ def test_scope_non_hirzebruch_raises():
     """A K3 (no F_e NS lattice) is refused -- NotImplementedError from hirzebruch_index."""
     with pytest.raises(NotImplementedError):
         semistable_exists(1, (F(0),), F(0), K3(2))
+
+
+def test_non_integral_rank_is_never_truncated():
+    """E13 re-audit R3: hn_verdict(r=3/2, ...) used to int()-truncate to r=1 and answer
+    for a DIFFERENT character.  A non-integral rank is not the Chern character of any
+    sheaf, so the verdict must be the invalid-character PROVEN_EMPTY -- and must differ
+    from the truncated r=1 verdict wherever that one is region S."""
+    # r=1, nu=(1,1), Delta=2 -> the truncated character (1,(1,1),...) is region S...
+    assert hn_verdict(1, (F(1), F(1)), F(2), F0).region is HNRegion.S
+    # ...but r=3/2 with the same (nu, Delta) is no character at all: certified EMPTY.
+    v = hn_verdict(F(3, 2), (F(1), F(1)), F(2), F0)
+    assert v.exists is False and v.region is HNRegion.EMPTY
 
 
 def test_scope_nef_and_big_factory_raises():

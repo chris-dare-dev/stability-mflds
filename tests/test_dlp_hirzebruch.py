@@ -349,6 +349,70 @@ def test_non_hirzebruch_surface_is_refused():
         dlp_envelope((F(0),), P2, 4)
 
 
+# --------------------------------------------------------------------------
+# E13 re-audit R1: the Gram matrix alone does NOT identify the surface family.
+# A projective K3 with NS = U carries the F_0 Gram [[0,1],[1,0]] (and, in the
+# rebased basis (f, s - f), the F_2 Gram [[0,1],[1,-2]]), but K = 0 and
+# chi(O) = 2.  Gram-only recognition dispatched it into the CH F_e theory and
+# minted a false PROVEN_NONEMPTY (see tests/test_nonemptiness.py for the
+# end-to-end verdict regression).  hirzebruch_index must authenticate K, chi_O,
+# and the kind tag.
+# --------------------------------------------------------------------------
+def _fake_k3_with_U(gram, H):
+    from bridgeland_stability.nslattice import NSLattice
+    from bridgeland_stability.varieties import Surface
+    lat = NSLattice(2, gram)
+    return Surface(
+        name="K3 (NS = U)", d=int(lat.self_pairing(H)), K=(0, 0), chi_O=2,
+        picard_rank=2, kind="K3", H=H, ns_lattice=lat,
+    )
+
+
+def test_k3_with_hyperbolic_ns_is_not_F0():
+    """NS = U in the F_0 basis: Gram matches [[0,1],[1,0]] but K=(0,0) != (-2,-2)
+    and chi(O)=2 != 1 -- both Lemma 11.3 identities fail, so this is refused."""
+    fake = _fake_k3_with_U(((0, 1), (1, 0)), (2, 1))
+    with pytest.raises(NotImplementedError):
+        hirzebruch_index(fake)
+    with pytest.raises(NotImplementedError):
+        dlp_envelope((F(-3, 5), F(1, 5)), fake, 6)
+
+
+def test_k3_with_hyperbolic_ns_is_not_F2_either():
+    """The SAME lattice U rewritten in an F_2-shaped basis (f, s-f): Gram
+    [[0,1],[1,-2]], still K=(0,0) != (-4,-2).  Refused -- this basis change is
+    how the disguised K3 reached the E13-M1 reduction map pi."""
+    fake = _fake_k3_with_U(((0, 1), (1, -2)), (3, 1))
+    with pytest.raises(NotImplementedError):
+        hirzebruch_index(fake)
+
+
+def test_wrong_K_or_chi_O_is_refused_even_untagged():
+    """Family authentication is carried by (K, chi_O), not just the kind tag: an
+    untagged (kind='') surface with the F_0 Gram but a K3's invariants is refused."""
+    from bridgeland_stability.nslattice import NSLattice
+    from bridgeland_stability.varieties import Surface
+    lat = NSLattice(2, ((0, 1), (1, 0)))
+    wrong_K = Surface(name="untagged", d=4, K=(0, 0), chi_O=1,
+                      picard_rank=2, kind="", H=(2, 1), ns_lattice=lat)
+    with pytest.raises(NotImplementedError):
+        hirzebruch_index(wrong_K)
+    wrong_chi = Surface(name="untagged", d=4, K=(-2, -2), chi_O=2,
+                        picard_rank=2, kind="", H=(2, 1), ns_lattice=lat)
+    with pytest.raises(NotImplementedError):
+        hirzebruch_index(wrong_chi)
+
+
+def test_genuine_hirzebruch_surfaces_still_authenticate():
+    """The catalog F_e rows all carry the authentic (K, chi_O): no false refusal."""
+    assert hirzebruch_index(P1xP1) == 0
+    assert hirzebruch_index(F1_K) == 1
+    for e in (1, 2, 3, 5):
+        S = hirzebruch_with_polarization(e, (2 * e + 1, 2))
+        assert hirzebruch_index(S) == e
+        assert hirzebruch_index(hirzebruch(e)) == e   # nef factory: index OK, ample No
+
+
 def test_index_and_polarization_predicates():
     assert hirzebruch_index(P1xP1) == 0
     assert hirzebruch_index(F1_K) == 1
