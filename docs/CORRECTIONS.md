@@ -1337,3 +1337,78 @@ choke point rather than adding another numeric gate.
 §1.6, Thm 1.13 = Cor 7.7, Example 1.14); the `v² ≥ −2` bound for stable sheaves on a K3 (Mukai; see
 Huybrechts, *Lectures on K3 Surfaces*, Ch. 10). Package files: `dlp_hirzebruch.py`, `hn_filtration.py`,
 `nonemptiness_rational.py`, `prioritary.py`, `dlp.py`, `exceptional.py`, `oracle/m2.py`.
+
+## 13. Retiring the ε-recursion common mode: the K-theoretic mutation oracle (E13-M4)
+
+**The finding.** The E13 re-audit noted that the E12 differential oracle (`tests/oracle/dlp_reference.py`)
+is import-independent but not *algorithmically* independent: its `_exceptional_slopes` is the **same**
+ε-mediant interval subdivision production's `enumerate_exceptional` uses — same integer seeds, same
+`α·β = (α+β)/2 + (Δ_β−Δ_α)/(3+α−β)`, same binary tree, same certified cutoff. A shared misunderstanding
+of any of those would reproduce identically on both sides, and the widened differential passes (§12)
+would stay blind to it.
+
+**The hardening.** `tests/oracle/mutation_reference.py` generates the same finite sets from a **different
+theorem, in different coordinates, with different arithmetic**:
+
+- classes live in the numerical K-group `K(P²) ≅ ℤ³` as **integer** triples `(r, c₁, χ)` — no slope, no
+  `Fraction` in the generator;
+- generation is by **mutation of full exceptional collections** — `[L_A B] = χ(A,B)[A] − [B]`,
+  `[R_B A] = χ(A,B)[B] − [A]` — starting from `(O, O(1), O(2)) = ((1,0,1),(1,1,3),(1,2,6))`; completeness
+  is Gorodentsev–Rudakov's constructibility theorem, not the ε-image description;
+- the Euler form collapses (RR, eliminating `ch₂ = χ − 3c₁/2 − r`) to the all-integer
+  `χ(E,F) = r_E χ_F + r_F χ_E − r_E r_F − 3 r_F c_E − c_E c_F`, pinned against
+  `χ(O(a),O(b)) = (b−a+2)(b−a+1)/2` over a grid; the twist is
+  `(r, c, χ)⊗O(n) = (r, c+nr, χ+nc+(n(n+3)/2)r)`;
+- `Δ_α` is **computed from each generated class's own `(r,c₁,ch₂)`** — the `(1−1/ρ²)/2` rank formula is
+  never transcribed (it is forced by `χ(X,X)=1`, which the walk asserts on every class); the tests then
+  verify it *emerges*;
+- two live tripwires run on every visited collection: the **Markov equation** `a²+b²+c² = 3abc` on the
+  rank triple (Rudakov), and `χ(X,X) = 1` per member.
+
+**The triangulation** (`tests/test_mutation_oracle.py`). Three independent recursions must produce one
+set, as full `(r, c₁, ch₂)` triples where applicable:
+
+1. production's ε-recursion (Drezet–Le Potier Théorème A);
+2. the mutation walk (K-theory);
+3. **Springborn's Markov fractions** (Veselov, arXiv:2501.06779, Thm 3.1: the exceptional slopes are
+   exactly the Markov fractions) — the purely number-theoretic mediant
+   `p₁/q₁ ∗ p₂/q₂ = (p₁q₁+p₂q₂)/(q₁²+q₂²)` seeded on `0/1, 1/2` in `[0,½]`, transcribed inline in the
+   test; slopes in `[0,1)` are `{f} ∪ {1−f}`.
+
+Set equality is asserted at ranks 13/89/610 (and over the window `[−3,4]`); the rank multiset is pinned
+against a **hardcoded OEIS A002559** Markov list; the Fibonacci branch `F₂ₖ₋₁/F₂ₖ₊₁` (2/5, 5/13, 13/34,
+34/89, 89/233, 233/610) is pinned explicitly.
+
+**The impostor family, swept.** Exact evidence worth recording: the §8 impostor `(610, 133, −581/2)`
+satisfies not only `χ(E,E)=1`, integral `c₂`, and Markov rank, but even Springborn's **necessary**
+congruence `p² ≡ −1 (mod q)`: `133² + 1 = 17690 = 29·610` (the genuine numerator has
+`233² + 1 = 54290 = 89·610`). `610 = 2·5·61` is composite, so `p² ≡ −1` has four roots mod 610 — only
+the tree structure separates slopes from impostors, which is exactly why a membership test must be
+generative, never congruence-local. The sweep asserts production membership == mutation membership over
+every `(q Markov ≤ 610, p)` candidate with exceptional `ch₂` and integral `c₂`, and asserts the sweep
+rejected at least one candidate (no vacuous gate).
+
+**Cross-cutoff δ differential.** Production evaluates `δ(μ)` with the certified sharp cutoff
+`rank ≤ q = denominator(μ)` (§8); the mutation oracle deliberately uses `4q + 64`. Their agreement over a
+dense `q ≤ 32` sweep plus high-`q` spot checks (including `233/610` and `355/113`) tests the sharp-cutoff
+theorem itself: a binding bundle of rank in `(q, 4q+64]` would now surface as a mismatch. The full
+verdict runs as a **triple differential** (production == ε-reference == mutation-reference) on the E12
+frozen corpus and the audit box `r ≤ 6, c₁ ∈ [−8,8], c₂ ∈ [0,7]`.
+
+**What remains shared, honestly.** All three sides still transcribe (a) the Euler polynomial
+`P(m) = (m²+3m+2)/2` and (b) the CHW Thm 2.2 verdict statement — both are one-line paper transcriptions
+anchored by pinned literature values (`δ(1/2)=5/8`, …, and the binomial pins), which is the appropriate
+mitigation for formula-level risk. The **F_e** envelope machinery (congruence-enumerated, not
+ε-recursive) has no second-generator analogue yet; its residual hardening candidate remains a
+CAS/Macaulay2 cross-check (E10/G16 infrastructure).
+
+*Sources:* Gorodentsev–Rudakov, "Exceptional vector bundles on projective spaces", Duke Math. J. 54
+(1987), 115–130 (mutations; constructibility on P²). Rudakov, "Exceptional vector bundles on P² and
+Markov numbers", Izv. Akad. Nauk SSSR Ser. Mat. 52 (1988); Engl. transl. Math. USSR-Izv. 32 (1989),
+99–112 (Markov rank triples; (rank, slope) determines the bundle).
+[arXiv:2501.06779](https://arxiv.org/abs/2501.06779) (Veselov, "Markov fractions and the slopes of the
+exceptional bundles on P²", after B. Springborn — the third recursion and the `p²+1 ≡ 0 (mod q)`
+necessary congruence). [arXiv:1401.1613](https://arxiv.org/abs/1401.1613) Thm 2.2 and
+[arXiv:1907.06739](https://arxiv.org/abs/1907.06739) Ex. 1.9/1.14 (the verdict statements, as in §8).
+Files: `tests/oracle/mutation_reference.py`, `tests/test_mutation_oracle.py`,
+`tests/test_oracle_integrity.py`.
