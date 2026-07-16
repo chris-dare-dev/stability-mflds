@@ -109,14 +109,14 @@ ANCHORS = (
     Anchor("F0_S_diag", 2, (2, 2), F(-2), F0, F(2), True, HNRegion.S),
     Anchor("F0_exc_rank3", 3, (1, 1), F(-1), F0, F(4, 9), True, HNRegion.S),
     Anchor("F0_exc_rank5", 5, (1, 2), F(-2), F0, F(12, 25), True, HNRegion.S),
-    Anchor("F0_unclassified_flagship", 2, (1, 1), F(0), F0, F(1, 4), None, HNRegion.UNCLASSIFIED),
+    Anchor("F0_band_flagship", 2, (1, 1), F(0), F0, F(1, 4), True, HNRegion.S),   # decided by M3b
     Anchor("F0_empty_band", 2, (1, 1), F(1, 2), F0, F(0), False, HNRegion.EMPTY),
     Anchor("F0_empty_below_eb", 3, (0, 0), F(-1), F0, F(1, 3), False, HNRegion.EMPTY),
     Anchor("F0_bogomolov", 2, (0, 0), F(1, 2), F0, F(-1, 4), False, HNRegion.EMPTY),
     # ---- F_1, H=(3,2), d=8, Gram [[0,1],[1,-1]]. ------------------------------
     Anchor("F1_S", 2, (0, 0), F(-4), F1, F(2), True, HNRegion.S),
     Anchor("F1_bogomolov", 2, (0, 0), F(1), F1, F(-1, 2), False, HNRegion.EMPTY),
-    Anchor("F1_unclassified_boundary", 2, (0, 0), F(-2), F1, F(1), None, HNRegion.UNCLASSIFIED),
+    Anchor("F1_boundary", 2, (0, 0), F(-2), F1, F(1), True, HNRegion.S),          # decided by M3b
     Anchor("F1_empty", 2, (1, 1), F(0), F1, F(1, 8), False, HNRegion.EMPTY),
 )
 
@@ -162,40 +162,41 @@ def test_p2_is_a_total_verdict_over_a_grid():
                 assert isinstance(v, bool)
 
 
-def test_flagship_unclassified_is_a_genuinely_nonempty_undecided_class():
+def test_flagship_decides_to_S_with_computed_length_one():
     """The flagship: (2,(1,1),0) on F_0 IS O(1,0) (+) O(0,1) -- polystable (the summands
     share a reduced Hilbert polynomial), so a semistable sheaf EXISTS and the Sec. 1.6
-    criterion gives generic HN length one.  M3a's machinery cannot see that (it sits in
-    the band Delta=1/4 in [emptiness_bound=1/4, DLP_{-K}(1/2,1/2)=3/4]), so the verdict
-    is the honest UNKNOWN (exists None) -- and the region label must be UNCLASSIFIED,
-    never K: an epistemic UNKNOWN is not evidence of a Kronecker region, and this very
-    class is the counterexample (E13 re-audit R2).  Its Delta=1/4 < 3/8 is also outside
-    Thm 1.13's stated range."""
+    criterion gives generic HN length one.  The E13 re-audit R2 class: M3a honestly
+    reported UNKNOWN here; E13-M3b now COMPUTES the generic HN filtration and decides
+    True with length 1 -- matching the polystable truth (the paper exhibits exactly
+    this bundle as -K-semistable with Delta = 1/4 < DLP_{-K}, arXiv:1907.06739 Sec. 7,
+    the example after cor-delPezzoKss)."""
     # Both rank-1 summands O(1,0) and O(0,1) exist (region S).
     assert se(1, (1, 0), F(0), F0) is True
     assert se(1, (0, 1), F(0), F0) is True
     assert region(1, (1, 0), F(0), F0) is HNRegion.S
-    # Their direct sum has ch = (2,(1,1),0), honestly undecided by M3a...
-    assert se(2, (1, 1), F(0), F0) is None
-    # ...and labelled UNCLASSIFIED -- no structural Kronecker claim (R2).
-    assert region(2, (1, 1), F(0), F0) is HNRegion.UNCLASSIFIED
-    assert region(2, (1, 1), F(0), F0) is not HNRegion.K
-    # The band structure: emptiness_bound <= Delta <= DLP_{-K}, strictly.
+    # The direct sum ch = (2,(1,1),0) is DECIDED: exists, computed length 1.
+    assert se(2, (1, 1), F(0), F0) is True
+    assert region(2, (1, 1), F(0), F0) is HNRegion.S
+    v = verdict(2, (1, 1), F(0), F0)
+    assert v.generic_hn_length == 1 and v.factors == ((2, (1, 1), F(0)),)
+    # The band structure that made M3a defer: emptiness_bound <= Delta <= DLP_{-K}.
     xi = SurfaceBundle(2, (1, 1), F(0))
     assert discriminant(xi, F0) == F(1, 4)
     assert dlp_envelope(total_slope(xi), F0).value == F(3, 4)
 
 
-def test_F1_boundary_is_undecided():
+def test_F1_boundary_is_decided_by_the_computed_filtration():
     """F_1 (2,(0,0),-2): Delta=1 lands exactly ON the sharp envelope DLP_{-K}(0,0)=1 and
-    on emptiness_bound=1.  CH Thm 'deltaSurface' (1) needs a STRICT inequality, so the
-    boundary is honestly undecided (region UNCLASSIFIED, exists None) -- a recorded open
-    question, not a Kronecker-region claim (E13 re-audit R2)."""
+    on emptiness_bound=1, where CH Thm 'deltaSurface' (1) is silent (strict inequality).
+    E13-M3b decides the boundary by the Sec. 5 algorithm: no maximal destabilizing
+    character passes the cor-algorithm iff (hand-checks in tests/test_generic_hn.py),
+    so semistable sheaves EXIST at the boundary -- closing this instance of the E11-M6
+    open question O2."""
     xi = SurfaceBundle(2, (0, 0), F(-2))
     assert discriminant(xi, F1) == F(1)
     assert dlp_envelope(total_slope(xi), F1).value == F(1)
-    assert se(2, (0, 0), F(-2), F1) is None
-    assert region(2, (0, 0), F(-2), F1) is HNRegion.UNCLASSIFIED
+    assert se(2, (0, 0), F(-2), F1) is True
+    assert region(2, (0, 0), F(-2), F1) is HNRegion.S
 
 
 # --------------------------------------------------------------------------- #
@@ -211,9 +212,14 @@ def test_sharp_bound_ties_to_certified_envelope(a):
     env = dlp_envelope(total_slope(xi), a.surface)
     v = verdict(a.r, a.c1, a.ch2, a.surface)
     assert v.sharp_bound == env.value
-    # And the exists mapping equals the moduli_nonempty status map (no drift).
+    # And the exists mapping never contradicts the moduli_nonempty status: a PROVEN
+    # status binds; an UNKNOWN status is decided by the M3b filtration (bool).
     mv = moduli_nonempty(a.r, a.c1, a.ch2, a.surface)
-    assert v.exists is _STATUS_TO_EXISTS[mv.status]
+    expected = _STATUS_TO_EXISTS[mv.status]
+    if expected is None:
+        assert isinstance(v.exists, bool)
+    else:
+        assert v.exists is expected
 
 
 # --------------------------------------------------------------------------- #
@@ -243,12 +249,19 @@ def test_delegation_invariance_P2():
 def test_delegation_invariance_F0():
     # F_e moduli_nonempty enumerates the envelope (expensive) and this grid hits it
     # TWICE per point (directly + via se), so it is kept small; it still spans both c1
-    # parities and the S/K/EMPTY bands, which is all the fixed status->tri-state map needs.
+    # parities and the S/K/EMPTY bands.  Since E13-M3b the delegation contract is:
+    # a PROVEN moduli status BINDS the verdict; an UNKNOWN status is DECIDED by the
+    # computed generic HN filtration (a bool, never None) -- and never contradicted.
     for r, c1, ch2 in _delegation_grid(
         F0, range(1, 3), range(-1, 2), [F(x, 2) for x in range(-2, 3)]
     ):
         v = moduli_nonempty(r, c1, ch2, F0)
-        assert se(r, c1, ch2, F0) is _STATUS_TO_EXISTS[v.status], (r, c1, ch2)
+        got = se(r, c1, ch2, F0)
+        expected = _STATUS_TO_EXISTS[v.status]
+        if expected is None:
+            assert isinstance(got, bool), (r, c1, ch2)     # M3b decided the band
+        else:
+            assert got is expected, (r, c1, ch2)
 
 
 def test_delegation_invariance_F1():
@@ -256,7 +269,12 @@ def test_delegation_invariance_F1():
         F1, range(1, 3), range(-1, 2), [F(x, 2) for x in range(-2, 3)]
     ):
         v = moduli_nonempty(r, c1, ch2, F1)
-        assert se(r, c1, ch2, F1) is _STATUS_TO_EXISTS[v.status], (r, c1, ch2)
+        got = se(r, c1, ch2, F1)
+        expected = _STATUS_TO_EXISTS[v.status]
+        if expected is None:
+            assert isinstance(got, bool), (r, c1, ch2)     # M3b decided the band
+        else:
+            assert got is expected, (r, c1, ch2)
 
 
 # --------------------------------------------------------------------------- #
@@ -274,7 +292,8 @@ def test_generic_hn_length_matches_existence(a):
 
 
 def test_generic_hn_length_over_grid():
-    """length is 1 exactly on region S; None on EMPTY and K, over a mixed grid."""
+    """length == 1 exactly where sheaves exist; M3b-decided empties carry their
+    exact computed length; envelope-decided empties carry None."""
     # P^2 (fast, closed form) keeps a wide grid; the F_e sweeps (expensive envelope
     # enumeration) are kept tight but still span both parities and the S/K/EMPTY bands.
     for surface, coords, r_hi in ((P2, range(-4, 5), 4), (F0, range(-1, 2), 3), (F1, range(-1, 2), 3)):
@@ -288,7 +307,9 @@ def test_generic_hn_length_over_grid():
                     length = generic_hn_length(r, nu, D, surface)
                     exists = semistable_exists(r, nu, D, surface)
                     assert (length == 1) is (exists is True), (surface.name, r, c1, ch2)
-                    assert length in (1, None)
+                    # exact computed lengths (2..4) appear where M3b decided emptiness;
+                    # None only on the envelope-decided empty paths.
+                    assert length in (1, 2, 3, 4, None)
 
 
 # --------------------------------------------------------------------------- #
@@ -317,7 +338,7 @@ def test_verdict_region_labels_on_P2_and_F0():
     assert region(1, (0,), F(-5), P2) is HNRegion.S
     assert region(3, (0,), F(-2), P2) is HNRegion.EMPTY
     assert region(2, (0, 0), F(-4), F0) is HNRegion.S
-    assert region(2, (1, 1), F(0), F0) is HNRegion.UNCLASSIFIED
+    assert region(2, (1, 1), F(0), F0) is HNRegion.S       # decided by M3b
     assert region(2, (0, 0), F(1, 2), F0) is HNRegion.EMPTY
 
 
@@ -336,10 +357,11 @@ def test_P2_existence_verdict_is_total_over_grid():
 
 def test_hn_verdict_fields_are_consistent():
     """The HNVerdict dataclass exposes a consistent tri-state (exists / length / region)."""
-    v = verdict(2, (1, 1), F(0), F0)                 # the UNCLASSIFIED flagship
+    v = verdict(2, (1, 1), F(0), F0)                 # the flagship: M3b-decided
     assert isinstance(v, HNVerdict)
-    assert v.exists is None and v.generic_hn_length is None
-    assert v.region is HNRegion.UNCLASSIFIED
+    assert v.exists is True and v.generic_hn_length == 1
+    assert v.region is HNRegion.S
+    assert v.factors == ((2, (1, 1), F(0)),)
     assert v.discriminant == F(1, 4) and v.sharp_bound == F(3, 4)
     v2 = verdict(1, (0,), F(-5), P2)                  # region S
     assert v2.exists is True and v2.generic_hn_length == 1 and v2.region is HNRegion.S

@@ -1412,3 +1412,82 @@ necessary congruence). [arXiv:1401.1613](https://arxiv.org/abs/1401.1613) Thm 2.
 [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) Ex. 1.9/1.14 (the verdict statements, as in §8).
 Files: `tests/oracle/mutation_reference.py`, `tests/test_mutation_oracle.py`,
 `tests/test_oracle_integrity.py`.
+
+## 14. The generic Harder–Narasimhan filtration: total verdicts on the del Pezzo scope (E13-M3b)
+
+**What shipped.** `bridgeland_stability/generic_hn.py` implements arXiv:1907.06739 §5's finite inductive
+procedure (`thm-HNcriterion` / `cor-algorithm`) computing the characters of the generic
+`H_m`-Harder–Narasimhan factors of a character `v` on any strictly-ample `F_e` (`m = a/b − e ∈ ℚ₊`,
+`H_m = H/b`). Because "there exists an `H_m`-semistable sheaf iff the generic HN filtration has
+length 1" (§1.6), this makes non-emptiness **decidable** — including E13-M3a's honest UNKNOWN band and
+the boundary `Δ = δ_H`. The `hn_verdict` layer is now **total** on P²/ample-F₀/F₁: a PROVEN
+`moduli_nonempty` status binds; an UNKNOWN status is decided by the computed filtration, with the factor
+characters **exhibited** in `HNVerdict.factors` and region `K` **earned** (length ≥ 2 with a
+non-semiexceptional factor), never asserted — the §12 R2 discipline preserved.
+
+**The algorithm** (all citations are `\label`s in the paper's source, verified against the fetched
+LaTeX). Standing hypothesis: the `F`-and-`H_⌈m⌉`-prioritary stack of `v` is nonempty; if it is empty,
+`M_{H_m}(v)` is empty by `prop-ssPrior` (semistable ⇒ `H_n`-prioritary for every integer `n < m+2`).
+Search `w₁ = gr₁` over the `lem-HNclose`/`lem-slopeQuad` windows
+(`0 ≤ (ν₁−ν)·H_m ≤ 1`, `|(ν₁−ν)·F| ≤ max{1, 2/(e+2m)}`, closed supersets of the strict bounds);
+`w₁ = gr₁` iff (1) `u = v − w₁` carries `H_⌈m⌉`-prioritary sheaves — decided by `cor-prioritaryDelta`
+(= the shipped E13-M2 `prioritary_nonempty`) for `Δ(u) ≥ 0` — with `u`'s factors known by rank
+induction, (2) `q₁ > q₂` (reduced `H_m`-Hilbert polynomials, compared exactly as the lexicographic key
+`(ν·H_m, P(ν) − Δ)` — the `t²`- and common linear coefficients cancel), (3) `μ(w₁) − μ(w_k) ≤ 1`,
+(4) `χ(w₁, wᵢ) = 0` for all of `u`'s factors, (5) `M_{H_m}(w₁)` nonempty (induction). No valid `w₁`
+⟺ length 1 ⟺ nonempty. Rank-1 base: integral with `c₂ ≥ 0`.
+
+**Two derivations recorded for the domain edge and the speed:**
+
+* **`Δ < 0` refuses condition (1) for every `n ≥ 1`, all slopes.** `thm-prioritaryNecessary` forces
+  `χ(v(−L₀−H_n)) ≤ 0`. For `ε ∉ ℤ`, `cor-equivalentInequality` reads it as
+  `n ≤ Δ/((⌈ε⌉−ε)(ε−⌊ε⌋)) − e/2 + 1 − (⌈ψ⌉−ψ) ≤ 4Δ + 1 < 1` when `Δ < 0` (the denominator is `≤ ¼`).
+  For `ε ∈ ℤ`, `def-L0` gives `⌈ε⌉−ε = 0` and the same RR expansion collapses to `χ/r = −Δ`
+  (`rem-epInteger`), so the necessary inequality is exactly `Δ ≥ 0`.
+* **The linear-orthogonality solve.** Condition (4) and bilinearity force `χ(w₁, u) = Σχ(w₁, wᵢ) = 0`
+  — computable with NO recursion, and **linear in ch₂(w₁)** with coefficient `2(r_u − r₁)`. For
+  `r₁ ≠ r_u` it pins ch₂(w₁) to at most one lattice value per `(r₁, c₁)`; the balanced case scans a
+  window bounded by two further proven prunes: `Δ₁ ≤ P(ν_j − ν₁) ≤ C(e, m)` (orthogonality + Bogomolov
+  over the doubled slope window) and the `lem-discBound` break (`Δ₁` is the minimal semistable
+  discriminant at its slope, so the ascending scan stops at the first semistable hit). Effect measured
+  on the rank-15 paper pin: 225 s → 0.14 s.
+
+**The paper's two orthogonal-Kronecker pins, reproduced bit-for-bit** (§1.5; package `(f,s)` coords:
+a paper slope `εE + φF` of rank `r` is `c₁ = (rφ, rε)`; sums and χ-orthogonality re-verified with the
+package's general RR pairing in `tests/test_generic_hn.py`, at TWO distinct ε each):
+
+| surface, `m` | `v` (package) | computed factors | paper Δ's |
+|---|---|---|---|
+| `F₁`, `12/7+ε` | `(13, (6,3), −13/2)` | `(2,(0,1),−3/2)`, `(11,(6,2),−5)` | `5/8`, `65/121` |
+| `F₀`, `25/9+ε` | `(15, (5,3), −8)` | `(2,(−1,1),−2)`, `(13,(6,2),−6)` | `3/4`, `90/169` |
+
+Neither factor is semiexceptional (asserted) — the Kronecker-pair shape the paper constructs to show
+`δ^{μs}_m > DLP^{<r}_{H_m}` can be strict. Through `hn_verdict` the F₁ pin yields
+`exists=False, generic_hn_length=2, region=K, factors=…` with a PROVEN certificate.
+
+**The flagship flips, the boundary closes.** `(2,(1,1),0)` on `F₀` — §12 R2's counterexample —
+now **decides to `exists=True` with computed length 1**, matching the polystable truth (the paper's
+own example after `cor-delPezzoKss`: `O(F₁)⊕O(F₂)` is `−K`-semistable with `Δ = ¼ < DLP₋ₖ = ¾`).
+The F₁ boundary anchor `(2,(0,0),−2)` (`Δ = 1 = δ_H`, the E11-M6 strict-inequality open question O2)
+**decides to existence**: no `w₁` passes the iff — hand-checked rejections: `w₁ = O` fails (4) with
+`χ(O, I_{Z₂}) = 1 − 2 = −1 ≠ 0`; `w₁ = (1,(0,0),−1)` fails `q₁ > q_v` (both slope 0 with
+`P(0) − Δ = 0`). O2 is closed on the del Pezzo scope: the boundary is decided per-class by the
+computed filtration.
+
+**Consistency gates** (`tests/test_generic_hn.py`): the algorithm never contradicts the envelope
+verdicts over integral-`c₂` grids on F₀/F₁ (two independent theorem routes — §5 vs the DLP envelope —
+with the UNKNOWN band genuinely exercised); existence implies the Cor 4.17 prioritary bound; the
+`cor-algorithm` uniqueness of `gr₁` is asserted under a full-sweep flag (`PARANOID_UNIQUENESS`) over a
+grid; the inlined integer `χ` and `q`-key forms are cross-pinned against the package's general
+`exceptional_surface.chi` / `hilbert_P` / `discriminant`; the module accepts any ample `F_e` (an `e=2`
+smoke runs now; E13-M3c will differential the direct computation against the E13-M1 reduction `π`).
+
+Suite: 498 → 516 items (18 new), 6 Macaulay2 skips unchanged, 0 failures.
+
+*Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §1.5, §1.6, §4
+(`thm-prioritaryNecessary`, `def-L0`, `cor-equivalentInequality`, `rem-epInteger`, `prop-triangle`,
+`cor-prioritaryDelta`), §5 (`lem-HNclose`, `lem-HNorthogonal`, `thm-HNcriterion`, `lem-slopeQuad`,
+`lem-discBound`, the ℓ ≤ 4 lemma, `cor-algorithm`), §7 (the `O(F₁)⊕O(F₂)` example after
+`cor-delPezzoKss`). Package: `bridgeland_stability/generic_hn.py`, `hn_filtration.py`;
+tests in `tests/test_generic_hn.py`, `tests/test_hn_filtration.py`.
+

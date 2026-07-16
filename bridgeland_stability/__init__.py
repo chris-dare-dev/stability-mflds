@@ -113,6 +113,10 @@ from .hn_filtration import (
     THM_1_13_MIN_DELTA,
     THM_1_13_MAX_NON_SEMIEXCEPTIONAL_FACTORS,
 )
+from .generic_hn import (
+    generic_hn_factors,
+    semistable_exists_hn,
+)
 from .walls import (
     Wall,
     VerticalWall,
@@ -253,6 +257,8 @@ __all__ = [
     "HNRegion",
     "HNVerdict",
     "hn_verdict",
+    "generic_hn_factors",
+    "semistable_exists_hn",
     "semistable_exists",
     "generic_hn_length",
     "hn_region",

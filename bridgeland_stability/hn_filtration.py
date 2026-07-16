@@ -21,13 +21,15 @@ moduli_nonempty` verdict:
   ``Delta < 0`` (Bogomolov), or ``Delta`` below the certified ``emptiness_bound``.
   ``moduli_nonempty`` reports this as ``PROVEN_EMPTY``.
 * the remaining band ``emptiness_bound <= Delta <= delta_H`` (and the boundary
-  ``Delta == delta_H``) -- region **UNCLASSIFIED** -- is where the sharp
-  ``delta_H^{mu-s}`` is a Kronecker-module computation, **deferred to E13-M3b**.
-  Here it is honestly ``UNKNOWN`` (``None``), never a fabricated verdict; and the
-  label makes NO structural claim (E13 re-audit R2): the band contains genuinely
-  non-empty length-1 classes (see the flagship below), so ``None`` may be a
-  conservative existence under-claim -- it is never evidence of an actual
-  length-2 Kronecker region.  ``moduli_nonempty`` reports this as ``UNKNOWN``.
+  ``Delta == delta_H``) -- where ``moduli_nonempty`` honestly reports UNKNOWN --
+  is now **DECIDED (E13-M3b)** by computing the generic ``H_m``-Harder-Narasimhan
+  filtration (:mod:`bridgeland_stability.generic_hn`, arXiv:1907.06739 Sec. 5):
+  length 1 -> region S (semistable sheaves exist); length >= 2 -> PROVEN empty,
+  with the factor characters EXHIBITED in :attr:`HNVerdict.factors` and region
+  **K** earned exactly when a factor is not semiexceptional (the Kronecker-type
+  datum); an empty prioritary stack -> PROVEN empty (prop-ssPrior).  The E13
+  re-audit R2 discipline stands: every structural label is now backed by a
+  computed filtration, never asserted from an epistemic UNKNOWN.
 
 Faithful reframing, no re-derived logic
 ---------------------------------------
@@ -36,13 +38,13 @@ character ``(r, c1, ch2)`` from ``(r, nu, Delta)`` exactly, calls the native
 ``moduli_nonempty`` (no ``delta_H_target`` / ``evidence``), and maps its
 branch-derived :class:`~bridgeland_stability.nonemptiness_rational.VerdictStatus`:
 
-    ================  =================  ============  =================
+    ================  =================  ============  ==============================
     moduli status     semistable_exists region        generic HN length
-    ================  =================  ============  =================
+    ================  =================  ============  ==============================
     PROVEN_NONEMPTY   True               S             1
-    PROVEN_EMPTY      False              EMPTY         None (>= 2; exact value is M3b)
-    UNKNOWN           None               UNCLASSIFIED  None (pending M3b)
-    ================  =================  ============  =================
+    PROVEN_EMPTY      False              EMPTY         None (>= 2; not computed here)
+    UNKNOWN           decided by M3b     S / K / EMPTY exact computed length (1..4)
+    ================  =================  ============  ==============================
 
 Delegating guarantees zero drift: it inherits ``moduli_nonempty``'s A3/A5/A6 /
 E12-M2 soundness fixes (the strict ``>`` vs ``>=`` boundary handling and the
@@ -69,21 +71,23 @@ Honest scope
   *shape*: Example 1.14's S/K/R/empty shapes all occur on ``P^2`` too, and this
   module's region label describes the package's verdict, never the sheaf's HN
   structure (E13 re-audit R2).
-* an ample-polarized del Pezzo ``F_0`` / ``F_1`` -- region S and the certified
-  empty regions are decided; the UNCLASSIFIED band is a genuine ``None``.  The
-  flagship ``(2,(1,1),0)`` on ``F_0`` = ``O(1,0) (+) O(0,1)`` shows why the label
-  must stay structural-claim-free: the summands share a reduced Hilbert
-  polynomial, so the direct sum is polystable -- a semistable sheaf EXISTS and
-  the Sec. 1.6 criterion gives generic HN length one -- yet it sits below
-  ``DLP_{-K}(1/2,1/2) = 3/4`` where M3a's machinery cannot decide it.  (Its
-  ``Delta = 1/4 < 3/8`` is also outside Thm 1.13's stated range, so nothing
-  licenses a Kronecker-filtration claim for it.)
-* ``e >= 2`` -- **not** in M3a scope: assembled via the E13-M1 reduction ``pi``
-  in E13-M3c.  A :exc:`NotImplementedError`.
+* an ample-polarized del Pezzo ``F_0`` / ``F_1`` -- **TOTAL since E13-M3b**:
+  the envelope decides region S and the certified-empty regions; the remaining
+  band is decided by the computed generic HN filtration.  The flagship
+  ``(2,(1,1),0)`` on ``F_0`` = ``O(1,0) (+) O(0,1)`` -- the E13 re-audit R2
+  counterexample that forced the honest UNCLASSIFIED label -- now DECIDES to
+  ``exists=True`` with computed length 1, matching the polystable truth (the
+  paper exhibits exactly this bundle as ``-K``-semistable with
+  ``Delta = 1/4 < DLP_{-K}``, the Sec. 7 example after cor-delPezzoKss).
+* ``e >= 2`` -- **not** in M3a/M3b verdict scope: assembled via the E13-M1
+  reduction ``pi`` in E13-M3c (the Sec. 5 algorithm itself is uniform in ``e``
+  and :mod:`bridgeland_stability.generic_hn` accepts any ample ``F_e``; M3c
+  will cross-check it against the reduction).  A :exc:`NotImplementedError`.
 * K3 / abelian / a nef-and-big factory ``F_n`` -- no del Pezzo CH theory; refused.
 
-This is the first partial closure of the E11-M6 open question O2 (docs/
-CORRECTIONS.md Sec. 11).
+E13-M3a partially closed the E11-M6 open question O2; E13-M3b closes it on the
+del Pezzo scope (docs/CORRECTIONS.md Sec. 11/14): even the boundary
+``Delta == delta_H`` is decided by the computed filtration.
 
 Exact arithmetic; full-NS discriminant
 --------------------------------------
@@ -112,8 +116,10 @@ from fractions import Fraction
 from typing import Optional, Sequence, Union
 
 from .nonemptiness_rational import moduli_nonempty, VerdictStatus
-from .dlp_hirzebruch import hirzebruch_index, is_ample
-from .rigor import Certificate
+from .dlp_hirzebruch import hirzebruch_index, is_ample, is_semiexceptional
+from .exceptional_surface import SurfaceBundle
+from .generic_hn import generic_hn_factors
+from .rigor import Certificate, Rigor
 from .varieties import Surface
 
 __all__ = [
@@ -146,20 +152,29 @@ THM_1_13_MAX_NON_SEMIEXCEPTIONAL_FACTORS: int = 1
 class HNRegion(str, Enum):
     """The verdict regions on a del Pezzo ``e in {0,1}`` (plus ``P^2``).
 
-    ``S`` and ``EMPTY`` are decided regions.  ``UNCLASSIFIED`` is the honest label for
-    the undecided band ``emptiness_bound <= Delta <= delta_H`` (E13 re-audit R2): an
-    epistemic UNKNOWN is **not** evidence of a Kronecker region -- the band contains
-    genuinely non-empty length-1 classes (the flagship ``(2,(1,1),0)`` on ``F_0`` is
-    the polystable ``O(1,0) (+) O(0,1)``, whose summands share a reduced Hilbert
-    polynomial, so a semistable sheaf exists and the Sec. 1.6 criterion gives generic
-    HN length one).  ``K`` is RESERVED for E13-M3b, which will actually compute the
-    HN factors and prove a length-2 Kronecker filtration; it is never returned today.
+    Since E13-M3b the verdict is TOTAL on an ample ``F_0`` / ``F_1``: the band
+    E13-M3a honestly reported UNKNOWN is now decided by COMPUTING the generic
+    ``H_m``-Harder-Narasimhan filtration (:mod:`bridgeland_stability.generic_hn`,
+    arXiv:1907.06739 Sec. 5), and the region label is EARNED, never asserted
+    (E13 re-audit R2 discipline):
+
+    * ``S`` -- the computed filtration has length 1: semistable sheaves exist.
+    * ``K`` -- PROVEN empty with a computed length->=2 filtration at least one
+      of whose factors is NOT semiexceptional (the Kronecker-type datum of
+      Ex. 1.14 / Sec. 1.5's orthogonal-Kronecker examples); the factors are
+      exhibited in :attr:`HNVerdict.factors`.
+    * ``EMPTY`` -- certified empty with no Kronecker datum: invalid character,
+      ``Delta < 0``, below ``emptiness_bound``, an empty prioritary stack, or a
+      computed filtration all of whose factors are semiexceptional (the rigid
+      "R"-type decomposition of Ex. 1.9).
+    * ``UNCLASSIFIED`` -- retained as the honest fallback label; never returned
+      on the M3a/M3b scope (P^2 / ample del Pezzo ``F_0``, ``F_1``).
     """
 
     S = "S"          # generic HN filtration length 1: semistable sheaves exist
-    K = "K"          # RESERVED (M3b): PROVEN length-2 Kronecker filtration; never returned by M3a
-    UNCLASSIFIED = "unclassified"  # honest UNKNOWN band; NOT a structural claim (E13 re-audit R2)
-    EMPTY = "empty"  # certified destabilized: Delta<0, Delta<emptiness_bound, or invalid character
+    K = "K"          # PROVEN length->=2 filtration with a non-semiexceptional factor (M3b, exhibited)
+    UNCLASSIFIED = "unclassified"  # honest-fallback label; never returned on the M3a/M3b scope
+    EMPTY = "empty"  # certified empty: invalid, Delta<0, emptiness_bound, no prioritary stack, or all-semiexceptional factors
 
 
 @dataclass(frozen=True)
@@ -169,25 +184,31 @@ class HNVerdict:
     Attributes
     ----------
     exists : bool | None
-        Tri-state: ``True`` (region S, HN length 1, semistable sheaves exist),
-        ``False`` (certified empty), or ``None`` (honestly UNKNOWN -- the
-        UNCLASSIFIED band, pending M3b; possibly a conservative existence
-        under-claim, see :class:`HNRegion`).  Never a fabricated verdict.
+        ``True`` (region S, HN length 1, semistable sheaves exist) or ``False``
+        (certified empty).  TOTAL on the M3a/M3b scope since E13-M3b; the
+        ``None`` state is retained in the type only as the honest fallback and
+        is never returned here.  Never a fabricated verdict.
     generic_hn_length : int | None
-        ``1`` where the generic HN filtration is PROVEN length-1; ``None``
-        otherwise (the exact ``>= 2`` lengths are the Kronecker-module datum of M3b).
+        ``1`` where the generic HN filtration is PROVEN length-1; the exact
+        computed length (``2..4``) where the M3b algorithm decided emptiness;
+        ``None`` on the envelope-decided PROVEN_EMPTY paths (empty, but the
+        filtration was not computed).
     region : HNRegion
-        ``S`` / ``UNCLASSIFIED`` / ``EMPTY`` (``K`` is reserved for M3b).
+        ``S`` / ``K`` / ``EMPTY`` -- see :class:`HNRegion`; ``K`` is EARNED by a
+        computed filtration with a non-semiexceptional factor.
     discriminant : Fraction
         The full-NS Coskun-Huizenga ``Delta(xi)`` the verdict compared.
     sharp_bound : Fraction
         The ``delta_H`` the underlying ``moduli_nonempty`` verdict used (on the
         anticanonical del Pezzo ray this is the sharp ``dlp_envelope`` value).
     certificate : Certificate
-        The G5 provenance stamp: PROVEN on the decidable regions (S / EMPTY),
-        HEURISTIC in the UNCLASSIFIED band (which maps to UNKNOWN).
+        The G5 provenance stamp: PROVEN everywhere on the M3a/M3b scope (the
+        M3b branches carry the Sec. 5 algorithm citations).
     reason : str
         A human-readable one-line summary.
+    factors : tuple | None
+        E13-M3b: the computed generic-HN factor characters, where the verdict
+        came from the algorithm (see the field comment below).
     """
 
     exists: Optional[bool]
@@ -197,6 +218,11 @@ class HNVerdict:
     sharp_bound: Fraction
     certificate: Certificate
     reason: str
+    #: E13-M3b: the COMPUTED characters of the generic H_m-Harder-Narasimhan
+    #: factors ((r, c1, ch2) triples, ordered), when the verdict came from the
+    #: Sec. 5 algorithm; ``None`` on the envelope-decided paths (where the
+    #: verdict predates the filtration computation) and on P^2.
+    factors: Optional[tuple] = None
 
 
 def _require_del_pezzo_scope(surface: Surface) -> None:
@@ -255,23 +281,75 @@ def hn_verdict(r: int, nu: Sequence[Number], Delta: Number, surface: Surface) ->
     ch2 = r * (Fraction(1, 2) * surface.lattice.self_pairing(nu_f) - Delta)
     v = moduli_nonempty(r, c1, ch2, surface)   # NATIVE path (no target / evidence)
     st = v.status
+    factors: Optional[tuple] = None
+    cert = v.certificate
+    tail = v.reason
     if st is VerdictStatus.PROVEN_NONEMPTY:
         exists: Optional[bool] = True
         length: Optional[int] = 1
         region = HNRegion.S
     elif st is VerdictStatus.PROVEN_EMPTY:
         exists, length, region = False, None, HNRegion.EMPTY
-    else:  # UNKNOWN -> honestly UNCLASSIFIED, never a fabricated region-K claim (R2)
-        exists, length, region = None, None, HNRegion.UNCLASSIFIED
+    else:
+        # UNKNOWN band -- E13-M3b: DECIDE it by computing the generic H_m-HN
+        # filtration (arXiv:1907.06739 Sec. 5 / cor-algorithm).  UNKNOWN only
+        # occurs off P^2, on the ample F_e the scope guard admitted, so the
+        # algorithm's own preconditions hold; the character is valid (an
+        # invalid one is PROVEN_EMPTY above).
+        factors = generic_hn_factors(int(r), c1, ch2, surface)
+        if factors is None:
+            exists, length, region = False, None, HNRegion.EMPTY
+            cert = Certificate(
+                Rigor.PROVEN,
+                ("the stack of F- and H_ceil(m)-prioritary sheaves of this character "
+                 "is empty (thm-prioritaryNecessary / cor-prioritaryDelta)",
+                 "a mu_{H_m}-semistable sheaf is H_ceil(m)-prioritary (prop-ssPrior), "
+                 "so M_{H_m}(v) is empty"),
+                ("arXiv:1907.06739",),
+                "empty prioritary stack: no semistable sheaf (E13-M3b).")
+            tail = "prioritary stack empty"
+        elif len(factors) == 1:
+            exists, length, region = True, 1, HNRegion.S
+            cert = Certificate(
+                Rigor.PROVEN,
+                ("the generic H_m-Harder-Narasimhan filtration, computed by the "
+                 "Sec. 5 inductive algorithm (thm-HNcriterion / cor-algorithm), "
+                 "has length one",
+                 "an H_m-semistable sheaf exists iff the generic HN filtration "
+                 "has length one (Sec. 1.6)"),
+                ("arXiv:1907.06739",),
+                "computed generic HN length one: semistable sheaves exist (E13-M3b).")
+            tail = "generic HN filtration computed: length 1"
+        else:
+            exists, length = False, len(factors)
+            non_semiexc = [
+                w for w in factors
+                if not is_semiexceptional(SurfaceBundle(w[0], w[1], w[2]), surface)
+            ]
+            region = HNRegion.K if non_semiexc else HNRegion.EMPTY
+            cert = Certificate(
+                Rigor.PROVEN,
+                ("the generic H_m-Harder-Narasimhan filtration, computed by the "
+                 f"Sec. 5 inductive algorithm, has length {len(factors)} >= 2",
+                 "an H_m-semistable sheaf exists iff the generic HN filtration "
+                 "has length one (Sec. 1.6), so M_{H_m}(v) is empty",
+                 f"factor characters (r, c1, ch2): {tuple(factors)!r}"),
+                ("arXiv:1907.06739",),
+                "computed generic HN length >= 2: no semistable sheaf; the factors "
+                "are exhibited (E13-M3b).")
+            tail = (f"generic HN filtration computed: length {len(factors)}, "
+                    f"factors {tuple(factors)!r}"
+                    + ("" if non_semiexc else " (all semiexceptional)"))
     shape = (
         "1 (semistable sheaves exist)" if exists
-        else (">=2 (destabilized)" if exists is False
-              else "undecided (band pending M3b; not evidence of a Kronecker region)")
+        else (f"{length} (destabilized)" if length is not None and length >= 2
+              else (">=2 (destabilized)" if exists is False
+                    else "undecided"))
     )
     reason = (
-        f"region {region.value}: generic HN filtration length {shape}; {v.reason}"
+        f"region {region.value}: generic HN filtration length {shape}; {tail}"
     )
-    return HNVerdict(exists, length, region, v.discriminant, v.delta_H, v.certificate, reason)
+    return HNVerdict(exists, length, region, v.discriminant, v.delta_H, cert, reason, factors)
 
 
 def semistable_exists(
@@ -281,10 +359,9 @@ def semistable_exists(
 
     The HN-length-one existence criterion (arXiv:1907.06739 Sec. 1.6): an
     ``H``-semistable sheaf of character ``(r, nu, Delta)`` exists iff the generic
-    HN filtration has length 1.  ``None`` is the honest UNKNOWN of the
-    UNCLASSIFIED band, deferred to M3b -- never a fabricated verdict, and never a
-    structural claim (the band contains genuinely non-empty classes; see
-    :class:`HNRegion`).
+    HN filtration has length 1.  TOTAL on the M3a/M3b scope: the former
+    UNCLASSIFIED band is decided by the computed generic HN filtration
+    (E13-M3b); ``None`` is never returned here.
     """
     return hn_verdict(r, nu, Delta, surface).exists
 
@@ -292,14 +369,15 @@ def semistable_exists(
 def generic_hn_length(
     r: int, nu: Sequence[Number], Delta: Number, surface: Surface
 ) -> Optional[int]:
-    """``1`` where the generic HN filtration is PROVEN length-1; ``None`` otherwise.
-
-    The exact ``>= 2`` lengths (region EMPTY, the UNCLASSIFIED band) are the
-    Kronecker-module datum of E13-M3b and are reported as ``None`` here.
+    """The PROVEN generic HN length: ``1`` on region S; the exact computed
+    length (``2..4``) where the E13-M3b algorithm decided emptiness; ``None``
+    only on the envelope-decided PROVEN_EMPTY paths (empty, filtration not
+    computed -- call :func:`bridgeland_stability.generic_hn.generic_hn_factors`
+    for the factors there too).
     """
     return hn_verdict(r, nu, Delta, surface).generic_hn_length
 
 
 def hn_region(r: int, nu: Sequence[Number], Delta: Number, surface: Surface) -> HNRegion:
-    """The verdict region ``S`` / ``UNCLASSIFIED`` / ``EMPTY`` for ``(r, nu, Delta)`` on ``surface``."""
+    """The verdict region ``S`` / ``K`` / ``EMPTY`` for ``(r, nu, Delta)`` on ``surface``."""
     return hn_verdict(r, nu, Delta, surface).region
