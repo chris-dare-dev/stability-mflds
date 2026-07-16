@@ -117,6 +117,13 @@ from .generic_hn import (
     generic_hn_factors,
     semistable_exists_hn,
 )
+from .delta_sharp import (
+    DeltaSharp,
+    delta_mu_stable,
+    mu_stable_exists,
+    polarization_index,
+    surface_with_index,
+)
 from .walls import (
     Wall,
     VerticalWall,
@@ -264,6 +271,12 @@ __all__ = [
     "hn_region",
     "THM_1_13_MIN_DELTA",
     "THM_1_13_MAX_NON_SEMIEXCEPTIONAL_FACTORS",
+    # E14-M1 / G18: the sharp Bogomolov function delta_m^{mu-s} as a computable object
+    "DeltaSharp",
+    "delta_mu_stable",
+    "mu_stable_exists",
+    "polarization_index",
+    "surface_with_index",
     "Wall",
     "VerticalWall",
     "ActualWall",

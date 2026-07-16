@@ -1580,3 +1580,81 @@ values cross-checked are those of §§7, 9–15 (arXiv:1907.06739 conventions). 
 `bridgeland_stability/oracle/m2.py`, `scripts/m2-wsl.cmd`, `tests/test_fe_cas.py`, `CLAUDE.md`
 (opt-in documented).
 
+## 17. The sharp Bogomolov function δ_m^{μs} as a computable sandwich (E14-M1)
+
+**What shipped.** `bridgeland_stability/delta_sharp.py`: (a) `mu_stable_exists(r, ν, Δ, surface)` — a
+PROVEN decision procedure for "is there a `μ_{H_m}`-stable sheaf of character `(r, ν, Δ)`?" at any
+rational `m > 0` on any strictly-ample `F_e`, honest `None` only on the single band `Δ = ½, r ≥ 2`;
+(b) `delta_mu_stable(ν, m, surface, max_rank)` — the paper's headline function
+`δ_m^{μs}(ν) = inf{Δ ≥ ½ : ∃ μ_{H_m}-stable sheaf of slope ν, discriminant Δ}` (`def-deltass`) as a
+certified sandwich `DeltaSharp(lower, upper, exact)`.
+
+**Two research findings that reshaped the milestone (recorded as an erratum to the E14 spec draft of
+2026-07-16).** (1) *A rational `m` is never "generic".* The generic-polarization bridges
+`prop-ssIMPs` (ss + `Δ > ½` ⟹ stable) and `prop-sIMPmus` (stable ⟹ μ-stable) hypothesize generic `m`;
+on the rank-2 NS lattice, `(ν' − ν)·H_m = 0` has rational solutions iff `m ∈ ℚ` (in package `(f,s)`
+coordinates `ξ·H_m = x + y m`), so every scannable polarization is special and the chain
+`δ^p_{⌈m⌉+1} ≤ δ^{μss}_m ≤ δ^{ss}_m ≤ δ^s_m ≤ δ^{μs}_m` (paper §3.1) can be strict in every link —
+an `hn_verdict` hit certifies `δ^{ss}`, NOT `δ^{μs}`. (2) *The inf need not be attained.* At the §8
+Kronecker values the general sheaf AT the sharp discriminant is strictly μ-semistable
+(`thm-intervalKronecker`) and the paper reaches `δ^{μs}` as a limit `Δ_{m±ε} → δ`; the drafted M1
+criterion "the §8 values reproduced exactly at finite rank with `exact=True`" was therefore
+**mathematically impossible** and is replaced by the sandwich/convergence pins below. (The M3a
+lesson applied to a spec: an acceptance criterion can itself fabricate.)
+
+**The decision procedure (each step a theorem; two-way evidence in `tests/test_delta_sharp.py`).**
+Existence of a `μ_{H_m}`-stable sheaf of character `v` ⟺ `m ∈ I_v`, the *generic stability interval*
+(slope stability is open in flat families and `P_F(v)` is irreducible — Walter — so one stable sheaf
+makes the general sheaf stable). `I_v` is open, convex (slope stability passes to positive rational
+combinations of ample classes; two dense-open loci of an irreducible stack meet), and contains the
+anticanonical index `m₀ = 1 − e/2` whenever nonempty (`cor-KstabilityEasy`, `e ∈ {0,1}`). So for
+`Δ > ½` the certifier samples the first **wall-free chamber** beside `m` on the side away from `m₀`:
+
+* *The chamber gap.* Gieseker-ss existence of `v` is constant on `(m, m+g)` (mirror for left samples)
+  with `g = 1/(32·Ymax·r²·q)`, `q = den(m)`, `Ymax = max(1, 2/(e+2m))`: every condition of the §5
+  criterion (`thm-HNcriterion`/`cor-algorithm`) flips only where (i) a slope relation `ξ·H_{m'} ∈
+  {0,1}` crosses, `ξ = ν_w − ν_u` a slope difference of recursion characters — coordinates in
+  `(1/r²)ℤ`, `|ξ·F| ≤ 8·Ymax` (the `lem-slopeQuad` window stacked over recursion depth ≤ 4, doubled
+  for pairs), giving `|m' − m| = |x + m y ∓ 1|/|y| ≥ 1/(8·Ymax·r²·q)`; (ii) the F-window boundary
+  `|ξ·F| = 2/(e+2m')` crosses a candidate — same lattice bound up to a factor 2; (iii) an integer
+  (the prioritary index `⌈m'⌉`) — at distance `≥ 1/q`. `g` under-runs all three.
+* *Both directions.* Semistable at the rational chamber midpoint (one exact `hn_verdict` call) ⟹
+  semistable at an **irrational** `m'` of the chamber (constancy) ⟹ `μ_{H_{m'}}`-stable sheaves exist
+  (irrational ⟹ generic, `prop-ssIMPs` + `prop-sIMPmus`, `Δ > ½`) ⟹ `m ∈ [m₀, m'] ⊂ I_v` ⟹ exists at
+  `m`. Not semistable there ⟹ no μ-stable sheaf anywhere in the open chamber (μ-stable ⟹ Gieseker-ss)
+  ⟹ `I_v` misses it ⟹ `m ∉ I_v` (`I_v` open) ⟹ none at `m`.
+* *`e ≥ 2`.* `cor-highermus` transports μ-stable existence bijectively along the E13-M1 reduction `π`
+  (every strictly-ample `H` on `F_e` is an `A_m` in range; `r`, `ch₂`, `Δ` are π-invariant), so the
+  question reduces to the del Pezzo base.
+* *`Δ < ½`.* A μ-stable sheaf is simple with `Ext²(V,V) = Hom(V, V(K))* = 0` (`K·H < 0` on ample
+  `F_e`), so `χ(v,v) = r²(1 − 2Δ) ≤ 1` (identity = Lemma "excFacts"(1), evaluated by the package RR
+  `chi` and tripwired, never transcribed): `χ ≥ 2` refuses; `χ = 1` is exactly `cor-DLPExceptional`
+  (`is_stable_exceptional`). Rank 1 is the ideal-sheaf test (`Δ = c₂ ∈ ℤ≥0`); `Δ < 0` is Bogomolov.
+
+**The sandwich.** `lower = max(½, dlp_envelope value, δ^p_{⌈m⌉+1}(ν))` (`cor-deltaDLPe` + the §3.1
+chain); `upper` = the least lattice `Δ > ½` of a scanned rank certified by the decision procedure
+(per-rank first hits suffice: elementary modifications keep slope-stable sheaves slope-stable, so the
+per-rank existence set is upward closed; termination ≤ one lattice step above the true value by
+`thm-deltaSurface`(1) + totality). `exact = (upper == lower)`.
+
+**Exact evidence (all pinned).**
+
+| fact | value |
+|---|---|
+| `F₀`, `ν = (1/3,1/5)` pkg, `m = 25/9`: wall class `(15, ν, 3/5)` | `mu_stable_exists = False` (strictly μ-ss; inf not attained) |
+| … one lattice step up `(15, ν, 2/3)` | `True`; scan `r ≤ 15`: sandwich `[19/35, 2/3] ∋ 3/5` |
+| `F₁`, `ν = (6/13,3/13)` pkg, `m = 12/7`: wall class `(13, ν, 98/169)` | `False`; scan `r ≤ 13`: sandwich `[523/1014, 111/169] ∋ 98/169` |
+| the paper's two `DLP^{<r}` computer values (§8) | `dlp_restricted` = `19/35` and `523/1014` **bit-for-bit** — first literature cross-check off the `−K` ray |
+| anticanonical pinches | `ν = 0`: `δ = 1` exact (both `e`); `ν = (½,½)`/`F₀`: `δ = 3/4` exact, witness `(2,(1,1),−1)` |
+| the E13 flagship cousin `(2,(1,1),0)`/`F₀` at `−K` | Gieseker-ss exists (`hn_verdict` True) **and** `mu_stable_exists = False` (`χ(v,v) = 2`) — the two stabilities separate on one class |
+| exceptional branch vs Table "stabilityInterval1" | `(2,(1,1))`/`F₁` (`Δ = 3/8`): True at `m = ½ ∈ I_V = (0,1)`, False at `m = 3/2` |
+
+Suite: 533 → 550 items (17 new), 15 default-mode skips unchanged, 0 failures.
+
+*Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) `def-deltass`, §3.1 (the δ-chain),
+`thm-deltaGeneric`, `prop-ssIMPs`, `prop-sIMPmus`, `cor-KstabilityEasy`, `cor-deltaDLPe`,
+`thm-deltaSurface`, `prop-divideSpace`, `lem-muss12`, `thm-intervalKronecker`, `thm-deltaKronecker`
+(the §8 values), `cor-highermus`, Lemma "excFacts", `cor-DLPExceptional`; Walter, *Irreducibility of
+moduli spaces of vector bundles on birationally ruled surfaces* (the prioritary stack). Package:
+`bridgeland_stability/delta_sharp.py`; tests in `tests/test_delta_sharp.py`.
+
