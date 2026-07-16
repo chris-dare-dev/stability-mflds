@@ -239,3 +239,127 @@ def test_polarization_index_round_trip():
         surface_with_index(0, F(0))
     with pytest.raises(ValueError):
         surface_with_index(1, F(-1, 2))
+
+
+# ===========================================================================
+# E14-M2: thm-deltaKronecker -- the closed formula on the Kronecker triangle
+# ===========================================================================
+
+from bridgeland_stability.delta_sharp import (   # noqa: E402
+    delta_kronecker,
+    kronecker_data,
+    _psi_gt,
+)
+
+F2 = hirzebruch(2)
+F3 = hirzebruch(3)
+
+
+def test_kronecker_formula_reproduces_both_paper_values():
+    # Ex. KroneckerF0: delta_{25/9}^{mu-s}(1/5 E + 1/3 F) = 3/5 on F_0;
+    # Ex. KroneckerF1: delta_{12/7}^{mu-s}(3/13 E + 6/13 F) = 98/169 on F_1.
+    # Hand re-derivation of the full RR simplification: CORRECTIONS Sec. 18.
+    assert delta_kronecker(NU_F0, M_F0, F0, l=3) == DELTA_F0
+    assert delta_kronecker(NU_F1, M_F1, F1, l=3) == DELTA_F1
+    # the l=None window scan finds the same (single) window
+    assert delta_kronecker(NU_F0, M_F0, F0) == DELTA_F0
+    assert delta_kronecker(NU_F1, M_F1, F1) == DELTA_F1
+
+
+def test_kronecker_internals_pin_ex_triangle_data():
+    # ex-triangle / ex-KroneckerF1 (e = 1, l = 3, m = 12/7): the line of slope
+    # -12/7 meets L_K at nu1 = (1/2, 0) and L_L at nu2 = (2/11, 6/11), with
+    # exponent ratios b/a = 1 and d/c = 13/2.  PAPER ERRATUM (recorded in
+    # CORRECTIONS Sec. 18): ex-triangle prints nu = (2/13, 6/13), but the point
+    # of the stated chord is (3/13, 6/13) -- the ex-KroneckerF1 slope; (2/13,
+    # 6/13) fails the collinearity check y = -12/7 (x - 1/2) exactly.
+    d = kronecker_data(NU_F1, M_F1, F1, 3)
+    assert d is not None
+    assert (d.x0, d.y0) == (F(3, 13), F(6, 13))
+    assert d.x1 == F(1, 2) and d.x2 == F(2, 11)
+    assert d.b_over_a == 1 and d.d_over_c == F(13, 2)
+    assert d.lam == F(2, 13)                      # nu = lam*nu1 + (1-lam)*nu2
+    assert d.lam * d.x1 + (1 - d.lam) * d.x2 == d.x0
+    assert d.value == DELTA_F1
+    assert (d.k, d.N, d.M) == (2, 3, 7)
+
+
+def test_psi_comparisons_are_exact():
+    # psi_3 = (3 + sqrt 5)/2 ~ 2.618, psi_4 = 2 + sqrt 3 ~ 3.732: integer-square
+    # comparisons, no float.
+    assert _psi_gt(3, F(5, 2)) is True
+    assert _psi_gt(3, F(8, 3)) is False
+    assert _psi_gt(4, F(7, 2)) is True
+    assert _psi_gt(4, F(15, 4)) is False
+
+
+def test_kronecker_predicate_rejects_outside_the_window():
+    # m out of the geometric range (1 - e/2, k)
+    assert kronecker_data(NU_F0, F(3), F0, 3) is None          # m = k
+    assert kronecker_data(NU_F0, F(7, 2), F0, 3) is None       # m > k
+    assert kronecker_data(NU_F0, F(-1), F0, 3) is None         # m <= 0
+    # the vertex P4 = (1/(2l-e), l/(2l-e)) itself: x2 hits the OPEN right
+    # endpoint, refused (this is where the formula denominator would vanish)
+    assert kronecker_data((F(1, 2), F(1, 6)), F(2), F0, 3) is None
+    # a slope far outside the triangle
+    assert kronecker_data((F(5), F(5)), F(2), F0, 3) is None
+    with pytest.raises(ValueError):
+        kronecker_data(NU_F0, M_F0, F0, 2)                     # l >= 3
+    with pytest.raises(ValueError):
+        kronecker_data(NU_F0, M_F0, F2, 3)                     # del Pezzo statement
+
+
+def test_kronecker_pins_admit_exactly_one_window():
+    # Empirically the (nu, m) windows of distinct l tile without overlap (a
+    # ~50k-probe sweep found none -- CORRECTIONS Sec. 18); where they WOULD
+    # overlap, delta_kronecker(l=None) asserts equal values (both equal
+    # delta_m^{mu-s} by the theorem).  The paper points admit exactly l = 3.
+    for surf, nu, m in ((F0, NU_F0, M_F0), (F1, NU_F1, M_F1)):
+        admitting = [l for l in range(3, 16)
+                     if kronecker_data(nu, m, surf, l) is not None]
+        assert admitting == [3]
+
+
+def test_kronecker_formula_vs_sandwich_differential():
+    # Wherever the closed formula applies, the M1 sandwich must bracket it --
+    # with STRICT upper (the inf is not attained at these wall polarizations:
+    # the general sheaf at Delta = delta is strictly mu-semistable).  Two
+    # independent theorem routes to the same number; a violation falsifies one.
+    for surf, nu, m, mr in ((F0, NU_F0, M_F0, 15),
+                            (F0, NU_F0, F(5, 2), 15),
+                            (F1, NU_F1, M_F1, 13),
+                            (F1, NU_F1, F(3, 2), 13)):
+        dk = delta_kronecker(nu, m, surf)
+        assert dk is not None
+        r = delta_mu_stable(nu, m, surf, max_rank=mr)
+        assert r.lower <= dk < r.upper
+
+
+def test_kronecker_values_increase_with_m():
+    # cor-deltaMonotone preview on the closed formula: for m >= m0 = 1 - e/2 the
+    # value is nondecreasing in m (here strictly increasing on the sampled
+    # chords through each triangle).
+    f0_vals = [delta_kronecker(NU_F0, m, F0)
+               for m in (F(5, 2), F(8, 3), F(11, 4), M_F0, F(14, 5))]
+    f1_vals = [delta_kronecker(NU_F1, m, F1)
+               for m in (F(3, 2), F(5, 3), M_F1, F(7, 4), F(9, 5))]
+    for vals in (f0_vals, f1_vals):
+        assert all(v is not None for v in vals)
+        assert all(a < b for a, b in zip(vals, vals[1:]))
+    assert f0_vals == [F(26, 45), F(62, 105), F(242, 405), F(3, 5), F(298, 495)]
+    assert f1_vals == [F(379, 676), F(1653, 2873), DELTA_F1, F(2169, 3718),
+                       F(895, 1521)]
+
+
+def test_kronecker_transports_to_e_ge_2():
+    # delta_{m, F_e} = delta_{m+1, F_{e-2}} o pi (cor-highermus + Lemma 11.3):
+    # the F_0 pin lifts to F_2 at slope pi^{-1}(nu) = (8/15, 1/5), m = 25/9 - 1
+    # = 16/9, and the F_1 pin to F_3 at (9/13, 3/13), m = 12/7 - 1 = 5/7 (the
+    # index SHRINKS by one per lift: the reduction adds one).
+    assert delta_kronecker((F(8, 15), F(1, 5)), F(16, 9), F2) == DELTA_F0
+    assert delta_kronecker((F(9, 13), F(3, 13)), F(5, 7), F3) == DELTA_F1
+    # and the M1 decision procedure agrees on F_2 directly: the transported wall
+    # class refuses, one lattice step up certifies.
+    S2 = surface_with_index(2, F(16, 9))
+    assert mu_stable_exists(15, (F(8, 15), F(1, 5)), DELTA_F0, S2) is False
+    assert mu_stable_exists(15, (F(8, 15), F(1, 5)), F(2, 3), S2) is True

@@ -111,7 +111,10 @@ from .rigor import Certificate, Rigor
 
 __all__ = [
     "DeltaSharp",
+    "KroneckerData",
+    "delta_kronecker",
     "delta_mu_stable",
+    "kronecker_data",
     "mu_stable_exists",
     "polarization_index",
     "surface_with_index",
@@ -414,3 +417,177 @@ def delta_mu_stable(nu: Sequence[Number], m: Number, surface: Surface,
         witness=witness, nu=nu_t, m=m, e=e, rank_scanned=scanned,
         lower_dlp=env.value, lower_prioritary=dp, certificate=cert,
     )
+
+
+# ---------------------------------------------------------------------------
+# E14-M2: thm-deltaKronecker -- the closed formula on the Kronecker triangle
+# ---------------------------------------------------------------------------
+
+def _psi_gt(N: int, q: Fraction) -> bool:
+    """Exact test ``psi_N > q`` for ``psi_N = (N + sqrt(N^2 - 4))/2``, ``N >= 3``.
+
+    ``psi_N > q  <=>  sqrt(N^2 - 4) > 2q - N``: automatically true when
+    ``2q - N < 0``, else compare squares (both sides nonnegative).  ``psi_N`` is
+    irrational for ``N >= 3`` (the paper's remark after ``lem-Kronecker1/2``), so
+    equality never occurs and the strict test is total.
+    """
+    t = 2 * q - N
+    if t < 0:
+        return True
+    return Fraction(N * N - 4) > t * t
+
+
+@dataclass(frozen=True)
+class KroneckerData:
+    """The internals of one ``thm-deltaKronecker`` evaluation (paper Sec. 8).
+
+    Coordinates inside this record are the PAPER's ``nu = x0 E + y0 F``; the
+    public entry points take the package ``(f, s)`` slope and transpose.
+    ``x1`` / ``x2`` are the ``L_K``- / ``L_L``-intersection abscissae, ``b_over_a``
+    and ``d_over_c`` the extension exponent ratios of the bundles ``K`` and
+    ``L``, ``lam`` the convex coefficient with ``nu = lam nu1 + (1-lam) nu2``,
+    and ``value = delta_m^{mu-s}(nu)`` -- all exact ``Fraction``s.
+    """
+
+    e: int
+    l: int
+    k: int
+    N: int
+    M: int
+    x0: Fraction
+    y0: Fraction
+    m: Fraction
+    x1: Fraction
+    x2: Fraction
+    b_over_a: Fraction
+    d_over_c: Fraction
+    lam: Fraction
+    value: Fraction
+
+
+def kronecker_data(nu: Sequence[Number], m: Number, surface: Surface,
+                   l: int) -> Optional[KroneckerData]:
+    """Evaluate ``thm-deltaKronecker`` in the parameter window ``l`` (paper
+    ``ell >= 3``) on a del Pezzo ``F_e``, or return ``None`` where the theorem's
+    admissibility predicate fails.
+
+    Admissibility (all exact; surd comparisons via :func:`_psi_gt`): with
+    ``k = l - e``, ``N = 2(k-1) + e``, ``M = 2(l+1) - e``, the line ``L_nu``
+    through the paper-coordinates slope ``(x0, y0)`` with slope ``-m`` must meet
+
+    * the OPEN segment ``P1 P2`` of ``L_K: y = -kx + 1`` -- abscissa
+      ``x1 = (y0 + m x0 - 1)/(m - k)`` in ``(1/(1+psi_N), psi_N/(1+psi_N))``, and
+    * the OPEN segment ``P3 P4`` of ``L_L: y = l x`` -- abscissa
+      ``x2 = (y0 + m x0)/(m + l)`` in ``(1/(psi_M - 1), 1/(2l - e))``,
+
+    with ``nu`` strictly between the intersections (``lam in (0, 1)``).  The
+    triangle-membership hypothesis ``nu in R`` is implied: the edge ``P2 P4`` of
+    ``R`` lies ON ``L_K`` (``P4`` satisfies ``y = -kx + 1`` exactly), so a chord
+    from the open sub-segment ``P1 P2`` of one edge to the open edge ``P3 P4``
+    has its strictly-interior points in the open triangle.
+
+    NOTE (paper erratum, recorded in CORRECTIONS Sec. 18): ``ex-triangle`` prints
+    ``nu = (2/13, 6/13)``, but the point on the stated chord through
+    ``nu1 = (1/2, 0)`` and ``nu2 = (2/11, 6/11)`` of slope ``-12/7`` is
+    ``(3/13, 6/13)`` -- the ``ex-KroneckerF1`` slope.  This function reproduces
+    the self-consistent data.
+    """
+    e = hirzebruch_index(surface)
+    if e not in (0, 1):
+        raise ValueError(
+            "kronecker_data is the del Pezzo statement (e in {0,1}); "
+            "delta_kronecker transports e >= 2 via the reduction")
+    l = int(l)
+    if l < 3:
+        raise ValueError("thm-deltaKronecker needs l >= 3")
+    m = _Q(m)
+    nu_t = tuple(_Q(x) for x in nu)
+    if len(nu_t) != 2:
+        raise ValueError("nu must be a length-2 F_e NS-vector (f, s)")
+    # package (f, s) -> paper nu = x0 E + y0 F: E is the s-class, F the f-class.
+    y0, x0 = nu_t
+
+    k = l - e
+    N = 2 * (k - 1) + e
+    M = 2 * (l + 1) - e
+    if m <= 0 or m >= k:
+        return None                              # the geometry forces 1 - e/2 < m < k
+    c = y0 + m * x0
+    x1 = (c - 1) / (m - k)
+    x2 = c / (m + l)
+
+    # x1 in (1/(1+psi_N), psi_N/(1+psi_N)) -- both endpoints strictly inside (0,1):
+    if x1 <= 0 or x1 >= 1:
+        return None
+    if not _psi_gt(N, (1 - x1) / x1):            # x1 > 1/(1+psi_N)
+        return None
+    if not _psi_gt(N, x1 / (1 - x1)):            # x1 < psi_N/(1+psi_N)
+        return None
+    # x2 in (1/(psi_M - 1), 1/(2l - e)):
+    if x2 <= 0 or x2 >= Fraction(1, 2 * l - e):
+        return None
+    if not _psi_gt(M, 1 + 1 / x2):               # x2 > 1/(psi_M - 1)
+        return None
+
+    lam = (k - m) * (y0 - l * x0) / ((k + l) * c - m - l)
+    if not (0 < lam < 1):
+        return None                              # nu not strictly between nu1 and nu2
+
+    den = c - Fraction(m + l, k + l)
+    if den == 0:                                 # would mean x2 = 1/(2l-e) = P4: excluded above
+        raise AssertionError("thm-deltaKronecker denominator vanished inside the open window")
+    value = (
+        -Fraction(e, 2) * x0 * x0 + x0 * y0 + y0 / (k + l)
+        + (l - Fraction(1, 2) - Fraction(e, 2) - Fraction(e, 2 * (k + l))) * x0
+        + (m - k) * (y0 - l * x0) / ((k + l) ** 2 * den)
+    )
+    return KroneckerData(
+        e=e, l=l, k=k, N=N, M=M, x0=x0, y0=y0, m=m, x1=x1, x2=x2,
+        b_over_a=-(c - 1) / (c + k - m - 1), d_over_c=(c + m + l) / c,
+        lam=lam, value=value,
+    )
+
+
+def delta_kronecker(nu: Sequence[Number], m: Number, surface: Surface,
+                    l: Optional[int] = None, l_max: int = 40) -> Optional[Fraction]:
+    """``delta_m^{mu-s}(nu)`` by the ``thm-deltaKronecker`` closed formula, or
+    ``None`` where no parameter window admits ``(nu, m)``.
+
+    With ``l`` given, evaluates that single window.  With ``l = None``, scans
+    ``l = 3 .. l_max`` (the windows of distinct ``l`` overlap; whenever several
+    admit the same ``(nu, m)`` their values are asserted equal -- both equal
+    ``delta_m^{mu-s}(nu)`` by the theorem, so a mismatch is a transcription
+    defect and raises).  ``l_max`` is an honest search cap, not a theorem bound:
+    borderline slopes near ``y0 + m x0 = 1/2`` can admit only large ``l``; pass
+    ``l`` explicitly there.
+
+    For ``e >= 2`` the value transports down the E13-M1 reduction:
+    ``cor-highermus`` preserves mu-stable existence character-wise with ``Delta``
+    fixed and shifts the polarization index by one (Lemma 11.3(5)), so
+    ``delta_{m, F_e}^{mu-s}(nu) = delta_{m+1, F_{e-2}}^{mu-s}(pi(nu))``.
+    """
+    e = hirzebruch_index(surface)
+    m = _Q(m)
+    nu_t = tuple(_Q(x) for x in nu)
+    if e >= 2:
+        from .reduction import pi_c1
+        from .varieties import P1xP1, hirzebruch
+        base = P1xP1 if e - 2 == 0 else hirzebruch(e - 2)
+        return delta_kronecker(pi_c1(nu_t), m + 1, base, l=l, l_max=l_max)
+    if l is not None:
+        data = kronecker_data(nu_t, m, surface, l)
+        return None if data is None else data.value
+    values = []
+    for li in range(3, l_max + 1):
+        data = kronecker_data(nu_t, m, surface, li)
+        if data is not None:
+            values.append((li, data.value))
+    if not values:
+        return None
+    first = values[0][1]
+    for li, v in values[1:]:
+        if v != first:                           # both equal delta by the theorem
+            raise AssertionError(
+                f"thm-deltaKronecker windows disagree: l={values[0][0]} gives {first}, "
+                f"l={li} gives {v} -- transcription defect")
+    return first

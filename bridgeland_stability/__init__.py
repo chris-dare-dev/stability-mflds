@@ -119,7 +119,10 @@ from .generic_hn import (
 )
 from .delta_sharp import (
     DeltaSharp,
+    KroneckerData,
+    delta_kronecker,
     delta_mu_stable,
+    kronecker_data,
     mu_stable_exists,
     polarization_index,
     surface_with_index,
@@ -277,6 +280,10 @@ __all__ = [
     "mu_stable_exists",
     "polarization_index",
     "surface_with_index",
+    # E14-M2 / G18: thm-deltaKronecker -- the closed formula on the Kronecker triangle
+    "KroneckerData",
+    "delta_kronecker",
+    "kronecker_data",
     "Wall",
     "VerticalWall",
     "ActualWall",

@@ -1658,3 +1658,73 @@ Suite: 533 → 550 items (17 new), 15 default-mode skips unchanged, 0 failures.
 moduli spaces of vector bundles on birationally ruled surfaces* (the prioritary stack). Package:
 `bridgeland_stability/delta_sharp.py`; tests in `tests/test_delta_sharp.py`.
 
+## 18. `thm-deltaKronecker`: the closed formula, exact surds, and a paper erratum (E14-M2)
+
+**What shipped.** `delta_kronecker(ν, m, surface, l=None)` / `kronecker_data(...)` in `delta_sharp.py`:
+the paper's exact-value theorem (`thm-deltaKronecker`, §8) as a computable object — for rational `ν` in
+the open Kronecker triangle `R(e, ℓ)` (`e ∈ {0,1}`, `ℓ ≥ 3`, `k = ℓ−e`, `N = 2(k−1)+e`, `M = 2(ℓ+1)−e`)
+and rational `m` whose slope-`−m` chord through `ν` meets the open segments `P₁P₂ ⊂ L_K: y = −kx+1` and
+`P₃P₄ ⊂ L_L: y = ℓx`,
+
+> `δ_m^{μs}(ν) = −(e/2)x₀² + x₀y₀ + y₀/(k+ℓ) + (ℓ − ½ − e/2 − e/(2(k+ℓ)))x₀`
+> `  + (m−k)(y₀ − ℓx₀)/((k+ℓ)²(y₀ + mx₀ − (m+ℓ)/(k+ℓ)))`
+
+(paper coordinates `ν = x₀E + y₀F`; the package API takes the `(f,s)` slope and transposes —
+`x₀ = ν_s`, `y₀ = ν_f`).
+
+**Transcription verified by full hand re-derivation (invariant 3).** Both §8 examples recomputed
+exactly from the formula's five terms: `F₁` (`e=1, ℓ=3, m=12/7, ν = 3/13·E + 6/13·F`):
+`−9/338 + 36/338 + 6/65 + 57/130 − 2/65 = 98/169`; `F₀` (`e=0, ℓ=3, m=25/9, ν = 1/5·E + 1/3·F`):
+`0 + 1/15 + 1/18 + 1/2 − 1/45 = 3/5`. The proof's internals reproduce exactly: `x₁ = (y₀+mx₀−1)/(m−k)
+= 1/2`, `x₂ = (y₀+mx₀)/(m+ℓ) = 2/11`, `b/a = −(c−1)/(c+k−m−1) = 1`, `d/c = (c+m+ℓ)/c = 13/2`,
+`λ = (k−m)(y₀−ℓx₀)/((k+ℓ)c−m−ℓ) = 2/13` with `λν₁ + (1−λ)ν₂ = ν` (`c := y₀+mx₀`).
+
+**Paper erratum (ex-triangle).** `ex-triangle` prints `ν = (2/13, 6/13)`, but the point on the stated
+chord — through `ν₁ = (1/2, 0)` and `ν₂ = (2/11, 6/11)`, slope `−12/7` — is `(3/13, 6/13)` (the
+`ex-KroneckerF1` slope): at `x = 3/13`, `y = −12/7·(3/13 − 1/2) = 6/13` ✓; at `x = 2/13`,
+`y = 54/91 ≠ 42/91 = 6/13` ✗. The package pins the self-consistent data.
+
+**Exact surd arithmetic.** The window endpoints involve `ψ_N = (N+√(N²−4))/2` (irrational for `N ≥ 3` —
+the paper's remark after `lem-Kronecker1/2`, so strict tests are total). All four membership tests
+reduce to `ψ > q` for rational `q`: `ψ > q ⟺ 2q−N < 0 or N²−4 > (2q−N)²` — integer/Fraction squares,
+no float, no new dependency. Reductions: `x₁ > 1/(1+ψ_N) ⟺ ψ_N > (1−x₁)/x₁` and
+`x₁ < ψ_N/(1+ψ_N) ⟺ ψ_N > x₁/(1−x₁)` (after `0 < x₁ < 1` guards); `x₂ > 1/(ψ_M−1) ⟺ ψ_M > 1 + 1/x₂`;
+`x₂ < 1/(2ℓ−e)` is rational.
+
+**The triangle hypothesis is implied, not separately tested.** The edge `P₂P₄` of `R` lies ON `L_K`
+(`P₄ = (1/(2ℓ−e), ℓ/(2ℓ−e))` satisfies `y = −kx+1` exactly since `2ℓ−e−k = ℓ`, which is also why the
+paper can say "P₁ lies on the segment P₄P₂"), so a chord from the open sub-segment `P₁P₂` of that edge
+to the open edge `P₃P₄` has its strictly-interior points (`λ ∈ (0,1)`, tested) in the open triangle.
+The formula's denominator vanishes exactly at `x₂ = 1/(k+ℓ) = 1/(2ℓ−e)` — the open-window right
+endpoint, excluded before evaluation (a loud assert guards regardless).
+
+**Window well-definedness.** For one `(ν, m)` several `ℓ` could in principle admit; both values equal
+`δ_m^{μs}(ν)` by the theorem, so `delta_kronecker(l=None)` scans `ℓ = 3..l_max` and RAISES on any
+disagreement (a transcription tripwire). Empirically the windows tile: a ~50,000-probe sweep over both
+parities (`x₀` denominators to 12, `m` denominators to 5, `ℓ ≤ 15`) found **zero** multi-window points;
+the paper pins admit exactly `ℓ = 3`.
+
+**`e ≥ 2` transport.** `cor-highermus` preserves μ-stable existence character-wise with `Δ` fixed and
+the polarization index shifts by one per reduction step (Lemma 11.3(5)), so
+`δ_{m,F_e}^{μs}(ν) = δ_{m+1,F_{e−2}}^{μs}(π(ν))` — the inf-sets are in bijection. Pinned: the `F₀` pin
+lifts to `F₂` at `(π⁻¹ν, m−1) = ((8/15,1/5)_pkg, 16/9)` → `3/5`, the `F₁` pin to `F₃` at
+`((9/13,3/13)_pkg, 5/7)` → `98/169`; the M1 decision procedure independently refuses the transported
+wall class and certifies one lattice step up **on `F₂` directly**.
+
+**The two-route differential (formula vs the §17 sandwich).** At four `(ν, m)` (both parities, the two
+paper points plus `m = 5/2` on `F₀` and `m = 3/2` on `F₁`): `lower ≤ formula < upper` — strict at the
+top because the general sheaf AT the wall value is strictly μ-semistable (the inf unattained, §17).
+New exact values pinned en route (all strictly increasing in `m`, a `cor-deltaMonotone` preview):
+
+| surface, ν (paper) | m | `δ_m^{μs}(ν)` |
+|---|---|---|
+| `F₀`, `1/5·E + 1/3·F` | `5/2, 8/3, 11/4, 25/9, 14/5` | `26/45, 62/105, 242/405, 3/5, 298/495` |
+| `F₁`, `3/13·E + 6/13·F` | `3/2, 5/3, 12/7, 7/4, 9/5` | `379/676, 1653/2873, 98/169, 2169/3718, 895/1521` |
+
+Suite: 550 → 558 items (8 new), 15 default-mode skips unchanged, 0 failures.
+
+*Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §8 (`thm-deltaKronecker` + proof,
+`thm-intervalKronecker`, `ex-triangle`, `ex-KroneckerF0`, `ex-KroneckerF1`, `lem-Kronecker1/2` and the
+irrationality remark), §11 (`cor-highermus`, Lemma 11.3). Package: `bridgeland_stability/delta_sharp.py`
+(`kronecker_data`, `delta_kronecker`, `_psi_gt`); tests in `tests/test_delta_sharp.py`.
+
