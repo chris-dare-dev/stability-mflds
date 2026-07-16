@@ -35,6 +35,11 @@ from bridgeland_stability.nonemptiness_rational import (
     moduli_nonempty,
 )
 from bridgeland_stability.prioritary import delta_prioritary
+from bridgeland_stability.reduction import (
+    pi_c1,
+    reduce as pi_reduce,
+    reduce_to_del_pezzo,
+)
 from bridgeland_stability.varieties import P2, P1xP1, hirzebruch
 
 F0 = P1xP1                                       # H = (1,1): m = 1 (the -K ray)
@@ -163,7 +168,10 @@ def test_inlined_chi_and_qkey_match_package_forms():
 # 4. Differential: the algorithm vs the envelope verdicts (independent          #
 #    theorem routes -- CH Sec. 5 vs the DLP envelope machinery).               #
 # --------------------------------------------------------------------------- #
-@pytest.mark.parametrize("S", [F0, F1], ids=["F0", "F1"])
+F2 = hirzebruch_with_polarization(2, (5, 2))     # e = 2: unlocked by E13-M3c
+
+
+@pytest.mark.parametrize("S", [F0, F1, F2], ids=["F0", "F1", "F2"])
 def test_algorithm_never_contradicts_the_envelope(S):
     """Over an integral-c2 grid: wherever moduli_nonempty is PROVEN, the
     computed filtration must agree (length 1 <-> PROVEN_NONEMPTY; length >= 2
@@ -285,9 +293,119 @@ def test_scope_guards():
 
 
 def test_e_ge_2_direct_smoke():
-    """The Sec. 5 algorithm is uniform in e; a light e = 2 smoke (full M3c will
-    differential this against the E13-M1 reduction pi)."""
-    S2 = hirzebruch_with_polarization(2, (5, 2))
-    assert generic_hn_factors(1, (0, 0), F(-1), S2) == ((1, (0, 0), F(-1)),)
-    f = generic_hn_factors(2, (0, 0), F(-2), S2)
+    """The Sec. 5 algorithm is uniform in e (the full E13-M3c gate is the
+    pi-equivariance differential below)."""
+    assert generic_hn_factors(1, (0, 0), F(-1), F2) == ((1, (0, 0), F(-1)),)
+    f = generic_hn_factors(2, (0, 0), F(-2), F2)
     assert f is not None and 1 <= len(f) <= 4
+
+
+# --------------------------------------------------------------------------- #
+# 7. E13-M3c: e >= 2 -- the pi-equivariance differential vs the E13-M1          #
+#    reduction, and verdict totality off the del Pezzo base.                   #
+# --------------------------------------------------------------------------- #
+def _transport(factors):
+    """Apply the E13-M1 reduction pi to a factor list: (r, pi(c1), ch2)."""
+    return tuple((rf, tuple(pi_c1(c1f)), ch2f) for (rf, c1f, ch2f) in factors)
+
+
+@pytest.mark.parametrize("e,H", [(2, (5, 2)), (3, (7, 2))], ids=["F2->F0", "F3->F1"])
+def test_pi_equivariance_of_the_generic_hn_filtration(e, H):
+    """THE E13-M3c gate.  Lemma 11.3 makes pi transport every ingredient of
+    thm-HNcriterion exactly: the pairing (isometry), chi and Delta (r, ch2
+    fixed), K and chi(O) (family invariants), the polarization ray (H-index
+    n -> n+1, so ceil(m) transports with the prioritary stacks of condition
+    (1)), the reduced-Hilbert q-keys (mu_{H_m} preserved by the isometry), and
+    the lem-slopeQuad width (e + 2m is invariant under (e, m) -> (e-2, m+1)).
+    Hence the COMPUTED factor lists must transport bit-for-bit:
+
+        factors(pi(v), pi(surface)) == pi(factors(v, surface)).
+
+    This differentials the direct e >= 2 computation against an independent
+    route (reduce to the del Pezzo base, compute there) over integral-c2 grids,
+    and requires genuinely multi-factor cases to appear."""
+    S = hirzebruch_with_polarization(e, H)
+    lat = S.lattice
+    checked = multi = 0
+    for r in range(1, 4):
+        for a in range(-1, 3):
+            for b in range(-1, 2):
+                c1 = (a, b)
+                for c2 in range(-1, 4):
+                    ch2 = F(1, 2) * lat.self_pairing(c1) - c2
+                    xi = SurfaceBundle(r, c1, ch2)
+                    xi_red, S_red = pi_reduce(xi, S)
+                    direct = generic_hn_factors(r, c1, ch2, S)
+                    reduced = generic_hn_factors(
+                        xi_red.r, tuple(int(x) for x in xi_red.c1), xi_red.ch2, S_red)
+                    if direct is None:
+                        assert reduced is None, (e, r, c1, ch2)
+                    else:
+                        assert reduced == _transport(direct), (e, r, c1, ch2)
+                        if len(direct) >= 2:
+                            multi += 1
+                    checked += 1
+    assert checked >= 180
+    assert multi > 0, "no multi-factor case exercised: the gate is vacuous"
+
+
+def test_pi_equivariance_telescopes_to_the_del_pezzo_base():
+    """reduce_to_del_pezzo (F_4 -> F_2 -> F_0): the composite transport agrees."""
+    S4 = hirzebruch_with_polarization(4, (9, 2))
+    lat = S4.lattice
+    for (r, c1, c2v) in [(2, (1, 1), 1), (2, (0, 0), 2), (3, (2, 1), 2), (2, (2, 1), 0)]:
+        ch2 = F(1, 2) * lat.self_pairing(c1) - c2v
+        xi = SurfaceBundle(r, c1, ch2)
+        xi_dp, S_dp = reduce_to_del_pezzo(xi, S4)
+        direct = generic_hn_factors(r, c1, ch2, S4)
+        base = generic_hn_factors(
+            xi_dp.r, tuple(int(x) for x in xi_dp.c1), xi_dp.ch2, S_dp)
+        if direct is None:
+            assert base is None, (r, c1, ch2)
+        else:
+            assert base == _transport(_transport(direct)), (r, c1, ch2)
+
+
+def test_hn_verdict_total_and_proven_on_e_ge_2():
+    """The verdict layer accepts ample e >= 2 (E13-M3c): total, PROVEN, and
+    never UNCLASSIFIED.  (On this small grid every multi-factor class happens
+    to be envelope-decided -- PROVEN_EMPTY below emptiness_bound -- so region K
+    does not fire here; the transported paper pin below exercises it.)"""
+    lat = F2.lattice
+    saw_S = saw_empty = False
+    for r in range(1, 4):
+        for a in range(-1, 3):
+            for b in range(-1, 2):
+                for c2 in range(-1, 4):
+                    ch2 = F(1, 2) * lat.self_pairing((a, b)) - c2
+                    xi = SurfaceBundle(r, (a, b), ch2)
+                    v = hn_verdict(r, total_slope(xi), discriminant(xi, F2), F2)
+                    assert v.exists in (True, False)
+                    assert v.region is not HNRegion.UNCLASSIFIED
+                    assert v.certificate.rigor.name == "PROVEN"
+                    saw_S |= v.region is HNRegion.S
+                    saw_empty |= v.region is HNRegion.EMPTY
+    assert saw_S and saw_empty
+
+
+def test_transported_kronecker_pin_earns_region_K_on_F3():
+    """The F_1 orthogonal-Kronecker paper pin transported UP to F_3 by the
+    INVERSE reduction (pi^{-1}(x, y) = (x + y, y); H = (191, 70) on F_1 lifts
+    to (261, 70) on F_3).  By pi-equivariance the generic HN factors must be
+    the pi^{-1}-transports of the paper's -- and on F_3 the envelope is never
+    certified sharp, so the class sits in the UNKNOWN band and the verdict
+    layer must EARN region K off the del Pezzo base, with the factors
+    exhibited.  A genuinely new e >= 2 datum, pinned to the paper through
+    Lemma 11.3."""
+    S3 = hirzebruch_with_polarization(3, (261, 70))
+    v3 = (13, (9, 3), F(-13, 2))                      # pi^{-1} of (13,(6,3),-13/2)
+    expected = ((2, (1, 1), F(-3, 2)), (11, (8, 2), F(-5)))   # pi^{-1} of the pin
+    assert generic_hn_factors(*v3, S3) == expected
+    mv = moduli_nonempty(*v3, S3)
+    assert mv.status is VerdictStatus.UNKNOWN          # the envelope cannot decide
+    xi = SurfaceBundle(*v3)
+    v = hn_verdict(13, total_slope(xi), discriminant(xi, S3), S3)
+    assert v.exists is False and v.generic_hn_length == 2
+    assert v.region is HNRegion.K
+    assert v.factors == expected
+    assert v.certificate.rigor.name == "PROVEN"

@@ -1491,3 +1491,47 @@ Suite: 498 → 516 items (18 new), 6 Macaulay2 skips unchanged, 0 failures.
 `cor-delPezzoKss`). Package: `bridgeland_stability/generic_hn.py`, `hn_filtration.py`;
 tests in `tests/test_generic_hn.py`, `tests/test_hn_filtration.py`.
 
+## 15. `e ≥ 2` unlocked: π-equivariance of the generic HN filtration (E13-M3c)
+
+**What shipped.** The verdict layer (`hn_filtration._require_del_pezzo_scope`) now admits **every
+strictly ample `F_e`**: the §14 architecture is uniform in `e` (the envelope's PROVEN branches —
+Bogomolov, the exceptional disjunct, `emptiness_bound` — hold on every ample `F_e`; off the del Pezzo
+base the envelope is only a certified lower bound, so more classes fall to the computed filtration).
+The gate is a **π-equivariance differential** against the E13-M1 reduction.
+
+**The transport arithmetic (re-derived, then asserted over grids).** Lemma 11.3 transports every
+ingredient of `thm-HNcriterion` exactly:
+
+- pairing/χ/Δ (isometry, `r` and `ch₂` fixed), `K` and `χ(O)` (family invariants);
+- the polarization: `H = (a, b) ↦ π(H) = (a−b, b)` shifts the H-index `m = a/b − e ↦ m + 1`
+  (equivalently `A_k ↦ A_k` with `H_n = A_{n−1+e/2}`), so the algorithm's prioritary index
+  `⌈m⌉ ↦ ⌈m⌉ + 1` transports **automatically** with condition (1) — and `cor-equivalentInequality`'s
+  bound is equivariant because `ψ' − ψ = −⌈ε⌉ ∈ ℤ` leaves the fractional part `⌈ψ⌉ − ψ` unchanged while
+  `−e/2 ↦ −(e−2)/2` absorbs the index shift;
+- the `lem-slopeQuad` width `e + 2m` is invariant under `(e, m) ↦ (e−2, m+1)`; the reduced-Hilbert
+  q-keys `(ν·H_m, P(ν) − Δ)` are isometry-invariant (`π(K_e) = K_{e−2}`).
+
+Hence the computed factor lists must transport **bit-for-bit**:
+`factors(π(v), π(surface)) == π(factors(v, surface))`.
+
+**Gates** (`tests/test_generic_hn.py`):
+
+- π-equivariance over integral-`c₂` grids `F₂ → F₀` and `F₃ → F₁` (180 classes each, multi-factor
+  cases required to appear) plus a `reduce_to_del_pezzo` telescoping spot-check `F₄ → F₂ → F₀`;
+- verdict totality on `F₂`: `exists ∈ {True, False}`, PROVEN certificates, UNCLASSIFIED never fires;
+- the envelope-consistency differential of §14 extended to `F₂`;
+- **a new pinned `e ≥ 2` Kronecker datum**: the §14 F₁ paper pin transported UP by `π⁻¹(x,y) = (x+y, y)`
+  — `v = (13, (9,3), −13/2)` on `F₃` with `H = (261, 70)` (the lift of `(191, 70)`).  The envelope is
+  UNKNOWN there (never certified sharp off the del Pezzo base), and the verdict layer **earns region K**
+  with computed length 2 and factors `(2,(1,1),−3/2)`, `(11,(8,2),−5)` — exactly `π⁻¹` of the paper's
+  factors, as Lemma 11.3 demands.
+
+One honest scope note: region `K` is earned only where the *verdict* ran the filtration (the UNKNOWN
+band).  A class the envelope already proves empty (below `emptiness_bound`) reports region `EMPTY` with
+`factors=None` — call `generic_hn_factors` directly for its filtration.  Suite: 516 → 522 items,
+6 Macaulay2 skips unchanged, 0 failures.
+
+*Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §11 (Lemma 11.3, the reduction `π`),
+§4–5 as in §14.  Package: `bridgeland_stability/hn_filtration.py` (scope), `generic_hn.py` (unchanged —
+already uniform in `e`); tests in `tests/test_generic_hn.py`, `tests/test_hn_filtration.py`.
+

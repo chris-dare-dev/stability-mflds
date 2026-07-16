@@ -79,10 +79,13 @@ Honest scope
   ``exists=True`` with computed length 1, matching the polystable truth (the
   paper exhibits exactly this bundle as ``-K``-semistable with
   ``Delta = 1/4 < DLP_{-K}``, the Sec. 7 example after cor-delPezzoKss).
-* ``e >= 2`` -- **not** in M3a/M3b verdict scope: assembled via the E13-M1
-  reduction ``pi`` in E13-M3c (the Sec. 5 algorithm itself is uniform in ``e``
-  and :mod:`bridgeland_stability.generic_hn` accepts any ample ``F_e``; M3c
-  will cross-check it against the reduction).  A :exc:`NotImplementedError`.
+* ``e >= 2`` -- **UNLOCKED (E13-M3c)**: the verdict runs the same envelope +
+  computed-filtration architecture on every strictly ample ``F_e``.  On the
+  non-del-Pezzo surfaces the envelope is only a certified lower bound, so more
+  classes fall to the M3b algorithm; the computation is cross-checked against
+  the E13-M1 reduction ``pi`` by the pi-equivariance differential (Lemma 11.3
+  transports all five thm-HNcriterion conditions exactly; the H-index shifts
+  ``n -> n+1`` and ``ceil(m)`` transports with it).
 * K3 / abelian / a nef-and-big factory ``F_n`` -- no del Pezzo CH theory; refused.
 
 E13-M3a partially closed the E11-M6 open question O2; E13-M3b closes it on the
@@ -226,31 +229,29 @@ class HNVerdict:
 
 
 def _require_del_pezzo_scope(surface: Surface) -> None:
-    """M3a scope guard: ``P^2`` (fully sharp DLP) or an ample ``F_0`` / ``F_1``.
+    """Verdict scope guard: ``P^2`` or ANY strictly ample ``F_e`` (E13-M3c).
 
-    * ``P^2`` -- allowed.
-    * ``F_e`` with ``e in {0,1}`` and a strictly ample ``H`` -- allowed.
-    * ``F_e`` with ``e in {0,1}`` but only the nef-and-big factory ``H`` -- a
+    * ``P^2`` -- allowed (the DLP closed form is total there).
+    * ``F_e`` (any ``e >= 0``) with a strictly ample ``H`` -- allowed since
+      E13-M3c: the M3b generic-HN algorithm is uniform in ``e``, the PROVEN
+      envelope branches (Bogomolov, exceptional disjunct, ``emptiness_bound``)
+      hold on every ample ``F_e``, and the pi-equivariance differential
+      (tests/test_generic_hn.py) pins the ``e >= 2`` computation against the
+      E13-M1 reduction to the del Pezzo base (Lemma 11.3).
+    * an ``F_e`` carrying only the nef-and-big factory ``H`` -- a
       :exc:`ValueError` (use :func:`~bridgeland_stability.nonemptiness_rational.
       hirzebruch_with_polarization`).
-    * ``e >= 2`` -- a :exc:`NotImplementedError` (E13-M3c assembles it via the
-      reduction ``pi``).
     * K3 / abelian / any non-``F_e`` surface -- ``hirzebruch_index`` raises
       :exc:`NotImplementedError`, propagated here.
     """
     if surface.is_p2:
         return
     e = hirzebruch_index(surface)            # NotImplementedError off F_e (K3/abelian/...)
-    if e in (0, 1):
-        if not is_ample(surface):
-            raise ValueError(
-                f"{surface.name}: needs a strictly ample H on F_{e} "
-                "(use nonemptiness_rational.hirzebruch_with_polarization); the factory "
-                "H is only nef-and-big")
-        return
-    raise NotImplementedError(
-        f"e={e} >= 2 is E13-M3c (assemble via the reduction pi: reduce_to_del_pezzo); "
-        "E13-M3a is del Pezzo e in {0,1} plus P^2")
+    if not is_ample(surface):
+        raise ValueError(
+            f"{surface.name}: needs a strictly ample H on F_{e} "
+            "(use nonemptiness_rational.hirzebruch_with_polarization); the factory "
+            "H is only nef-and-big")
 
 
 def hn_verdict(r: int, nu: Sequence[Number], Delta: Number, surface: Surface) -> HNVerdict:
@@ -263,8 +264,9 @@ def hn_verdict(r: int, nu: Sequence[Number], Delta: Number, surface: Surface) ->
     :class:`~bridgeland_stability.nonemptiness_rational.VerdictStatus` maps to the
     tri-state ``(exists, generic_hn_length, region)`` per the module table.
 
-    Raises per :func:`_require_del_pezzo_scope` off M3a scope (``e >= 2`` /
-    K3 / a nef-and-big factory ``F_n``).
+    Raises per :func:`_require_del_pezzo_scope` off scope (K3 / abelian /
+    a nef-and-big factory ``F_n``); any strictly ample ``F_e`` is in scope
+    since E13-M3c.
     """
     _require_del_pezzo_scope(surface)
     # E13 re-audit R3: never int()-truncate the rank.  A non-integral r is not the

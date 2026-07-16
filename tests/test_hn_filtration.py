@@ -370,12 +370,14 @@ def test_hn_verdict_fields_are_consistent():
 # --------------------------------------------------------------------------- #
 # 8. Scope guards: M3a is del Pezzo e in {0,1} plus P^2 only.                  #
 # --------------------------------------------------------------------------- #
-def test_scope_e_ge_2_raises_not_implemented():
-    """e >= 2 is E13-M3c (assemble via the reduction pi): a NotImplementedError."""
-    with pytest.raises(NotImplementedError):
-        semistable_exists(1, (F(0), F(0)), F(0), F2)
-    with pytest.raises(NotImplementedError):
-        hn_verdict(2, (F(0), F(0)), F(1), F2)
+def test_scope_e_ge_2_is_unlocked():
+    """E13-M3c: any strictly ample F_e is in verdict scope -- the envelope's
+    PROVEN branches bind and the M3b algorithm decides the rest (see
+    tests/test_generic_hn.py for the pi-equivariance gate)."""
+    assert semistable_exists(1, (F(0), F(0)), F(0), F2) is True     # O_{F_2}
+    v = hn_verdict(2, (F(0), F(0)), F(1), F2)
+    assert v.exists in (True, False)
+    assert v.certificate.rigor.name == "PROVEN"
 
 
 def test_scope_non_hirzebruch_raises():
