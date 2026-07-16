@@ -1535,3 +1535,48 @@ band).  A class the envelope already proves empty (below `emptiness_bound`) repo
 §4–5 as in §14.  Package: `bridgeland_stability/hn_filtration.py` (scope), `generic_hn.py` (unchanged —
 already uniform in `e`); tests in `tests/test_generic_hn.py`, `tests/test_hn_filtration.py`.
 
+## 16. The F_e CAS cross-check + the first fully-live Macaulay2 suite run (E10-M4)
+
+**The finding this closes.** The E13 re-audit's residual note: the P² ε-recursion common mode was
+retired by the mutation oracle (§13), but the **F_e numerical layer** — the Gram matrices, `K_{F_e}`,
+`χ(O)`, `hilbert_P`, and the RR Euler pairing that the envelope, the prioritary bounds, and the §14
+generic-HN algorithm are all built on — remained single-sourced. Separately, the E10 M2-gated tests had
+**never run on this host** ("six Macaulay2 skips hide this defect" was the audit's own R4 evidence).
+
+**Provisioning (host).** Macaulay2 1.24.11 installed in WSL Debian (`apt install macaulay2`);
+`scripts/m2-wsl.cmd` bridges Windows → WSL, translating script paths via `wslpath`, so the E10 oracle's
+`BRIDGELAND_M2` discovery works from Windows pytest unchanged. Opt in per run:
+`BRIDGELAND_M2=<repo>/scripts/m2-wsl.cmd pytest -q`. The `[UNVERIFIED on Windows]` /
+`[UNVERIFIED idiom]` notes in `oracle/m2.py` are updated to **[VERIFIED]** — the four E10-M2 Ext tests
+(P² Proj and the K3 Fermat quartic), the QQ round-trip, the E10-M3 witness construction, and the
+E12-M4/R4-repaired mint all **pass live**.
+
+**The cross-check** (`fe_line_bundle_cohomology` in `oracle/m2.py`; `tests/test_fe_cas.py`).
+Macaulay2's `NormalToricVarieties` computes `h^i(F_e, O(D))` by **polytope lattice-point
+combinatorics** — a route entirely independent of Riemann-Roch. The protocol is self-describing (the
+transcript emits the prime-divisor classes and `−K` in M2's own Cl basis; no convention is trusted),
+and the test **fits** the unimodular identification `T` with the package `(f, s)` basis from the data,
+requiring `T(−K_{M2}) = (e+2, 2)` and full-table χ agreement `χ_{M2}(c,d) = P(T·(c,d))` over the
+`[−3,3]²` window for `e ∈ {0,1,2,3}`. Any transcription error in the package's Gram / `K` / `χ(O)` /
+`hilbert_P` yields **zero** fits.
+
+A lattice-theoretic fact surfaced by the fit count (recorded, hand-verified): the number of
+identifications equals the number of isometries of `(NS, Gram)` fixing `K` — **two** on `F_0` (the
+ruling swap) and **two** on `F_2` (`σ: f ↦ f+s, s ↦ −s`; `σᵀGσ = G` and `σ(K) = K` exactly — both `F`
+and `E+F` are isotropic on `F_2` and χ-data cannot distinguish the isotropic rays, only effectivity
+can), **one** for `e = 1, 3`. Additional gates: `h^•(O) = (1,0,0)` pins; a package-free Serre-duality
+self-consistency sweep of the M2 data (`h²(D) = h⁰(K−D)` within the window); and the M3b flagship's
+character arithmetic CAS-witnessed (`χ(O(1,0)) + χ(O(0,1)) = 2 + 2 = 4` from the toric table equals the
+package RR pairing on `(2,(1,1),0)`). The transcript parser also runs WITHOUT M2 via canned transcripts
+— the plumbing is never skip-hidden (the R4 lesson).
+
+**Suite:** default mode 533 items / 518 passed / **15 skips** (6 legacy + 9 new gated); with
+`BRIDGELAND_M2` set: **533 / 533 / 0 skips / 0 failures** — the first fully-live run, ~266 s.
+Re-run the gated tests after any Macaulay2 upgrade (print-format drift is the standing E10 risk).
+
+*Sources:* Macaulay2 1.24.11 + the bundled `NormalToricVarieties` package (Gregory G. Smith et al.;
+toric sheaf cohomology via polyhedral combinatorics — see the package documentation); the package-side
+values cross-checked are those of §§7, 9–15 (arXiv:1907.06739 conventions). Files:
+`bridgeland_stability/oracle/m2.py`, `scripts/m2-wsl.cmd`, `tests/test_fe_cas.py`, `CLAUDE.md`
+(opt-in documented).
+

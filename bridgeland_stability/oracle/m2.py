@@ -7,20 +7,20 @@ gates matplotlib.  So ``import bridgeland_stability`` (which never imports this
 subpackage) and ``import bridgeland_stability.oracle[.m2]`` stay
 zero-third-party-dependency; only *calling* an oracle function needs M2.
 
-Host-path note [UNVERIFIED on Windows]: on Windows, Macaulay2 runs either
-natively or under WSL; the discovered invocation (``BRIDGELAND_M2`` env override,
-then ``shutil.which('M2')``) has NOT been verified on this host -- confirm the M2
-call before relying on any oracle value.  (Goal G16; epic E10.)
+Host-path note [VERIFIED 2026-07-16, E10-M4]: on Windows, Macaulay2 runs under
+WSL (Debian, apt package ``macaulay2`` 1.24.11); ``scripts/m2-wsl.cmd`` bridges
+the invocation, translating Windows script paths via ``wslpath``.  Opt in per
+run with ``BRIDGELAND_M2=<repo>/scripts/m2-wsl.cmd`` -- the whole suite then
+executes the M2-gated tests live (0 skips).  (Goal G16; epic E10.)
 
 E10-M2 (Euler-pairing cross-check) note: the *mathematics* of
 :func:`chi_via_ext` / :func:`ext_dims` is **[PROVEN]** -- P^2 / K3 line-bundle
 cohomology plus global ``Ext^i`` via truncated graded-module Ext (Greg Smith,
-arXiv:math/9807170).  But the *exact M2 accessor* used to read the QQ-dimension
-back (``rank Ext^i(F, G)`` printed by ``--script``) is **[UNVERIFIED]** against a
-real Macaulay2 install: print-format drift is the named E10 danger-zone risk, so
-the hand-maintained regex parser MUST be confirmed on a provisioned M2 before the
-[PROVEN] tag is earned end-to-end.  On this host M2 is absent, so the cross-check
-runs only where a user provisions M2 (the four E10-M2 tests skip otherwise).
+arXiv:math/9807170) -- and the exact M2 accessor (``rank Ext^i(F, G)`` printed
+by ``--script``) is now **[VERIFIED]** against Macaulay2 1.24.11 (E10-M4,
+2026-07-16): the four E10-M2 tests pass live via the WSL shim.  Print-format
+drift remains the named danger-zone risk on FUTURE M2 versions; re-run the
+gated tests after any M2 upgrade.
 
 E10-M3 (constructive non-emptiness) note: :func:`moduli_nonempty_by_construction`
 is a **sufficient-only** witness (G16).  It CONSTRUCTS one explicit sheaf with
@@ -31,9 +31,9 @@ emptiness).  The witness family is the rank-1 ideal-sheaf-of-points class on P^2
 ``I_Z(c1)`` with length ``l = c1^2/2 - ch2 = c2 >= 0`` in ZZ: such a sheaf is
 torsion-free of rank 1, hence mu-stable, so its existence genuinely proves the
 moduli space is nonempty.  Higher rank / non-P^2 classes return ``None`` (out of
-witness scope), never ``False``.  As with E10-M2 the M2 sheaf-level idiom is
-**[UNVERIFIED]** on this host (M2 absent); the ``@requires_m2`` test exercises it
-where a user provisions Macaulay2.
+witness scope), never ``False``.  The M2 sheaf-level idiom is **[VERIFIED]** live on
+Macaulay2 1.24.11 (E10-M4, 2026-07-16) via the WSL shim, including the E12-M4/R4
+mint path end-to-end.
 """
 from __future__ import annotations
 
@@ -54,6 +54,7 @@ __all__ = [
     "ext_dims",
     "moduli_nonempty_by_construction",
     "mint_oracle_evidence",
+    "fe_line_bundle_cohomology",
 ]
 
 #: Environment variables consulted (in order) to locate M2 before a PATH lookup.
@@ -386,6 +387,87 @@ def moduli_nonempty_by_construction(
     return None
 
 
+# --- E10-M4 / G16: the F_e toric-cohomology cross-check -----------------------
+def _fe_toric_script(e: int, lo: int, hi: int) -> str:
+    """M2 code: a SELF-DESCRIBING line-bundle cohomology table on ``F_e``.
+
+    Uses the NormalToricVarieties package's ``hirzebruchSurface e``.  The
+    cohomology of a toric line bundle is computed by POLYTOPE LATTICE-POINT
+    combinatorics -- a route entirely independent of the package's Riemann-Roch
+    layer, which is the point of the cross-check.  The script emits:
+
+      * ``DEG k a b``  -- the class of the k-th prime toric divisor in M2's own
+        Cl(X) = ZZ^2 basis (so the caller need assume NO basis convention);
+      * ``ANTIK a b``  -- the class of ``-K_X`` (the sum of the prime divisors);
+      * ``COH c d i h`` -- ``h^i(X, OO_X(c, d))`` for ``(c, d)`` in the window
+        and ``i in 0..2``, in the same Cl basis.
+
+    The caller identifies M2's basis with the package's ``(f, s)`` basis by
+    FITTING the unique unimodular transform (see the tests) -- never by trusting
+    a remembered convention.  [Idiom verified live on M2 1.24.11 / WSL.]
+    """
+    return (
+        'needsPackage "NormalToricVarieties";\n'
+        "X = hirzebruchSurface %d;\n"
+        "A = fromWDivToCl X;\n"
+        "n = numColumns A;\n"
+        'scan(n, k -> ( v := flatten entries A_{k}; '
+        '<< "DEG " << k << " " << v#0 << " " << v#1 << endl; ));\n'
+        "aK = flatten entries (A * transpose matrix{toList(n:1)});\n"
+        '<< "ANTIK " << aK#0 << " " << aK#1 << endl;\n'
+        "for c from %d to %d do for d from %d to %d do (\n"
+        "  L := OO_X(c, d);\n"
+        '  scan(3, i -> ( << "COH " << c << " " << d << " " << i << " " '
+        "<< rank HH^i(X, L) << endl; ));\n"
+        ");\n"
+        '<< "OK" << endl;\n' % (e, lo, hi, lo, hi)
+    )
+
+
+def fe_line_bundle_cohomology(e: int, lo: int = -3, hi: int = 3) -> dict:
+    """Fetch the ``F_e`` toric line-bundle cohomology table from Macaulay2.
+
+    Returns ``{"degrees": {k: (a, b)}, "antik": (a, b),
+    "coh": {(c, d): (h0, h1, h2)}}`` with every value an ``int``, all in M2's
+    own Cl(X) basis (self-describing -- see :func:`_fe_toric_script`).  One M2
+    subprocess per call; guarded by :func:`require_m2`.
+
+    Raises :class:`M2NotFoundError` when M2 is absent or the transcript does
+    not parse (print-format drift is the named E10 danger-zone risk).
+    """
+    require_m2()
+    if e < 0 or lo > hi:
+        raise ValueError(f"need e >= 0 and lo <= hi; got e={e}, [{lo}, {hi}]")
+    out = _run_m2(_fe_toric_script(e, lo, hi), timeout=300.0)
+    degrees, antik, coh = {}, None, {}
+    for line in out.splitlines():
+        line = line.strip()
+        mo = re.match(r"^DEG (\d+) (-?\d+) (-?\d+)$", line)
+        if mo:
+            degrees[int(mo.group(1))] = (int(mo.group(2)), int(mo.group(3)))
+            continue
+        mo = re.match(r"^ANTIK (-?\d+) (-?\d+)$", line)
+        if mo:
+            antik = (int(mo.group(1)), int(mo.group(2)))
+            continue
+        mo = re.match(r"^COH (-?\d+) (-?\d+) ([012]) (\d+)$", line)
+        if mo:
+            c, d, i, h = (int(mo.group(k)) for k in range(1, 5))
+            hs = coh.setdefault((c, d), [None, None, None])
+            hs[i] = h
+    expected = (hi - lo + 1) ** 2
+    if antik is None or len(degrees) != 4 or len(coh) != expected or any(
+        None in hs for hs in coh.values()
+    ):
+        raise M2NotFoundError(
+            "could not parse the F_e toric cohomology transcript "
+            f"(degrees={len(degrees)}, antik={antik}, coh={len(coh)}/{expected}); "
+            "M2 print-format drift?  Output was:\n" + out[:2000]
+        )
+    return {"degrees": degrees, "antik": antik,
+            "coh": {k: tuple(v) for k, v in coh.items()}}
+
+
 # --- E12-M4 / A5: the sole ORACLE-sourced SharpBoundEvidence mint -------------
 def mint_oracle_evidence(r: int, c1, ch2: Fraction, X, sharp_bound, citation: str = ""):
     """Mint an ``ORACLE``-sourced :class:`~bridgeland_stability.nonemptiness_rational.
@@ -404,9 +486,9 @@ def mint_oracle_evidence(r: int, c1, ch2: Fraction, X, sharp_bound, citation: st
     body, so ``import bridgeland_stability.oracle.m2`` stays standard-library-only and the
     ``oracle -> core`` import direction never becomes a cycle.
 
-    On this host Macaulay2 is absent, so :func:`moduli_nonempty_by_construction` raises
-    :class:`M2NotFoundError` first (via :func:`require_m2`) -- this mint runs only where a
-    user provisions M2, exactly like the ``@requires_m2`` tests.
+    With Macaulay2 provisioned (``BRIDGELAND_M2=scripts/m2-wsl.cmd`` on this host,
+    E10-M4) the mint runs live; without it :func:`moduli_nonempty_by_construction`
+    raises :class:`M2NotFoundError` first (via :func:`require_m2`).
     """
     from ..nonemptiness_rational import SharpBoundEvidence, HNMode, _ORACLE_TOKEN
 

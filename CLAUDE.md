@@ -20,7 +20,10 @@ verification. That correctness culture is the point of the project — respect i
 pip install -e .                    # core — pure standard library, zero runtime deps
 pip install -e ".[viz]"             # + plotly>=5.18 + matplotlib>=3.7 for figures
 pip install -e ".[dev]"             # + pytest (includes viz)
-pytest -q                           # run the suite (273 tests; 6 skip without Macaulay2)
+pytest -q                           # run the suite (M2-gated tests skip without Macaulay2)
+# opt in to the live Macaulay2 tests (M2 lives in WSL Debian; E10-M4):
+#   BRIDGELAND_M2=$PWD/scripts/m2-wsl.cmd pytest -q      # bash
+#   $env:BRIDGELAND_M2="$PWD\scripts\m2-wsl.cmd"; pytest -q   # PowerShell
 python examples/demo.py             # print the corrected validated-value table
 python examples/demo.py --figures   # write figures/*.{html,png}  (untracked build output)
 # figure-review gallery (use `python` on Windows):
