@@ -1789,3 +1789,39 @@ Suite: 558 → 593 items (35 new), 15 default-mode skips unchanged, 0 failures.
 `cor-delPezzoExceptional`), §11 (`cor-highermus` + the exceptional-bundle corollaries and conjecture);
 Gorodentsev (μ_{−K}-stability of exceptional bundles). Package:
 `bridgeland_stability/stability_interval.py`; tests in `tests/test_stability_interval.py`.
+
+## 20. Monotonicity and cross-theorem sweeps (E14-M4)
+
+**What shipped.** `tests/test_delta_monotone.py` — the qualitative theorems as executable, append-only
+gates over the whole E14 stack (no new package code; the value is the standing differential):
+
+* **`cor-KstabilityEasy` transport, both directions.** The F₀ Kronecker class one lattice step above
+  the wall (`(15, ν, 2/3)`, exists at `m = 25/9`) exists at every sampled `m ∈ [1, 25/9]`; the wall
+  class (`Δ = 3/5`, refused at `25/9`) is refused at every sampled `m ≥ 25/9` (existence is monotone
+  toward the anticanonical index, so non-existence is monotone away from it).
+* **`cor-deltaMonotone`, the left clause (`0 < m′ ≤ m ≤ m₀`).** Witnessed through `(2,(1,1))/F₁`
+  (`I_V = (0,1)`, the E14-M3 table row): exists at every sampled `m ≤ m₀ = 1/2` down to `1/8`, with
+  the interval route agreeing.
+* **Sandwich monotonicity.** At a fixed scanned rank set, per-character existence shrinks as `m`
+  grows past `m₀`, so `delta_mu_stable`'s certified `upper` is nondecreasing in `m`; `lower` is
+  nondecreasing by `prop-DLPmonotone`. Swept on both surfaces over the §18 grids.
+* **`cor-deltaMonotoneHigher` (`e ≥ 2`, one-sided: `0 < m < m′` ⟹ `δ_m ≤ δ_{m′}`).** Sampled through
+  the transported Kronecker formula on `F₂` (strictly increasing on the sampled chord), with each
+  value asserted equal to the `F₀` value at `m + 1` — the transport identity as a per-point
+  differential.
+* **Region-R strictness (the §8 closing corollary — the seed of the E15 §1.5 conjecture).**
+  `DLP^{<r}_{H_m}(ν) < δ_m^{μs}(ν)` asserted at all eight §18 grid points on both surfaces (`≤` is
+  `cor-deltaDLPe`; the strictness at these rational `m` is recorded as observed fact — the corollary
+  proves it for generic `m`).
+* **Interval–monotonicity cross-gate.** Membership along `m` is monotone on each side of `m₀`
+  (once destabilized, stays destabilized) — sampled through the `(11,(4,4))/F₀` interval `(4/7, 7/4)`
+  inside/outside both endpoints.
+
+**E14 is COMPLETE** (M0 housekeeping, M1 decision procedure + sandwich, M2 closed formula, M3
+stability intervals, M4 sweeps). Suite: 593 → 599 items (6 new), 15 default-mode skips unchanged,
+0 failures.
+
+*Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) `cor-deltaMonotone` (and its proof via
+`cor-KstabilityEasy`), `cor-deltaMonotoneHigher`, `prop-DLPmonotone`, `cor-deltaDLPe`, the §8 closing
+corollary. Tests: `tests/test_delta_monotone.py`.
+
