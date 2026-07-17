@@ -1728,3 +1728,64 @@ Suite: 550 → 558 items (8 new), 15 default-mode skips unchanged, 0 failures.
 irrationality remark), §11 (`cor-highermus`, Lemma 11.3). Package: `bridgeland_stability/delta_sharp.py`
 (`kronecker_data`, `delta_kronecker`, `_psi_gt`); tests in `tests/test_delta_sharp.py`.
 
+## 19. Stability intervals `I_V` of exceptional bundles (E14-M3)
+
+**What shipped.** `bridgeland_stability/stability_interval.py`: `stability_interval(r, c1, surface)` →
+`StabilityInterval(lo, hi, empty, witness_lo, witness_hi)` — the exact open interval
+`I_v = {m > 0 : ∃ μ_{H_m}-stable exceptional bundle of character v}` on every `F_e`. Since the
+exceptional bundle of a character is unique (`prop-excPrior`(2)) and `cor-DLPexcdelPezzo` /
+`cor-DLPExceptional` give `I_v = {m : Δ ≥ DLP^{<r}_{H_m}(ν)}`, this is the stability interval `I_V` of
+the bundle itself.
+
+**The algorithm** (each ingredient a paper citation; two-way evidence in
+`tests/test_stability_interval.py`). `thm-stabilityInterval` (rank induction): `I_V` is the connected
+component containing `m₀ = 1 − e/2` of `ℝ_{>0} ∖ S_V`,
+`S_V = {m_{V,W} : W exceptional, r(W) < r, χ(W,V) > 0, m_{V,W} ∈ I_W}` with `m_{V,W}` the positive
+slope-crossing (`m = −b/a` for the paper slope difference `aE + bF`; in package `(f,s)` coordinates
+`m = −ξ_f/ξ_s`). Effectivity per `rem-stabilityIntervalCompute`: a contributing slope difference lies
+in the two unit strips (`e = 1` cuts the horizontal strip to the `P > 0` triangle `(0,−1),(0,0),(2,0)`),
+far line bundles already give members `M₁ > m₀` (and `M₀ < m₀` for `e = 0`; `M₀ = 0` for `e = 1`), and
+the slope window `(M₀, M₁)` bounds the candidate lattice to a finite search. The membership test
+`m ∈ I_W` is exactly `is_stable_exceptional` at `H_m` — the induction terminates through the shipped
+`DLP^{<r}` machinery.
+
+**Three performance prunes (exactness untouched — each is a theorem).** A naive inward walk validates
+hundreds of candidates with `is_stable_exceptional` at per-candidate fresh polarizations (whose cost
+grows toward extreme `m` as the DLP strip fills — profiled at ~3 s/call, ~15 min for `(19,(1,9))` and
+~12 min for `(18,(1,9))/F₁`). Shipped instead: (i) a **rank-1 candidate certifies free** — line
+bundles are μ-stable for every polarization, so the first such value ends the walk; (ii) a rank ≥ 2
+candidate `W` is pre-filtered by **its own line-bundle probe window** — `W`'s far probes are members
+of `S_W`, so `I_W` lies strictly between them, and `m` outside cannot be in `I_W` (microseconds);
+(iii) the surviving membership tests use the **memoized rank induction itself** — `m ∈ I_W` is a
+lookup into the recursively computed `I_W` (the same set by `cor-DLPexcdelPezzo`; rank strictly
+descends, so the recursion is well-founded, and the session cache makes each character's interval a
+one-time cost — the paper's own "program a computer by induction on the rank" made effective).
+Effect: both tables complete in seconds.
+
+**Both paper tables pinned bit-for-bit, witnesses included.** Table "stabilityInterval0" (`F₀`, 13
+rows, ranks to 19) and "stabilityInterval1" (`F₁`, 15 rows, ranks to 20), after the coordinate
+transport paper `(a, b) → package (b, a)` — fixed empirically against row `(5,(1,2)) → (1/2, 3)` and
+confirmed by all 28 rows; the swapped `F₀` input gives the reciprocal interval (`(1/3, 2)`), the
+ruling-swap `m ↦ 1/m` symmetry. Sample pins: `(11,(4,4))/F₀ → (4/7, 7/4)` with witnesses
+`(5,(−2,4))`/`(5,(4,−2))`; `(19,(5,10))/F₁ → (1/9, 9/5)` with `(5,(−2,3))`/`(6,(5,−3))`. Gorodentsev
+membership `m₀ ∈ I_V` asserted on every row; the two-route boundary differential
+(`contains(m)` vs `is_stable_exceptional` at `H_m`) asserted inside, outside, and AT the open
+endpoints.
+
+**`e ≥ 2` transport + the §11 conjecture's first candidate.** `cor-highermus`:
+`I_v = {t > 0 : t + 1 ∈ I_{π(v)}}` (the paper's `(0, m₁ − 1)`; implemented as the two-sided transport
+`(max(0, m₀'−1), m₁'−1)`, which agrees on every observed case). Pinned: the paper's `F₄` example
+`(3, ⅓E + F, 4/9)` — window `(0,1)` on `F₂`, **empty** on `F₄` (no slope-stable sheaf of that
+character for any polarization, matching the paper's `ρ_gen` argument); and the §11 conjecture's
+first potential counterexample `(107, 25/107·E + 76/107·F, 5724/11449)` on `F₃`: the reduced `F₁`
+interval has right endpoint `13/23 ≤ 1`, so the transported interval is **empty** — the paper's
+"the stability interval is empty" reproduced exactly (the E15 target datum).
+
+Suite: 558 → 593 items (35 new), 15 default-mode skips unchanged, 0 failures.
+
+*Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §6.3 (`prop-interval`,
+`thm-stabilityInterval`, `rem-stabilityIntervalCompute`, `rem-stabilityIntervalQuotient`,
+`ex-stabilityIntervals` Tables 1–2, `rem-notStableForever`), §6 (`cor-DLPexcdelPezzo`,
+`cor-delPezzoExceptional`), §11 (`cor-highermus` + the exceptional-bundle corollaries and conjecture);
+Gorodentsev (μ_{−K}-stability of exceptional bundles). Package:
+`bridgeland_stability/stability_interval.py`; tests in `tests/test_stability_interval.py`.

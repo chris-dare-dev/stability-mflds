@@ -127,6 +127,10 @@ from .delta_sharp import (
     polarization_index,
     surface_with_index,
 )
+from .stability_interval import (
+    StabilityInterval,
+    stability_interval,
+)
 from .walls import (
     Wall,
     VerticalWall,
@@ -284,6 +288,9 @@ __all__ = [
     "KroneckerData",
     "delta_kronecker",
     "kronecker_data",
+    # E14-M3 / G18: stability intervals I_V of exceptional bundles
+    "StabilityInterval",
+    "stability_interval",
     "Wall",
     "VerticalWall",
     "ActualWall",
