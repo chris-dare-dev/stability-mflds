@@ -131,6 +131,10 @@ from .stability_interval import (
     StabilityInterval,
     stability_interval,
 )
+from .exceptional_existence import (
+    ExceptionalRefutation,
+    exceptional_refutation,
+)
 from .walls import (
     Wall,
     VerticalWall,
@@ -291,6 +295,9 @@ __all__ = [
     # E14-M3 / G18: stability intervals I_V of exceptional bundles
     "StabilityInterval",
     "stability_interval",
+    # E15-M1 / G18+: existence obstructions for exceptional bundles
+    "ExceptionalRefutation",
+    "exceptional_refutation",
     "Wall",
     "VerticalWall",
     "ActualWall",

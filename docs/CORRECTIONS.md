@@ -1825,3 +1825,61 @@ stability intervals, M4 sweeps). Suite: 593 → 599 items (6 new), 15 default-mo
 `cor-KstabilityEasy`), `cor-deltaMonotoneHigher`, `prop-DLPmonotone`, `cor-deltaDLPe`, the §8 closing
 corollary. Tests: `tests/test_delta_monotone.py`.
 
+## 21. Existence obstructions for exceptional bundles: the E15-M1 battery
+
+**Context.** The §11 conjecture (every exceptional bundle on `F_e`, `e ≥ 2`, is slope-stable near
+`H_0`) is open; its first potential counterexample is `v₁₀₇ = (107, 25/107·E + 76/107·F, 5724/11449)`
+on `F₃`, whose stability interval is EMPTY (§19) — the conjecture holds there iff NO exceptional
+bundle of character `v₁₀₇` exists. `bridgeland_stability/exceptional_existence.py` ships a battery of
+PROVEN **necessary** conditions for existence (`exceptional_refutation`); a refutation decides the
+character, a pass is honestly inconclusive.
+
+**Condition 1 — the prioritary index (the paper's own F₄ route, now executable).** An exceptional
+bundle is simple, hence `D`-prioritary for every `D` with `−(K+D)` effective nontrivial
+(`lem-simple`), in particular `H₂`-prioritary; and rigid, hence its point is open — so, the stack
+`P_F(v)` being irreducible (Walter), the bundle IS the general sheaf and `ρ_gen(v) ≥ 2`
+(`cor-prioritaryRho`, `prop-excPrior`). Verdicts (all pinned): the paper's `F₄` example
+`(3, ⅓E + F, 4/9)` has `ρ_gen = 1` — refuted, matching the paper bit-for-bit; **`ρ_gen(v₁₀₇) = 2` —
+this route is INCONCLUSIVE for the paper's candidate** (consistent with, and explaining, the paper
+leaving exactly this case open).
+
+**Condition 2 — the rigid-factor obstruction (new here; valid on every `F_e`, every `m`).** If the
+bundle `V` exists it is the general sheaf, so the §5 algorithm's generic `H_m`-HN factors are the
+factors of `V` itself. Along any Gieseker-HN filtration on an ample `F_e` the hypotheses of
+`prop-mukai`(2) hold unconditionally — `Hom(W, U) = 0` by the reduced-Hilbert ordering, and
+`Ext²(U, W) = Hom(W, U(K))* = 0` since twisting by `K` strictly lowers `q` (`K·H < 0`) — so every
+factor of the rigid `V` is RIGID, whence `χ(gr, gr) = hom + ext² ≥ 1`, i.e.
+
+> every generic HN factor must satisfy `Δᵢ ≤ ½(1 − 1/rᵢ²)`.
+
+A computed factor above that bound refutes existence. Additionally, at a **chamber-generic** sample
+(the §17 gap) a length-ONE filtration refutes when the slope denominator equals the rank and the
+stability interval is empty: `V` would be Gieseker-semistable there, hence μ-semistable, hence
+μ-STABLE (no proper subsheaf can match a slope of exact denominator `r` at a generic polarization) —
+contradiction. **Scope note:** the del Pezzo theorem `thm-rigidSplit` (Kuleshov–Orlov: rigid splits
+into exceptionals) is NOT available on `F_e`, `e ≥ 2`; the obstruction deliberately uses only the
+any-surface `prop-mukai`. Sampling is restricted to `⌈m⌉ ≤ 2` — the prioritary regime `lem-simple`
+guarantees for a hypothetical `V` (at these `v` the `H₃`-prioritary stack is EMPTY: `ρ_gen = 2`, which
+is also why `hn_verdict` early-exits through `prop-ssPrior` there and the module calls
+`generic_hn_factors` directly, per the paper's §1.4 remark).
+
+**Soundness controls (pinned).** Four characters whose bundles provably exist (§19 table rows:
+`(2,(1,1))`/`F₁`, `(11,(3,5))`/`F₁`, `(3,(1,1))`/`F₀`, `(11,(4,4))`/`F₀`) pass the battery
+un-refuted with `ρ_gen ∈ {2,3}`; a refutation on any of them would falsify the derivation. Invalid
+characters are refuted trivially; anchors `≥ 2` are refused (the regime guard).
+
+**Status of `v₁₀₇` at the time of this record: OPEN.** `ρ_gen = 2` (inconclusive); interval empty
+(§19); the rigid-factor computation — the generic HN factors of `v₁₀₇` at a chamber-generic sample
+near `m = 1` on `F₃` — was launched and had not completed within 3 CPU-hours (the §5 recursion at
+rank 107; memoized, memory-flat, genuinely wide). The battery accepts the character and will decide
+when a completed factor list exists; the outcome will be recorded as an addendum to this section
+with two-way evidence (and, if a refutation, an independent adversarial pass before any
+conjecture-level claim).
+
+*Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) `prop-mukai` (Mukai/Gorodentsev — any
+smooth surface), `thm-rigidSplit` (Kuleshov–Orlov — del Pezzo ONLY, noted), `lem-simple`,
+`prop-excPrior`, `cor-prioritaryRho`, `prop-ssPrior`, the §1.4 remark (the filtration below the
+prioritary threshold), §5, the §11 conjecture and its `F₄` example; Walter (irreducibility).
+Package: `bridgeland_stability/exceptional_existence.py`; tests in
+`tests/test_exceptional_existence.py`.
+
