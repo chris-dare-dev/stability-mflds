@@ -1911,13 +1911,15 @@ live).** The first sweep emitted a candidate: `(11,(3,4),−5)`/`F₀` at `m = 5
 pair decomposes (`ℓ = 2`, untwisted, swapped; `v₂ = −2E₁ + 11E₂`). Conjecture-consistent throughout;
 the harness's `None` must always be read against its family bounds.
 
-**Sweep ledger (as of this record).** The rank ≤ 6 grid — both surfaces, 16 chamber-offset anchors
-spanning both sides of `−K` and the §18 walls, `Δ ∈ [0, 2]`: **11,208 computed filtrations, length
-histogram `{1: 6583, 2: 2489, 3: 387, 4: 1}`, ZERO violations** (every length-≥3 filtration had ≤ 1
-non-semiexceptional factor — the Thm 1.13 shape), zero length-2 both-non-semiexceptional pairs (the
-§8 phenomenon starts at higher rank; the pins cover rank 13/15). The violation count is
-search-family-independent. A rank ≤ 13 sweep with the extended family is in flight; its ledger will
-be appended.
+**Sweep ledger (rank ≤ 13, the extended family — COMPLETE 2026-07-18, ~22.5 h).** Both surfaces, 16
+chamber-offset anchors spanning both sides of `−K` and the §18 walls, `Δ ∈ [0, 2]`:
+**126,936 computed generic HN filtrations, length histogram `{1: 68729, 2: 27382, 3: 7749, 4: 333}`,
+ZERO length-≥3 violations** (all 8,082 length-≥3 filtrations have ≤ 1 non-semiexceptional factor —
+the Thm 1.13 shape holds without exception), and **6 length-2 both-non-semiexceptional pairs, ALL
+SIX block-decomposed** within the extended family — zero undecomposed candidates. Conjecture A is
+consistent with every filtration observed on the swept grid. (The earlier rank ≤ 6 pass — 11,208
+filtrations, histogram `{1: 6583, 2: 2489, 3: 387, 4: 1}`, zero violations, zero pairs — is
+subsumed; the violation counts are search-family-independent.)
 
 *Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §1.5 (the conjecture), §8 (the family
 and the constructions), Ex. KroneckerF0/F1; Kuleshov–Orlov (fullness of maximal-length exceptional
