@@ -135,6 +135,16 @@ from .exceptional_existence import (
     ExceptionalRefutation,
     exceptional_refutation,
 )
+from .block_kronecker import (
+    BlockWitness,
+    FiltrationPattern,
+    block_decomposition,
+    classify_generic_filtration,
+)
+from .conjectural_delta import (
+    DeltaConjectural,
+    delta_conjectural,
+)
 from .walls import (
     Wall,
     VerticalWall,
@@ -298,6 +308,14 @@ __all__ = [
     # E15-M1 / G18+: existence obstructions for exceptional bundles
     "ExceptionalRefutation",
     "exceptional_refutation",
+    # E15-M3 / G18+: the Conjecture A falsification harness
+    "BlockWitness",
+    "FiltrationPattern",
+    "block_decomposition",
+    "classify_generic_filtration",
+    # E15-M4 / G18+: the Conjecture A-gated delta evaluator
+    "DeltaConjectural",
+    "delta_conjectural",
     "Wall",
     "VerticalWall",
     "ActualWall",

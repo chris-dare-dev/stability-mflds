@@ -1883,3 +1883,72 @@ prioritary threshold), §5, the §11 conjecture and its `F₄` example; Walter (
 Package: `bridgeland_stability/exceptional_existence.py`; tests in
 `tests/test_exceptional_existence.py`.
 
+## 22. The Conjecture A falsification harness (E15-M3)
+
+**What shipped.** `bridgeland_stability/block_kronecker.py` + `scripts/e15_m3_sweep.py`: the §1.5
+conjecture ("if a generic HN filtration has more than one non-semiexceptional factor, then `ℓ = 2`
+and the factors are block combinations of a full exceptional collection") as an executable
+falsification harness. `classify_generic_filtration` computes the §5 factors and their
+semiexceptionality — a length-≥3 filtration with ≥ 2 non-semiexceptional factors is an IMMEDIATE
+counterexample flag; `block_decomposition` searches an exact ℤ-span witness over the §8 collection
+family `(O(−E−ℓF), O, O(F), O(E−(ℓ−1−e)F))` extended three ways, each theorem-backed: all line-bundle
+twists (twisting preserves full exceptional collections), the `F₀` **ruling swap** (an automorphism),
+and `ℓ` BELOW the paper's `ℓ ≥ 3` (their bound served the §8 stability analysis, not fullness;
+quadruples are χ-orthogonality-filtered, and an orthogonal maximal-length collection on a del Pezzo
+is full — Kuleshov–Orlov). A `None` result is search-bounded — a ranked candidate, never a
+counterexample claim.
+
+**Positive controls (pinned).** Both §8 Kronecker pins classify as length-2 both-non-semiexceptional
+and decompose with the PAPER'S OWN exponents: `F₁` `(13,(6,3),−13/2)` → `v₁ = E₃ + E₄`,
+`v₂ = −2E₁ + 13E₂` at `ℓ = 3` untwisted (ex-KroneckerF1's `a = b = 1, c = 2, d = 13`); `F₀`
+`(15,(5,3),−8)` → `(1,1)` and `(−2, 15)` (ex-KroneckerF0's `c = 2, d = 15`).
+
+**The search-family lesson (recorded because it is the harness's central caveat, demonstrated
+live).** The first sweep emitted a candidate: `(11,(3,4),−5)`/`F₀` at `m = 501/1000` with factors
+`(2,(1,0),−1)`, `(9,(2,4),−4)` — no witness in the paper-shaped family. Hand analysis:
+`(2,(1,0),−1) = ch O(0,1) + ch O(1,−1)`, which is the `(E₃,E₄)` block of the **ruling-swapped,
+`ℓ = 2`** collection — both extensions outside the initial family. With the principled extensions the
+pair decomposes (`ℓ = 2`, untwisted, swapped; `v₂ = −2E₁ + 11E₂`). Conjecture-consistent throughout;
+the harness's `None` must always be read against its family bounds.
+
+**Sweep ledger (as of this record).** The rank ≤ 6 grid — both surfaces, 16 chamber-offset anchors
+spanning both sides of `−K` and the §18 walls, `Δ ∈ [0, 2]`: **11,208 computed filtrations, length
+histogram `{1: 6583, 2: 2489, 3: 387, 4: 1}`, ZERO violations** (every length-≥3 filtration had ≤ 1
+non-semiexceptional factor — the Thm 1.13 shape), zero length-2 both-non-semiexceptional pairs (the
+§8 phenomenon starts at higher rank; the pins cover rank 13/15). The violation count is
+search-family-independent. A rank ≤ 13 sweep with the extended family is in flight; its ledger will
+be appended.
+
+*Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §1.5 (the conjecture), §8 (the family
+and the constructions), Ex. KroneckerF0/F1; Kuleshov–Orlov (fullness of maximal-length exceptional
+collections on del Pezzo surfaces). Package: `bridgeland_stability/block_kronecker.py`; tests in
+`tests/test_block_kronecker.py`; harness `scripts/e15_m3_sweep.py`.
+
+## 23. The Conjecture A-gated evaluator of δ_m^{μs} (E15-M4)
+
+**What shipped.** `bridgeland_stability/conjectural_delta.py`: `delta_conjectural(ν, m, surface)` —
+the "exact inductive computation of `δ_m^{μs}(ν)`" the paper promises under an affirmative §1.5
+conjecture, implemented CONDITIONALLY with the G5 provenance lattice carrying the conditionality:
+
+> `value = max(dlp_envelope part, thm-deltaKronecker over the twist/swap orbit)`
+
+using two exact reductions: `δ_m^{μs}` is **twist-invariant**, so the twisted-collection Kronecker
+values at `ν` are the untwisted E14-M2 formula at translated slopes `ν − L`; and on `F₀` the ruling
+swap carries `H_m` to the `H_{1/m}` ray, so the swapped-family values are the formula at
+`(σν, 1/m)`. The certificate is `PROVEN` exactly where the certified-sharp DLP part dominates (the
+anticanonical del Pezzo ray, `cor-deltaDLP`), else `CONJECTURAL` with both hypotheses named
+(Conjecture A; the searched orbit suffices).
+
+**Differential gates (pinned).** The §18 grid points reproduce the E14-M2 exact values through the
+Kronecker part (which strictly beats the DLP part there — the "Kronecker beats exceptional"
+phenomenon carried into the evaluator); the anticanonical anchors reproduce the sharp envelope with
+`PROVEN` rigor and NO Kronecker contribution above it (a Kronecker value above the proven sharp
+bound would falsify the formula or the machinery — asserted); the E14-M1 sandwich brackets the
+conjectural value; twist-invariance holds on shifted slopes.
+
+Suite: 607 → 617 items (5 + 5 new), 15 default-mode skips unchanged, 0 failures.
+
+*Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §1.5 (the promised computation),
+`thm-deltaKronecker`, `cor-deltaDLP`, `prop-DLPmonotone`. Package:
+`bridgeland_stability/conjectural_delta.py`; tests in `tests/test_conjectural_delta.py`.
+
