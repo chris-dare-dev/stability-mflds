@@ -1954,3 +1954,41 @@ Suite: 607 → 617 items (5 + 5 new), 15 default-mode skips unchanged, 0 failure
 `thm-deltaKronecker`, `cor-deltaDLP`, `prop-DLPmonotone`. Package:
 `bridgeland_stability/conjectural_delta.py`; tests in `tests/test_conjectural_delta.py`.
 
+## 24. Conjecture B verified through rank 130 up to the single character `v₁₀₇` (E15-M2)
+
+**The sweep** (`scripts/e15_m2_sweep.py`, ~36 h, COMPLETE 2026-07-18) — the paper's own §11
+methodology made executable and pushed past their boundary: enumerate the exceptional characters on
+the del Pezzo bases (one twist-normalized representative each; potentially exceptional +
+`μ_{−K}`-stable, i.e. the bundle exists — `cor-delPezzoExceptional`), compute each stability
+interval by the E14-M3 memoized induction, lift `k = 1, 2` reduction steps to `F₂`/`F₃`/`F₄`/`F₅`
+(`π⁻ᵏ`; the transported interval is empty iff `hi(I_W) ≤ k`), and dispatch each empty lift — a
+would-be counterexample IF an exceptional bundle of the lifted character exists — with the E15-M1
+battery's prioritary condition.
+
+**The ledger (pinned).**
+
+| quantity | count |
+|---|---|
+| del Pezzo exceptional characters, rank ≤ 130 | 587 |
+| empty lifts (would-be counterexamples on `F₂`–`F₅`) | 366 |
+| dispatched by `ρ_gen = 1` (no bundle exists — conjecture holds there) | 364 |
+| **survivors (`ρ_gen ≥ 2`)** | **2** |
+
+The two survivors are `(107, (76,25))` and `(107, (138,82))` on `F₃`, both with del Pezzo interval
+right-endpoint `13/23` — **the dual pair of characters** (`−(51,25) + 107·(1,1) = (56,82)` on the
+`F₁` base): `v₁₀₇` up to duality, and nothing else. NO survivor exists at any rank `< 107` — the
+paper's "first potential counterexample" claim is REPRODUCED by an independent battery — and none in
+`(107, 130]` either: **on the swept family, the §11 conjecture is verified through rank 130 except
+for the single (dual pair of) character(s) `v₁₀₇`, whose existence question is exactly E15-M1's open
+case (§21).**
+
+**Scope, stated precisely.** The swept family is the `π`-lifts of del Pezzo exceptional characters
+(ranks ≤ 130, `k ≤ 2`, i.e. `e ∈ {2,3,4,5}`). A hypothetical exceptional bundle on `F_e` whose
+`π`-reduction is not an exceptional character lies outside the family — the same implicit scope as
+the paper's computation. The rank-6 shakedown (159 characters, 100/100 dispatched) and the sweep
+logic's spot rows are pinned in `tests/test_e15_sweep.py`; the full ledger is this record.
+
+*Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §11 (the conjecture, the `F₄`
+example, `ex-stabilityIntervals`), `cor-delPezzoExceptional`, `cor-highermus`; §§19, 21 above.
+Harness: `scripts/e15_m2_sweep.py`; spot tests: `tests/test_e15_sweep.py`.
+
