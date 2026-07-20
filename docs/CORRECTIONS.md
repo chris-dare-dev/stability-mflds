@@ -1868,13 +1868,38 @@ is also why `hn_verdict` early-exits through `prop-ssPrior` there and the module
 un-refuted with `ρ_gen ∈ {2,3}`; a refutation on any of them would falsify the derivation. Invalid
 characters are refuted trivially; anchors `≥ 2` are refused (the regime guard).
 
-**Status of `v₁₀₇` at the time of this record: OPEN.** `ρ_gen = 2` (inconclusive); interval empty
-(§19); the rigid-factor computation — the generic HN factors of `v₁₀₇` at a chamber-generic sample
-near `m = 1` on `F₃` — was launched and had not completed within 3 CPU-hours (the §5 recursion at
-rank 107; memoized, memory-flat, genuinely wide). The battery accepts the character and will decide
-when a completed factor list exists; the outcome will be recorded as an addendum to this section
-with two-way evidence (and, if a refutation, an independent adversarial pass before any
-conjecture-level claim).
+**Status of `v₁₀₇`: OPEN — and the rigid-factor computation is INFEASIBLE at the current
+architecture (post-mortem, 2026-07-19).** `ρ_gen = 2` (inconclusive); interval empty (§19). The
+generic-HN factor computation at the chamber-generic sample near `m = 1` was killed after
+**67.4 CPU-hours with zero factor output**. The post-mortem — recorded in full because each finding
+shapes the eventual re-attempt (E15-M1b):
+
+* **The scaling law was knowable in advance.** Measured points: rank 15 ≈ 0.14 s, rank 30 ≈ 10³ s —
+  roughly ×10⁴ per rank doubling. Extrapolated to rank 107: 10¹⁵–10¹⁹ s. The launch proceeded on
+  "let's see" without this two-line arithmetic; the honest pre-launch verdict was "infeasible
+  without algorithmic change". (Process failure, not a mathematical one.)
+* **Telemetry.** Working set grew 55 → ~336 MB at ≈ 6 MB/CPU-h — a roughly CONSTANT sub-character
+  discovery rate (~10⁵–2·10⁵ characters decided at ~1 s each, no sign of convergence). Memo growth
+  proves aliveness, never progress fraction; the probe printed nothing before completion.
+* **Stack forensics (`py-spy`, three samples before the kill).** (a) The recursion sat **17 frames
+  deep** in alternating `_search_gr1` / `_decide` — the §5 tree is deep as well as wide; (b) 100% of
+  samples were inside `fractions.py` arithmetic under the `_two_chi` inner loop — the computation is
+  Fraction-bound; (c) the chamber-generic sample **forced denominators ≈ 7.3·10⁵**: the E14-M1 gap
+  `g = 1/(32·Ymax·r²·q)` at `r = 107` makes the chamber so narrow that every rational inside it has
+  height ≥ ~3.7·10⁵ (Stern–Brocot), inflating every χ/slope/q-key computation in the entire tree by
+  a large constant factor.
+* **Extracted directions for E15-M1b** (prerequisites for any re-attempt; do NOT re-run the probe
+  as-is): (i) a persistent cross-call memo for `generic_hn` — the same trick that took the §19
+  interval induction from minutes to seconds; (ii) frontier telemetry + an explicit CPU budget, and
+  emit `gr₁` the moment it is pinned (the rigid test needs ONE factor above the bound, not the whole
+  list); (iii) small-denominator sampling: run at a cheap `m` (say `1 + 1/512`) and certify
+  POST-HOC that no wall of the actually-relevant candidate set lies between — the worst-case gap is
+  wildly conservative; (iv) clear denominators once per character and run the χ inner loop over
+  integers (the E13-M4 K-theoretic form shows the pattern).
+
+Combined with §24: **the §11 conjecture is verified through rank 130 on the swept family except for
+the single open case `v₁₀₇`**, whose resolution now waits on E15-M1b (or a cheaper necessary
+condition), not on a longer wait.
 
 *Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) `prop-mukai` (Mukai/Gorodentsev — any
 smooth surface), `thm-rigidSplit` (Kuleshov–Orlov — del Pezzo ONLY, noted), `lem-simple`,

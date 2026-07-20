@@ -10,11 +10,17 @@ with the Sec. 24 sweep, would verify the Sec. 11 conjecture through rank 130
 outright).  A length-one filtration also refutes (prime slope denominator +
 empty stability interval).  All factors passing is honestly INCONCLUSIVE.
 
-WARNING: the Sec. 5 recursion at rank 107 is enormous -- a 2026-07 run
-exceeded 66 CPU-hours (memoized, memory-flat ~300 MB, genuinely wide).  Run
-detached and be patient; the result decides E15-M1 either way.
+DO NOT RE-RUN AS-IS.  The 2026-07 attempt was killed after 67.4 CPU-hours
+with zero output; the post-mortem (CORRECTIONS Sec. 21) measured a ~x10^4
+per-rank-doubling scaling law (rank-107 extrapolation: 10^15..10^19 s), a
+17-frame-deep Fraction-bound recursion, and a large constant-factor penalty
+from the chamber-generic sample's forced ~7.3e5 denominators.  Re-attempting
+requires the E15-M1b rework recorded there: a persistent cross-call memo,
+frontier telemetry + an explicit CPU budget, gr_1-early-emit, and
+small-denominator sampling with post-hoc wall certification.  This script is
+kept as the exact statement of the target computation and its decision rule.
 
-Usage:  python scripts/e15_m1_v107_probe.py
+Usage (after the M1b rework only):  python scripts/e15_m1_v107_probe.py
 """
 
 import sys
