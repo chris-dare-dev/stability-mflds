@@ -1901,6 +1901,34 @@ Combined with §24: **the §11 conjecture is verified through rank 130 on the sw
 the single open case `v₁₀₇`**, whose resolution now waits on E15-M1b (or a cheaper necessary
 condition), not on a longer wait.
 
+**E15-M1b addendum (2026-07-19): the optimizations landed; the target remains out of reach — the
+obstacle is intrinsic, now measured.** Shipped (differential-green on the whole suite): (i) the χ
+inner loop runs over pure `int` (`_twice`: half-integer `ch₂` enters as twice-ch₂; no Fraction on
+the hot path); (ii) the `generic_hn` caches persist across calls keyed by `(e, H)` (the §19 trick;
+`PARANOID_UNIQUENESS` bypasses the persistent store so the tripwire still recomputes); (iii) a
+progress hook (`set_progress`) streams per-character `decide` events with the memo count — the
+telemetry requirement made structural. Measured on the fixed configuration `F₃`, `m = 1`
+(denominator 1), cold cache, potentially-exceptional targets:
+
+> rank 8: 0.02 s · rank 13: 0.02 s · rank 21: 0.10 s · rank 34: 1.66 s · **rank 55: > 925 s
+> (killed at the budget)**
+
+The 34 → 55 step is a ≥ ×557 growth over 21 ranks — super-exponential in this regime — giving a
+rank-107 **lower bound of ~190 years** through the §5 recursion in any constant-factor-engineered
+form. Separately quantified: the tall-denominator penalty of the worst-case chamber sample is
+**~10³×** (the E14 rank-30 benchmark at `q ≈ 5·10⁵` runs 3,799 s post-M1b vs 1.66 s for rank 34 at
+`q = 1`) — so E14-M1's `mu_stable_exists` at high rank should also move to small-denominator
+samples with post-hoc wall certification (recorded direction, not yet implemented). Conclusion:
+`v₁₀₇` is closed to brute force; the viable directions are **algorithmic** — (a) envelope-assisted
+pruning inside the `w₁` search (decide condition (5) sub-characters by the PROVEN
+`emptiness_bound`/envelope branches before recursing — `hn_verdict` has these early exits,
+`generic_hn` does not); (b) a `gr₁`-restricted argument that avoids full sub-filtrations; (c) a
+mathematically cheaper necessary condition on `v₁₀₇` itself (the generic-`D`-prioritary family of
+`prop-excPrior`(1) beyond the `H_n` ray).
+
+*Files:* `bridgeland_stability/generic_hn.py` (`_twice`, `_two_chi`, `chi`, `_PERSISTENT_CACHES`,
+`set_progress`); the scaling ledger above.
+
 *Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) `prop-mukai` (Mukai/Gorodentsev — any
 smooth surface), `thm-rigidSplit` (Kuleshov–Orlov — del Pezzo ONLY, noted), `lem-simple`,
 `prop-excPrior`, `cor-prioritaryRho`, `prop-ssPrior`, the §1.4 remark (the filtration below the

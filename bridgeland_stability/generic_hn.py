@@ -126,6 +126,25 @@ _CH = "arXiv:1907.06739"
 # --------------------------------------------------------------------------
 # Exact per-surface context.
 # --------------------------------------------------------------------------
+#: E15-M1b: cross-call persistent caches, keyed by (e, H_a, H_b) -- see _Ctx.
+_PERSISTENT_CACHES: Dict[tuple, tuple] = {}
+
+#: E15-M1b: optional progress hook for long computations (the 67-CPU-hour
+#: post-mortem's telemetry requirement).  Set via :func:`set_progress`; called
+#: as ``fn(event, depth, payload)`` with events ``"decide"`` (a character's
+#: filtration was computed, payload = (character, length-or-None)) and
+#: ``"gr1"`` (the TOP-LEVEL first factor was pinned, payload = the factor) --
+#: the rigid-factor test (CORRECTIONS Sec. 21) needs only gr_1, so a caller
+#: can act the moment it fires.  The hook must be cheap; rate-limit inside it.
+_PROGRESS = None
+
+
+def set_progress(fn) -> None:
+    """Install (or clear, with ``None``) the module progress hook."""
+    global _PROGRESS
+    _PROGRESS = fn
+
+
 class _Ctx:
     """Precomputed exact data for one (surface, H) pair: ``e``, ``m``, ``H_m = H/b``."""
 
@@ -141,10 +160,24 @@ class _Ctx:
         self.m = Fraction(a, b) - self.e             # H = b * H_m, m in Q_{>0}
         self.n = ceil(self.m)                        # the prioritary index ceil(m) >= 1
         self.lat = surface.lattice
-        self.cache: Dict[Character, Optional[Tuple[Character, ...]]] = {}
-        self._qcache: Dict[Character, Tuple[Fraction, Fraction]] = {}
-        self._mucache: Dict[Character, Fraction] = {}
-        self._priocache: Dict[Character, bool] = {}
+        # E15-M1b: the caches PERSIST across calls, keyed by the exact (e, H)
+        # pair -- the results are pure functions of (surface family, H,
+        # character), and the Sec. 5 recursion revisits the same sub-characters
+        # across calls (the Sec. 19 memoized-induction lesson).  Unbounded by
+        # design; a long-running sweep that must bound memory can clear
+        # _PERSISTENT_CACHES explicitly.
+        # PARANOID_UNIQUENESS must see fresh caches: the tripwire's value is in
+        # RECOMPUTING with the full-sweep assertions on, which a warm persistent
+        # cache would silently skip.
+        if PARANOID_UNIQUENESS:
+            store = ({}, {}, {}, {})
+        else:
+            key = (self.e, surface.H[0], surface.H[1])
+            store = _PERSISTENT_CACHES.setdefault(key, ({}, {}, {}, {}))
+        self.cache: Dict[Character, Optional[Tuple[Character, ...]]] = store[0]
+        self._qcache: Dict[Character, Tuple[Fraction, Fraction]] = store[1]
+        self._mucache: Dict[Character, Fraction] = store[2]
+        self._priocache: Dict[Character, bool] = store[3]
 
     # -- exact numerical invariants of a character -------------------------
     def nu(self, w: Character) -> Tuple[Fraction, Fraction]:
@@ -197,14 +230,19 @@ class _Ctx:
         + (rA ch2B + rB ch2A - <c1A, c1B>)`` expands (in doubled units, all
         integers) to the closed form below.  Pinned against the package
         :func:`bridgeland_stability.exceptional_surface.chi` in the tests.
+
+        E15-M1b: the whole computation runs over ``int`` (the ch2 components,
+        half-integers with denominator 1 or 2, enter as twice-ch2 integers) --
+        the 67-CPU-hour post-mortem (CORRECTIONS Sec. 21) sampled 100% of the
+        runtime in Fraction arithmetic under this pairing.
         """
         rA, c1A, chA = w1
         rB, c1B, chB = w2
         two_chi = _two_chi(self.e, rA, c1A, chA, rB, c1B, chB)
-        val = Fraction(two_chi, 2)              # chA/chB are half-integers: exact
-        if val.denominator != 1:
-            raise ValueError(f"chi({w1!r}, {w2!r}) = {val} is not integral")
-        return int(val)
+        if two_chi & 1:
+            raise ValueError(
+                f"chi({w1!r}, {w2!r}) = {two_chi}/2 is not integral")
+        return two_chi >> 1
 
     def c2(self, w: Character) -> Fraction:
         _, (x, y), ch2 = w
@@ -239,13 +277,27 @@ class _Ctx:
         return ok
 
 
+def _twice(ch2) -> int:
+    """``2 * ch2`` as a pure ``int`` for the half-integer ``ch2`` of an integral
+    character (denominator 1 or 2) -- no Fraction arithmetic on the hot path."""
+    if isinstance(ch2, int):
+        return 2 * ch2
+    d = ch2.denominator
+    if d == 1:
+        return 2 * ch2.numerator
+    if d == 2:
+        return ch2.numerator
+    raise ValueError(f"ch2 = {ch2!r} is not a half-integer")
+
+
 def _two_chi(e, rA, c1A, chA, rB, c1B, chB):
     """``2 * chi(A, B)`` on ``F_e`` in doubled integer-friendly units.
 
     RR with ``chi(O) = 1``, ``K = (-(e+2), -2)``, Gram ``[[0,1],[1,-e]]``:
     ``chi(A,B) = rA rB - <rA c1B - rB c1A, K>/2 + rA ch2B + rB ch2A - <c1A, c1B>``
     where ``<D, K> = -2 D0 + (e-2) D1`` and
-    ``<c1A, c1B> = xA yB + yA xB - e yA yB``.
+    ``<c1A, c1B> = xA yB + yA xB - e yA yB``.  All-int (E15-M1b): the ch2
+    terms enter as ``rA * (2 ch2B) + rB * (2 ch2A)`` via :func:`_twice`.
     """
     xA, yA = c1A
     xB, yB = c1B
@@ -253,7 +305,7 @@ def _two_chi(e, rA, c1A, chA, rB, c1B, chB):
     d1 = rA * yB - rB * yA
     return (2 * rA * rB
             - (-2 * d0 + (e - 2) * d1)
-            + 2 * rA * chB + 2 * rB * chA
+            + rA * _twice(chB) + rB * _twice(chA)
             - 2 * (xA * yB + yA * xB - e * yA * yB))
 
 
@@ -275,6 +327,8 @@ def _decide(ctx: _Ctx, v: Character) -> Optional[Tuple[Character, ...]]:
         found = _search_gr1(ctx, v)
         result = found if found is not None else (v,)
     ctx.cache[v] = result
+    if _PROGRESS is not None:
+        _PROGRESS("decide", len(ctx.cache), (v, None if result is None else len(result)))
     return result
 
 
