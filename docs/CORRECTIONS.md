@@ -1929,6 +1929,22 @@ mathematically cheaper necessary condition on `v₁₀₇` itself (the generic-`
 *Files:* `bridgeland_stability/generic_hn.py` (`_twice`, `_two_chi`, `chi`, `_PERSISTENT_CACHES`,
 `set_progress`); the scaling ledger above.
 
+**E15-M1c addendum (2026-07-19): the envelope-assisted pruning landed — and direction (a) is now
+MEASURED insufficient.** `_ss_exists` replaces the condition-(5) recursion of `cor-algorithm` with
+the boolean it actually consumes, answered where possible by two PROVEN deciders before recursing:
+`is_semiexceptional` ⟹ nonempty (caching `(w,)`, which is exactly what `_decide` returns there —
+the cache stays truthful) and `discriminant < emptiness_bound` ⟹ empty (nothing cached — the
+factors were not computed). Differential-green on every consumer; a sound general win for
+shortcut-heavy sweeps. **But the budget-enforced ladder (fresh process per rank, `F₃`, `m = 1`)
+still reads: rank 8/13/21/34 = 0.53/0.25/1.05/9.43 s and rank 55 KILLED at the 900 s budget** —
+statistically indistinguishable from the pre-shortcut wall. Diagnosis: condition (5) was one of two
+doors into the recursion; the dominant one is `_check_tail`'s `_decide(u)`, which is IRREDUCIBLE
+under the algorithm's output semantics — conditions (2)(3)(4) consume all of `u`'s factors (the
+q-key of the first, the slope of the last, χ against every one), so even `gr₁` alone forces full
+sub-filtrations recursively. The rank-107 wall is intrinsic to computing §5 filtrations, not to any
+single condition. `v₁₀₇` remains OPEN; the surviving directions are (b) a genuinely different
+high-rank decision algorithm and (c) new necessary conditions off the `H_n` ray (§21 above).
+
 *Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) `prop-mukai` (Mukai/Gorodentsev — any
 smooth surface), `thm-rigidSplit` (Kuleshov–Orlov — del Pezzo ONLY, noted), `lem-simple`,
 `prop-excPrior`, `cor-prioritaryRho`, `prop-ssPrior`, the §1.4 remark (the filtration below the

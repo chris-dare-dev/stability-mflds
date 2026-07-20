@@ -104,7 +104,14 @@ from fractions import Fraction
 from math import ceil, floor
 from typing import Dict, Optional, Sequence, Tuple, Union
 
-from .dlp_hirzebruch import hirzebruch_index, is_ample
+from .dlp_hirzebruch import (
+    discriminant,
+    emptiness_bound,
+    hirzebruch_index,
+    is_ample,
+    is_semiexceptional,
+)
+from .exceptional_surface import SurfaceBundle
 from .nonemptiness_rational import validate_character
 from .prioritary import delta_prioritary
 from .varieties import Surface
@@ -451,9 +458,9 @@ def _search_gr1(ctx: _Ctx, v: Character) -> Optional[Tuple[Character, ...]]:
                     # cheap first: (1)'s prioritary formula for u
                     if not ctx.prioritary_nonempty(u):
                         continue
-                    # (5) M_{H_m}(w_1) nonempty  [rank r1 < r: induction]
-                    fw1 = _decide(ctx, w1)
-                    if fw1 is None or len(fw1) != 1:
+                    # (5) M_{H_m}(w_1) nonempty  [rank r1 < r: induction, with
+                    # the E15-M1c PROVEN envelope shortcuts before recursing]
+                    if not _ss_exists(ctx, w1):
                         continue
                     passed = _check_tail(ctx, w1, u)
                     if passed is not None:
@@ -474,6 +481,50 @@ def _search_gr1(ctx: _Ctx, v: Character) -> Optional[Tuple[Character, ...]]:
                 f"cor-algorithm uniqueness violated for v={v!r}: {first!r} vs {other!r} "
                 "(two distinct maximal destabilizing characters passed the iff)")
     return first
+
+
+_MISS = object()
+
+
+def _ss_exists(ctx: _Ctx, w: Character) -> bool:
+    """The condition-(5) boolean: is ``M_{H_m}(w)`` nonempty (Sec. 1.6: the
+    generic filtration has length one)?
+
+    E15-M1c: the ``w_1``-validation of ``cor-algorithm`` consumes ONLY this
+    boolean, yet the plain recursion computes the full sub-filtration -- the
+    measured super-exponential wall of CORRECTIONS Sec. 21.  Two PROVEN
+    envelope-side deciders answer many candidates in O(1) after per-surface
+    cache warmup:
+
+    * ``is_semiexceptional`` -- ``V^{+k}`` of a mu_H-stable exceptional ``V``
+      is Gieseker-semistable (the E12-M3 disjunct), so ``M`` is NONEMPTY and
+      the generic filtration is length one; caching ``(w,)`` is exactly what
+      ``_decide`` would return, so the cache stays truthful;
+    * ``discriminant < emptiness_bound`` -- a certified lower bound on the
+      discriminant of EVERY Gieseker-semistable sheaf of that slope (only the
+      theorem-backed branches; any ample ``F_e``), so ``M`` is EMPTY.  The
+      factor list is NOT computed on this path, so nothing is cached.
+
+    Everything else falls through to the full recursion, bit-identically.
+    """
+    cached = ctx.cache.get(w, _MISS)
+    if cached is not _MISS:
+        return cached is not None and len(cached) == 1
+    r, c1, ch2 = w
+    if r == 1:
+        return ctx.c2(w) >= 0
+    xi = SurfaceBundle(r, c1, ch2)
+    if is_semiexceptional(xi, ctx.surface):
+        ctx.cache[w] = (w,)                       # truthful: length-one filtration
+        if _PROGRESS is not None:
+            _PROGRESS("shortcut", len(ctx.cache), (w, "semiexceptional"))
+        return True
+    if discriminant(xi, ctx.surface) < emptiness_bound(xi, ctx.surface):
+        if _PROGRESS is not None:
+            _PROGRESS("shortcut", len(ctx.cache), (w, "emptiness_bound"))
+        return False                              # factors unknown: never cached
+    fw = _decide(ctx, w)
+    return fw is not None and len(fw) == 1
 
 
 def _check_tail(ctx: _Ctx, w1: Character, u: Character) -> Optional[Tuple[Character, ...]]:
