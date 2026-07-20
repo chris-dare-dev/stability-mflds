@@ -66,6 +66,32 @@ def test_invalid_character_is_trivially_refuted():
     assert "not potentially exceptional" in res.reason
 
 
+def test_chi_box_shape_and_v107_values():
+    # E15-M1d: the box on F_e has (e+3)*3 - 2 divisors; on v_107 every value
+    # is deeply negative (pinned spot values) -- the family does NOT refute
+    # the candidate, recorded as such.
+    from bridgeland_stability.exceptional_existence import chi_box_conditions
+    rows = chi_box_conditions(107, (76, 25), F3)
+    assert len(rows) == 6 * 3 - 2
+    vals = dict(rows)
+    assert vals[(0, 1)] == -11448                 # = chi(v,v) - r^2
+    assert vals[(0, 2)] == -57244
+    assert vals[(4, 2)] == -11448
+    assert all(x <= 0 for x in vals.values())
+
+
+def test_chi_box_controls_and_the_f4_weakness_record():
+    # Existing bundles satisfy every box condition (soundness); the F_4
+    # example ALSO satisfies them all -- the chi-box is strictly weaker than
+    # rho_gen on every known refutation case, and ships as a battery widener
+    # only (the honest track record, CORRECTIONS Sec. 21).
+    from bridgeland_stability.exceptional_existence import chi_box_conditions
+    for surf, rr, cc in ((F1, 2, (1, 1)), (F1, 11, (5, 3)),
+                         (F0, 3, (1, 1)), (F0, 11, (4, 4))):
+        assert all(x <= 0 for (_, x) in chi_box_conditions(rr, cc, surf))
+    assert all(x <= 0 for (_, x) in chi_box_conditions(3, (3, 1), F4))
+
+
 def test_anchor_regime_guard():
     # The rigid-factor sampling is only justified where ceil(m) <= 2
     # (lem-simple gives H_1/H_2-prioritariness of a hypothetical V; beyond

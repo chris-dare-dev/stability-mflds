@@ -133,6 +133,7 @@ from .stability_interval import (
 )
 from .exceptional_existence import (
     ExceptionalRefutation,
+    chi_box_conditions,
     exceptional_refutation,
 )
 from .block_kronecker import (
@@ -307,6 +308,7 @@ __all__ = [
     "stability_interval",
     # E15-M1 / G18+: existence obstructions for exceptional bundles
     "ExceptionalRefutation",
+    "chi_box_conditions",
     "exceptional_refutation",
     # E15-M3 / G18+: the Conjecture A falsification harness
     "BlockWitness",

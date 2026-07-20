@@ -1945,6 +1945,26 @@ sub-filtrations recursively. The rank-107 wall is intrinsic to computing §5 fil
 single condition. `v₁₀₇` remains OPEN; the surviving directions are (b) a genuinely different
 high-rank decision algorithm and (c) new necessary conditions off the `H_n` ray (§21 above).
 
+**E15-M1d addendum (2026-07-20): the simple-prioritary χ-box — direction (c)'s cheap arm, executed;
+`v₁₀₇` passes it.** New PROVEN necessary-condition family (`chi_box_conditions`, now Condition 0 of
+the battery): for effective nontrivial `D` with `−(K+D)` effective nontrivial, a simple `V` has
+`Hom(V, V(−D)) = 0` (a nonzero map composed with the section injection `V(−D) ↪ V` would be a
+non-scalar endomorphism) AND `Ext²(V, V(−D)) = Hom(V, V(K+D))* = 0` (`lem-simple` verbatim), so
+`χ(v, v(−D)) = −ext¹ ≤ 0` — one integer RR inequality per divisor of the finite box (`(e+3)·3 − 2`
+conditions; 16 on `F₃`), including the `s`-coefficient-2 divisors no `H_n`-ray condition sees.
+**Results:** the four §21 controls pass all conditions (soundness); **`v₁₀₇` passes 16/16, every
+value deeply negative** (spot pins: `χ(v, v(−D)) = −11448 = χ(v,v) − r²` at `D = (0,1)`; `−57244`
+at `(0,2)`) — no refutation; and the `F₄` example ALSO passes 16/16 — **the family is strictly
+weaker than the `ρ_gen` route on every known refutation case** and ships as a near-free battery
+widener, not as a decided improvement. **The remaining substance of direction (c)** is the
+generic-sheaf arm: a §4-style computable criterion (Gaeta-resolution cohomology) for
+`D`-prioritariness of the GENERAL sheaf at the `s`-coefficient-2 divisors — genuinely novel
+mathematics beyond the paper (their `δ^p` theory is `H_n`-only), estimated multi-week with
+uncertain success; it needs its own spec + go-ahead.
+
+*Files:* `bridgeland_stability/exceptional_existence.py` (`chi_box_conditions`, Condition 0);
+tests in `tests/test_exceptional_existence.py`.
+
 *Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) `prop-mukai` (Mukai/Gorodentsev — any
 smooth surface), `thm-rigidSplit` (Kuleshov–Orlov — del Pezzo ONLY, noted), `lem-simple`,
 `prop-excPrior`, `cor-prioritaryRho`, `prop-ssPrior`, the §1.4 remark (the filtration below the

@@ -55,7 +55,7 @@ from typing import Optional, Sequence, Tuple
 
 from .chern import Number
 from .varieties import Surface
-from .exceptional_surface import SurfaceBundle
+from .exceptional_surface import SurfaceBundle, chi
 from .dlp_hirzebruch import (
     discriminant,
     hirzebruch_index,
@@ -67,7 +67,7 @@ from .prioritary import generic_prioritary_index
 from .rigor import Certificate, Rigor
 from .stability_interval import stability_interval
 
-__all__ = ["ExceptionalRefutation", "exceptional_refutation"]
+__all__ = ["ExceptionalRefutation", "chi_box_conditions", "exceptional_refutation"]
 
 _HALF = Fraction(1, 2)
 
@@ -103,6 +103,48 @@ class ExceptionalRefutation:
     c1: Tuple[int, int]
     e: int
     certificate: Certificate
+
+
+def chi_box_conditions(r: int, c1: Sequence[int], surface: Surface
+                       ) -> Tuple[Tuple[Tuple[int, int], int], ...]:
+    """E15-M1d: the simple-prioritary χ-box — a family of PROVEN necessary
+    conditions for the existence of an exceptional bundle of character
+    ``(r, c1)``, one per divisor ``D`` in the finite box
+
+        D effective nontrivial,  -(K + D) effective nontrivial.
+
+    For such ``D`` and an exceptional (hence simple) ``V``:
+    ``Hom(V, V(-D)) = 0`` (a nonzero map composed with the section injection
+    ``V(-D) -> V`` would be a non-scalar endomorphism) and
+    ``Ext^2(V, V(-D)) = Hom(V, V(K+D))* = 0`` (``lem-simple`` verbatim), so
+
+        chi(v, v(-D)) = -ext^1(V, V(-D)) <= 0.
+
+    Returns ``((D, chi), ...)`` for every box divisor; any ``chi > 0`` REFUTES
+    existence.  Pure integer Riemann-Roch through the package ``chi`` — no
+    recursion, no polarization.  NOTE the honest track record (CORRECTIONS
+    Sec. 21): on every refutation case known so far (the paper's F_4 example)
+    and on ``v_107`` itself, all box values are <= 0 — the family is strictly
+    weaker than the ``rho_gen`` route on those, and ships as a cheap widener
+    of the battery, not as a decided improvement.
+    """
+    e = hirzebruch_index(surface)
+    lat = surface.lattice
+    nu = tuple(Fraction(x, r) for x in c1)
+    delta = _HALF * (1 - Fraction(1, r * r))
+    ch2 = r * (_HALF * lat.self_pairing(nu) - delta)
+    v = SurfaceBundle(r, tuple(c1), ch2)
+    kf, ks = e + 2, 2                            # -K = (e+2, 2) in (f, s)
+    rows = []
+    for df in range(kf + 1):
+        for ds in range(ks + 1):
+            if (df, ds) in ((0, 0), (kf, ks)):
+                continue
+            D = (df, ds)
+            c1t = (c1[0] - r * df, c1[1] - r * ds)
+            ch2t = ch2 - lat.pairing(tuple(c1), D) + r * _HALF * lat.self_pairing(D)
+            rows.append((D, chi(v, SurfaceBundle(r, c1t, ch2t), surface)))
+    return tuple(rows)
 
 
 def exceptional_refutation(r: int, c1: Sequence[Number], surface: Surface,
@@ -142,6 +184,15 @@ def exceptional_refutation(r: int, c1: Sequence[Number], surface: Surface,
     # forced exceptional discriminant and the exact round-trip slope
     nu = (Fraction(c1_i[0], r), Fraction(c1_i[1], r))
     delta = _HALF * (1 - Fraction(1, r * r))
+
+    # Condition 0 (E15-M1d, cheapest first): the simple-prioritary chi-box.
+    for (D, x) in chi_box_conditions(r, c1_i, surface):
+        if x > 0:
+            return ExceptionalRefutation(
+                True, f"chi(v, v(-D)) = {x} > 0 at D = {D}: a simple bundle has "
+                      "hom = ext^2 = 0 there (lem-simple both ways), forcing "
+                      "chi <= 0",
+                0, False, (), r, c1_i, e, _cert("refuted by the chi-box (M1d)"))
 
     # Condition 1: the prioritary index (the paper's F_4 route).
     rho = generic_prioritary_index(nu, delta, surface)
