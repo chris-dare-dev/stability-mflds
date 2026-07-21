@@ -1965,6 +1965,47 @@ uncertain success; it needs its own spec + go-ahead.
 *Files:* `bridgeland_stability/exceptional_existence.py` (`chi_box_conditions`, Condition 0);
 tests in `tests/test_exceptional_existence.py`.
 
+**E15-M1e addendum (2026-07-21): the Gaeta arm executed — thm-BN + the star inequality; `v₁₀₇`
+survives a fifth family.** Two new theorem-backed tools:
+
+* **`general_betti` (thm-BN made executable)** — the exact Betti numbers `(h⁰, h¹, h²)` of the
+  GENERAL `F`-prioritary sheaf of any integral character (CoskunHuizengaBN Thm 3.1 as quoted in the
+  paper): the `ν·F` thresholds, the at-most-one-nonzero-group range `ν·E ≥ −1`, the `−E`-twist
+  recursion (terminating on every `F_e` since each step lowers `ν·F` by 1), Serre duality for
+  `ν·F < −1`. Pinned on line bundles.
+* **`gaeta_star_conditions` (the star inequality, battery Condition 0.5)** — apply
+  `Hom(−, V(−D'))` to the `L₀`-Gaeta resolution (`prop-Gaeta`; `α ≥ 0` automatic for `e ≥ 2`, and
+  tripwired via the rank identity `−α+β+γ+δ = r`): if the general `V` is `D'`-prioritary then
+  `Ext³ = 0` + exactness force `β·h² + γ·h² + δ·h² ≤ α·h²` over the four resolution twists — every
+  term a `general_betti` value (a twist of a general sheaf is general: twisting is an isomorphism
+  of the irreducible stack). `LHS > RHS` at a box divisor (`−(K+D')` effective nontrivial) refutes
+  an exceptional bundle of the character (`prop-excPrior`). This sees the `s`-coefficient-2
+  divisors, where the `thm-prioritaryNecessary` mechanism itself breaks (the α-term `H²` no longer
+  vanishes — `ν·F = ε−⌈ε⌉+1−x ≤ −1` at `x = 2` — which is exactly why the paper's `χ ≤ 0` form is
+  `H_n`-only and the DIMENSION form is needed).
+
+**Cross-validation (the load-bearing evidence).** For `v₁₀₇`: `L₀ = E`, exponents
+`(α,β,γ,δ) = (329, 411, 7, 18)` (rank identity ✓); the star HOLDS at `H₂ = (5,1)` and is VIOLATED
+at `H₃` (`δ`-term Betti number 81 ⟹ LHS = 1458 > 0) — **independently reproducing
+`ρ_gen(v₁₀₇) = 2`** through Gaeta + thm-BN vs `cor-prioritaryRho`. The battery order now puts the
+star first, and it **independently refutes the paper's `F₄` example** (violation `((6,1), 2, 0)` =
+`H₂` on `F₄` — agreeing with `ρ_gen = 1`). All three existing-bundle controls pass every box row.
+
+**The verdict on `v₁₀₇`: passes all 16 box rows** — every `s`-coefficient-2 row is `(0, 0)` (all
+relevant twists have `h² = 0`; no obstruction lives in the `h²` corridor). Direction (c) is now
+executed to its computable end. `v₁₀₇` has survived **five** independent necessary-condition
+families (`ρ_gen`; the rigid-factor computation at three engineering levels — infeasible, not
+failed; the χ-box; the Gaeta star). The honest reading: the accumulated evidence is consistent
+with `v₁₀₇` genuinely carrying an exceptional bundle — i.e., BEING a counterexample to the §11
+conjecture — and settling that now requires the CONSTRUCTION side (does the bundle exist? e.g.
+transporting the extant `F₁` bundle up the reduction, where the paper's `F₄` example shows the
+obstruction is real but `v₁₀₇`'s survivals show none of the known obstructions fire). That is a
+new kind of question — existence, not obstruction — for a successor spec.
+
+*Files:* `bridgeland_stability/prioritary.py` (`general_betti`),
+`bridgeland_stability/exceptional_existence.py` (`gaeta_star_conditions`, Condition 0.5); tests in
+`tests/test_exceptional_existence.py`.
+
 *Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) `prop-mukai` (Mukai/Gorodentsev — any
 smooth surface), `thm-rigidSplit` (Kuleshov–Orlov — del Pezzo ONLY, noted), `lem-simple`,
 `prop-excPrior`, `cor-prioritaryRho`, `prop-ssPrior`, the §1.4 remark (the filtration below the

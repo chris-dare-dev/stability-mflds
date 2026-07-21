@@ -24,15 +24,17 @@ F3 = hirzebruch(3)
 F4 = hirzebruch(4)
 
 
-def test_f4_example_refuted_by_the_prioritary_index():
-    # The paper's own dispatch of (3, 1/3 E + F, 4/9) on F_4: rho_gen = 1 < 2
-    # (an exceptional bundle is simple, hence H_2-prioritary by lem-simple, and
-    # rigid, hence generic in the irreducible stack -- prop-excPrior /
-    # cor-prioritaryRho).
+def test_f4_example_refuted_by_the_battery():
+    # The paper's own dispatch of (3, 1/3 E + F, 4/9) on F_4.  Since E15-M1e
+    # the battery's FIRST firing condition is the Gaeta star (at D' = (6,1) =
+    # H_2 on F_4 -- independently reproducing rho_gen = 1 < 2, which
+    # test_rho_gen_probes still pins directly); the verdict is unchanged.
     res = exceptional_refutation(3, (3, 1), F4)
     assert res.refuted is True
-    assert res.rho_gen == 1
-    assert "rho_gen = 1" in res.reason
+    assert "Gaeta star" in res.reason
+    from bridgeland_stability.exceptional_existence import gaeta_star_conditions
+    assert [(D, l, r) for (D, l, r) in gaeta_star_conditions(3, (3, 1), F4)
+            if l > r] == [((6, 1), 2, 0)]
 
 
 def test_rho_gen_probes_pin_the_spec_findings():
@@ -90,6 +92,59 @@ def test_chi_box_controls_and_the_f4_weakness_record():
                          (F0, 3, (1, 1)), (F0, 11, (4, 4))):
         assert all(x <= 0 for (_, x) in chi_box_conditions(rr, cc, surf))
     assert all(x <= 0 for (_, x) in chi_box_conditions(3, (3, 1), F4))
+
+
+def test_general_betti_pins():
+    # thm-BN on hand-checkable line-bundle characters (F_3): h0(O) = 1;
+    # h0(O(F)) = 2 (fiber sections); h2(O(K)) = 1 by Serre duality.
+    from bridgeland_stability.prioritary import general_betti
+    lat = F3.lattice
+    assert general_betti(1, (0, 0), F(0), F3) == (1, 0, 0)
+    assert general_betti(1, (1, 0), F(0), F3) == (2, 0, 0)
+    K = (-5, -2)
+    chK = F(1, 2) * lat.self_pairing(K)
+    h = general_betti(1, K, chK, F3)
+    assert h[2] == 1 and h[0] == 0
+
+
+def test_gaeta_star_machinery_cross_validates_rho_gen():
+    # E15-M1e: the Gaeta exponents of v_107 are (329, 411, 7, 18) with the
+    # rank identity -329+411+7+18 = 107; the H_2 box row holds (the general
+    # sheaf IS H_2-prioritary, rho_gen = 2), and the H_3 delta-term Betti
+    # number is 81 -- giving LHS = 18*81 = 1458 > 0, i.e. the star inequality
+    # VIOLATED at H_3, independently reproducing rho_gen(v_107) = 2 through
+    # thm-BN + prop-Gaeta (vs cor-prioritaryRho).  H_3 is outside the
+    # refutation box (-(K+H_3) is not effective), so it appears here as a
+    # machinery differential only.
+    from bridgeland_stability.exceptional_existence import gaeta_star_conditions
+    from bridgeland_stability.prioritary import general_betti
+    rows = dict(((D, (l, r)) for (D, l, r) in
+                 ((D, l, r) for (D, l, r) in gaeta_star_conditions(107, (76, 25), F3))))
+    assert len(rows) == 16
+    assert rows[(5, 1)] == (0, 0)                 # H_2: holds
+    # the H_3 delta-twist character: v(-L0 - (6,1)) with L0 = (0,1) pkg
+    lat = F3.lattice
+    r, c1 = 107, (76, 25)
+    delta = F(1, 2) * (1 - F(1, r * r))
+    nu = (F(76, 107), F(25, 107))
+    ch2 = r * (F(1, 2) * lat.self_pairing(nu) - delta)
+    D = (-0 - 6, -1 - 1)                          # -L0 - H_3
+    c1t = (c1[0] + r * D[0], c1[1] + r * D[1])
+    ch2t = ch2 + lat.pairing(c1, D) + r * F(1, 2) * lat.self_pairing(D)
+    assert general_betti(r, c1t, ch2t, F3)[2] == 81
+
+
+def test_gaeta_star_v107_and_controls():
+    # v_107 passes the star inequality at ALL 16 box divisors (every relevant
+    # twist has h^2 = 0 -- the fifth independent attack family it survives);
+    # the existing-bundle controls pass everywhere (soundness: their general
+    # sheaves ARE the bundles, D-prioritary throughout the box).
+    from bridgeland_stability.exceptional_existence import gaeta_star_conditions
+    rows = gaeta_star_conditions(107, (76, 25), F3)
+    assert all(l <= r for (_, l, r) in rows)
+    assert all((l, r) == (0, 0) for (D, l, r) in rows if D[1] == 2)
+    for surf, rr, cc in ((F1, 11, (5, 3)), (F0, 11, (4, 4)), (F1, 2, (1, 1))):
+        assert all(l <= r for (_, l, r) in gaeta_star_conditions(rr, cc, surf))
 
 
 def test_anchor_regime_guard():

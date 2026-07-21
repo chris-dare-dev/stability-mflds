@@ -294,6 +294,68 @@ def generic_prioritary_index(nu: Sequence[Number], Delta: Number, surface: Surfa
     return int(math.floor(val))
 
 
+def general_betti(r: int, c1: Sequence[Number], ch2: Number,
+                  surface: Surface) -> Tuple[int, int, int]:
+    """``(h^0, h^1, h^2)`` of the GENERAL ``F``-prioritary sheaf of the integral
+    character ``(r, c1, ch2)`` with ``Delta >= 0`` — arXiv:1907.06739 Thm "BN"
+    (= CoskunHuizengaBN Thm 3.1), implemented as stated (E15-M1e):
+
+    * ``nu.F = -1``: ``(0, -chi, 0)``;
+    * ``nu.F > -1``: ``h^2 = 0``; if ``nu.E >= -1`` at most one nonzero group
+      (``h^0 = max(chi, 0)``, ``h^1 = max(-chi, 0)``); else
+      ``h^0(V) = h^0(V(-E))`` inductively (each ``-E`` twist lowers ``nu.F``
+      by 1, so the recursion terminates on every ``F_e``);
+    * ``nu.F < -1``: ``h^0 = 0`` and ``h^2`` by Serre duality from the dual
+      character (rank >= 2 for local freeness of the general sheaf).
+
+    Package coordinates: ``nu.F`` is the ``s``-component of ``nu``; ``nu.E`` is
+    ``f``-component − e·(s-component).  Cross-validated in the tests against
+    ``rho_gen`` through the E15-M1e Gaeta dimension inequality.
+    """
+    e = hirzebruch_index(surface)
+    lat = surface.lattice
+    r = int(r)
+    c1 = tuple(int(x) for x in c1)
+    ch2 = Fraction(ch2)
+
+    def chi_of(w) -> int:
+        rr, cc, hh = w
+        # chi(O, w) via RR: r*chi(O) - <c1, K>/2 + ch2  (chi(O) = 1)
+        K = (-(e + 2), -2)
+        val = rr - Fraction(lat.pairing(cc, K), 2) + hh
+        if val.denominator != 1:
+            raise ValueError(f"non-integral chi for {w!r}")
+        return int(val)
+
+    def tw(w, D):
+        rr, cc, hh = w
+        return (rr, (cc[0] + rr * D[0], cc[1] + rr * D[1]),
+                hh + lat.pairing(cc, D) + rr * Fraction(lat.self_pairing(D), 2))
+
+    def dual_serre(w):
+        rr, cc, hh = w
+        return tw((rr, (-cc[0], -cc[1]), hh), (-(e + 2), -2))
+
+    def go(w, depth=0):
+        if depth > 10000:
+            raise AssertionError("thm-BN recursion failed to terminate")
+        rr, cc, hh = w
+        nuF = Fraction(cc[1], rr)
+        nuE = Fraction(cc[0], rr) - e * Fraction(cc[1], rr)
+        x = chi_of(w)
+        if nuF == -1:
+            return (0, -x, 0)
+        if nuF > -1:
+            if nuE >= -1:
+                return (max(x, 0), max(-x, 0), 0)
+            h0 = go(tw(w, (0, -1)), depth + 1)[0]
+            return (h0, h0 - x, 0)
+        h2 = go(dual_serre(w), depth + 1)[0]
+        return (0, h2 - x, h2)
+
+    return go((r, c1, ch2))
+
+
 def delta_prioritary_bundle(
     nu: Sequence[Number], n: int, r: int, surface: Surface
 ) -> SurfaceBundle:

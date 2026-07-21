@@ -63,11 +63,12 @@ from .dlp_hirzebruch import (
 )
 from .delta_sharp import _chamber_gap, surface_with_index
 from .generic_hn import generic_hn_factors
-from .prioritary import generic_prioritary_index
+from .prioritary import general_betti, generic_prioritary_index
 from .rigor import Certificate, Rigor
 from .stability_interval import stability_interval
 
-__all__ = ["ExceptionalRefutation", "chi_box_conditions", "exceptional_refutation"]
+__all__ = ["ExceptionalRefutation", "chi_box_conditions", "exceptional_refutation",
+           "gaeta_star_conditions"]
 
 _HALF = Fraction(1, 2)
 
@@ -147,6 +148,96 @@ def chi_box_conditions(r: int, c1: Sequence[int], surface: Surface
     return tuple(rows)
 
 
+def gaeta_star_conditions(r: int, c1: Sequence[int], surface: Surface
+                          ) -> Tuple[Tuple[Tuple[int, int], int, int], ...]:
+    """E15-M1e: the Gaeta dimension inequality — generic-``D``-prioritariness
+    obstructions at EVERY box divisor, including the ``s``-coefficient-2 ones
+    the ``H_n``-ray theory cannot see.
+
+    Apply ``Hom(-, V(-D'))`` to the ``L_0``-Gaeta resolution of the general
+    ``V in P_F(v)`` (``prop-Gaeta``; ``alpha >= 0`` is automatic for ``e >= 2``
+    and holds whenever computed here — asserted): if ``V`` is
+    ``D'``-prioritary, exactness + ``Ext^3 = 0`` force
+    ``Ext^2(middle) -> Ext^2(kernel)`` injective, i.e.
+
+        beta h2(V(-L0+E+eF-D')) + gamma h2(V(-L0+F-D')) + delta h2(V(-L0-D'))
+            <= alpha h2(V(-L0+E+(e+1)F-D'))                            (star)
+
+    with every ``h^2`` a Betti number of a twisted GENERAL sheaf (thm-BN,
+    :func:`~bridgeland_stability.prioritary.general_betti`; twisting is an
+    isomorphism of the irreducible stack, so the twist of a general sheaf is
+    general).  An exceptional bundle of the character would be rigid, hence
+    the general sheaf, hence ``D'``-prioritary for every box ``D'``
+    (``prop-excPrior``) — so ``LHS > RHS`` at any box divisor REFUTES
+    existence.  Returns ``((D', LHS, RHS), ...)``.
+
+    Cross-validated (tests): on ``v_107`` the inequality holds at ``H_2`` and
+    is VIOLATED at ``H_3``/``H_4`` — reproducing ``rho_gen = 2`` through
+    independent machinery (Gaeta exponents + thm-BN vs ``cor-prioritaryRho``).
+    """
+    e = hirzebruch_index(surface)
+    lat = surface.lattice
+    r = int(r)
+    c1 = tuple(int(x) for x in c1)
+    eps = Fraction(c1[1], r)                      # paper epsilon (E-coeff of nu)
+    phi = Fraction(c1[0], r)                      # paper phi (F-coeff of nu)
+    delta_v = _HALF * (1 - Fraction(1, r * r))    # forced exceptional Delta
+    ch2 = r * (_HALF * lat.self_pairing((phi, eps)) - delta_v)
+    v = (r, c1, ch2)
+
+    def _ceil(x: Fraction) -> int:
+        return -((-x.numerator) // x.denominator)
+
+    def tw(w, D):
+        rr, cc, hh = w
+        return (rr, (cc[0] + rr * D[0], cc[1] + rr * D[1]),
+                hh + lat.pairing(cc, D) + rr * _HALF * lat.self_pairing(D))
+
+    def chi_of(w) -> int:
+        rr, cc, hh = w
+        K = (-(e + 2), -2)
+        val = rr - Fraction(lat.pairing(cc, K), 2) + hh
+        if val.denominator != 1:
+            raise ValueError(f"non-integral chi for {w!r}")
+        return int(val)
+
+    if eps.denominator == 1:
+        return ()                                 # rem-epInteger: no restriction
+
+    ce = _ceil(eps)
+    psi = phi + _HALF * e * (ce - eps) - delta_v / (1 - (ce - eps))
+    L0 = (_ceil(psi), ce)                         # pkg (F-coeff, E-coeff)
+    alpha = -chi_of(tw(v, (-L0[0] - 1, -L0[1] - 1)))
+    beta = -chi_of(tw(v, (-L0[0], -L0[1] - 1)))
+    gamma = -chi_of(tw(v, (-L0[0] - 1, -L0[1])))
+    dlt = chi_of(tw(v, (-L0[0], -L0[1])))
+    if alpha < 0:
+        # lem-alpha<0: the general sheaf is a rigid line-bundle sum; the star
+        # machinery does not apply -- return no conditions (honest skip).
+        return ()
+    if -alpha + beta + gamma + dlt != r:          # resolution rank tripwire
+        raise AssertionError("Gaeta exponents violate the rank identity")
+
+    rows = []
+    kf, ks = e + 2, 2
+    for df in range(kf + 1):
+        for ds in range(ks + 1):
+            if (df, ds) in ((0, 0), (kf, ks)):
+                continue
+            Dp = (df, ds)
+            h2_K = general_betti(*tw(v, (-L0[0] + e + 1 - Dp[0], -L0[1] + 1 - Dp[1])),
+                                 surface)[2]
+            h2_b = general_betti(*tw(v, (-L0[0] + e - Dp[0], -L0[1] + 1 - Dp[1])),
+                                 surface)[2]
+            h2_g = general_betti(*tw(v, (-L0[0] + 1 - Dp[0], -L0[1] - Dp[1])),
+                                 surface)[2]
+            h2_d = general_betti(*tw(v, (-L0[0] - Dp[0], -L0[1] - Dp[1])),
+                                 surface)[2]
+            rows.append((Dp, beta * h2_b + gamma * h2_g + dlt * h2_d,
+                         alpha * h2_K))
+    return tuple(rows)
+
+
 def exceptional_refutation(r: int, c1: Sequence[Number], surface: Surface,
                            anchors: Sequence[Number] = (Fraction(1),),
                            ) -> ExceptionalRefutation:
@@ -193,6 +284,16 @@ def exceptional_refutation(r: int, c1: Sequence[Number], surface: Surface,
                       "hom = ext^2 = 0 there (lem-simple both ways), forcing "
                       "chi <= 0",
                 0, False, (), r, c1_i, e, _cert("refuted by the chi-box (M1d)"))
+
+    # Condition 0.5 (E15-M1e): the Gaeta dimension inequality at every box
+    # divisor (generic-D-prioritariness beyond the H_n ray).
+    for (Dp, lhs, rhs) in gaeta_star_conditions(r, c1_i, surface):
+        if lhs > rhs:
+            return ExceptionalRefutation(
+                True, f"Gaeta star inequality violated at D' = {Dp}: "
+                      f"{lhs} > {rhs} -- the general sheaf is not D'-prioritary, "
+                      "but a rigid exceptional bundle would be (prop-excPrior)",
+                0, False, (), r, c1_i, e, _cert("refuted by the Gaeta star (M1e)"))
 
     # Condition 1: the prioritary index (the paper's F_4 route).
     rho = generic_prioritary_index(nu, delta, surface)

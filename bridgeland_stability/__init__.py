@@ -135,7 +135,9 @@ from .exceptional_existence import (
     ExceptionalRefutation,
     chi_box_conditions,
     exceptional_refutation,
+    gaeta_star_conditions,
 )
+from .prioritary import general_betti
 from .block_kronecker import (
     BlockWitness,
     FiltrationPattern,
@@ -310,6 +312,8 @@ __all__ = [
     "ExceptionalRefutation",
     "chi_box_conditions",
     "exceptional_refutation",
+    "gaeta_star_conditions",
+    "general_betti",
     # E15-M3 / G18+: the Conjecture A falsification harness
     "BlockWitness",
     "FiltrationPattern",
