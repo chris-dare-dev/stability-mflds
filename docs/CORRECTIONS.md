@@ -2006,6 +2006,51 @@ new kind of question — existence, not obstruction — for a successor spec.
 `bridgeland_stability/exceptional_existence.py` (`gaeta_star_conditions`, Condition 0.5); tests in
 `tests/test_exceptional_existence.py`.
 
+## 25. The construction side of `v₁₀₇`: the mutation orbit, and where the literature stops (E16-M1/M2)
+
+**Context.** After five silent obstruction families (§21), the `v₁₀₇` question moved to existence.
+`scripts/e16_m1_orbit.py` searches the mutation orbit of the standard collection
+`(O, O(F), O(E+3F), O(E+4F))` on `F₃` (K-theoretic mutations `[L_A B] = χ(A,B)[A] − [B]` etc., the
+two helix shifts, twist-normalization, integral-`c₂` and rank filters, enforced budgets).
+
+**The M1 ledger — four established facts:**
+
+1. **`v₁₀₇` is in the full K-theoretic mutation orbit**: an explicit 11-step path (14 s), exiting
+   the geometric range (intermediate ranks `−2, −4, −6, −29`).
+2. **With helix + normalization, a 5-step ALL-POSITIVE-rank path exists** (136 nodes), landing
+   `v₁₀₇` in the χ-orthogonal integral quadruple `(5,(4,2),−2), (6,(4,1),−5/2), (107,(76,25),−89/2),
+   (4,(3,1),−3/2)` — but **this path is NOT bundle-realizable**: its rank-2 node is (up to twist)
+   `(2,(2,1))` and its rank-5 node is `(5,(4,2))` — BOTH are §24 sweep-dispatched (`ρ_gen = 1`,
+   empty lifts of the `F₁` rows `(2,(1,1))` and `(5,(2,2))`): they provably carry no bundle. The
+   obstruction and construction programs interlock: the sweep's refutations prune the orbit.
+3. **The certified search** (every non-target node required to be a PROVEN bundle — nonempty §19
+   interval): NO hit, but from only 52 collections in 48 min — the certification cost
+   (rank ≥ 100 intervals) makes coverage tiny; **weak evidence only**. Recorded speed-up for the
+   continuation: filter with the cheap battery conditions first (`ρ_gen = 1` refutes in
+   milliseconds), full intervals only for survivors.
+4. The rank-4 and rank-6 partners `(4,(3,1))` (≅ interval `(0,1)`) and `(6,(4,1))` (`(0,2)`) DO
+   carry bundles (certified).
+
+**The M2 ledger — where the literature stops (sourced).** Kuleshov's constructibility and
+mutation-regularity theory [arXiv:alg-geom/9511016] is for surfaces with **`−K` nef** (and
+`K² > 0` for constructibility) — del Pezzos and their weak extensions; Okawa–Uehara
+[arXiv:1409.7813] treat `F₂` as "the prototypical weak del Pezzo". On `F₃`, `−K·E = −1 < 0`
+(pinned: Gram `[[0,1],[1,−3]]`, `−K = (5,2)`, `E = (0,1)`): **`−K` is not nef, and `F₃` lies
+outside every constructibility and geometric-mutation theorem found.** Consequences: (a) an
+exhaustive geometric-orbit ∉-result cannot prove non-existence (no constructibility backstop);
+(b) realizing any path needs ad-hoc per-step stability arguments; (c) this is precisely why the
+paper's §11 conjecture becomes hard at `e ≥ 3` — `F₂` still falls under the nef umbrella.
+
+**Status: `v₁₀₇` existence remains OPEN**, now with the terrain fully mapped: in the K-orbit;
+positive-rank-reachable only (so far) through provably-dead nodes; certified-path search open at
+low coverage; no literature theorem to close either direction on `F₃`.
+
+*Sources:* S. Kuleshov, *Exceptional and Rigid Sheaves on Surfaces with Anticanonical Class
+without Base Components*, [arXiv:alg-geom/9511016] (J. Math. Sci. 86, 1997); S. Okawa, K. Uehara,
+*Exceptional sheaves on the Hirzebruch surface `F₂`*, [arXiv:1409.7813] (IMRN 2015);
+arXiv:1907.06739 §11. Package: `scripts/e16_m1_orbit.py`; the §19/§24 machinery as the
+certification layer.
+
 *Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) `prop-mukai` (Mukai/Gorodentsev — any
 smooth surface), `thm-rigidSplit` (Kuleshov–Orlov — del Pezzo ONLY, noted), `lem-simple`,
 `prop-excPrior`, `cor-prioritaryRho`, `prop-ssPrior`, the §1.4 remark (the filtration below the
