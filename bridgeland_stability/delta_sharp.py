@@ -37,10 +37,11 @@ Two exact deliverables
    side away from ``m_0``): Gieseker-semistable existence is constant on
    ``(m, m + g)`` for the explicit gap ``g`` of :func:`_chamber_gap` (every
    condition of the Sec. 5 criterion ``thm-HNcriterion`` / ``cor-algorithm`` can
-   only flip where a bounded-window slope relation crosses ``0`` or ``1``, where
-   the ``lem-slopeQuad`` F-window boundary crosses a candidate, or at an integer
-   prioritary index -- all rational points bounded away from ``m`` by a lattice
-   argument; see ``docs/CORRECTIONS.md`` Sec. 17).  One exact ``hn_verdict`` call at
+   only flip where a bounded-window slope relation crosses ``0`` or ``1`` or at
+   an integer prioritary index.  A rank induction makes the factor-existence
+   predicates constant, while the remaining rational crossings are bounded
+   away from ``m`` by a denominator argument; see ``docs/CORRECTIONS.md`` Sec. 17.
+   One exact ``hn_verdict`` call at
    the rational midpoint of that chamber then decides BOTH directions:
 
    * semistable there  =>  mu-stable at an irrational point of the chamber
@@ -165,28 +166,28 @@ def _chamber_gap(r: int, e: int, m: Fraction, side_left: bool) -> Fraction:
     ``m' != m`` (on the sampled side) where Gieseker-semistable existence of a
     rank-``r`` character can change.
 
-    Every condition of the Sec. 5 generic-HN criterion is a comparison whose
-    outcome, as ``m'`` varies, can only flip where one of the following holds for
-    a slope difference ``xi = nu_w - nu_u`` of two characters of the recursion
-    (all ranks ``<= r``, so both coordinates of ``xi`` lie in ``(1/r^2) Z``, and
-    ``|xi . F| <= 8 Ymax`` -- the ``lem-slopeQuad`` window ``max{1, 2/(e+2m')}``
-    stacked over the recursion depth ``<= 4`` of the ``ell <= 4`` lemma, doubled
-    for pairwise differences):
+    Prove this by induction on the target rank.  On a one-sided interval where
+    ``ceil(m')`` is fixed, the existence predicates for every proper HN factor
+    are constant by the induction hypothesis.  The remaining Sec. 5 comparisons
+    can change only at the following values for a slope difference
+    ``xi = nu_w - nu_u`` of characters of ranks at most ``r``.  Each coordinate
+    of ``xi`` has a common denominator ``L <= r^2`` (it need not lie in
+    ``(1/r^2) Z``), and ``lem-slopeQuad`` bounds the relevant ``F``-coordinate by
+    ``Ymax = max(1, 2/(e+2m'))``:
 
     * ``xi . H_{m'} = 0`` or ``= 1``  (slope crossings; q-key first-component ties;
       the ``lem-HNclose`` window boundary; the slope-spread-``<= 1`` bound).  In
-      package ``(f, s)`` coordinates ``xi . H_{m'} = x + y m'``, so the crossing is
-      at ``m' = -x/y`` resp. ``(1-x)/y`` and ``|m' - m| = |t| / |y|`` with
-      ``t = x + m y`` (resp. ``- 1``) a nonzero element of ``(1/(r^2 q)) Z``
-      (``q = den(m)``); hence ``|m' - m| >= 1/(8 Ymax r^2 q)``.
-    * ``|xi . F| = 2/(e + 2m')`` (the F-window boundary moving past a candidate):
-      ``m' - m`` is then a nonzero rational with numerator a nonzero integer over
-      ``2 q |y| r^2 <= 16 Ymax r^2 q`` -- same bound, up to the factor 2.
+      package ``(f, s)`` coordinates ``xi . H_{m'} = x + y m'``.  Clearing the
+      denominator ``L`` shows that a non-endpoint root differs from
+      ``m = p/q`` by at least ``1/(Ymax L q) >= 1/(Ymax r^2 q)``.
     * an integer (the prioritary index ``ceil(m')`` and the ``delta^p_n`` inputs
       jump): at distance ``>= 1/q`` from a non-integral ``m`` and ``>= 1`` from an
       integral ``m``.
 
-    ``g = 1/(32 Ymax r^2 q)`` under-runs all three.  Left samples are additionally
+    ``g = 1/(32 Ymax r^2 q)`` therefore has a factor-32 safety margin.  The moving
+    ``lem-slopeQuad`` window is only an enumeration bound, not a fourth logical
+    crossing: any actual change supplies an HN filtration and hence one of the
+    two slope equalities above.  Left samples are additionally
     capped at ``m/2`` (the sample must stay ample), and ``Ymax`` is evaluated at
     the far end of the sampled side so the window bound is conservative.
     """

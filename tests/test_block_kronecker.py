@@ -13,6 +13,7 @@ from bridgeland_stability.block_kronecker import (
     classify_generic_filtration,
     _collection,
     _in_z_span,
+    _line_collection_is_exceptional,
     _line,
 )
 from bridgeland_stability.delta_sharp import surface_with_index
@@ -78,6 +79,28 @@ def test_sec8_collections_pass_the_orthogonality_tripwire():
             for twist in ((0, 0), (2, -1), (-3, 2)):
                 E = _collection(surf, e, l, twist)
                 assert is_exceptional_collection(list(E), surf)
+
+
+def test_l2_swapped_witness_has_sheaf_level_provenance():
+    # The live F_0 search witness lies below the paper's l>=3 construction
+    # range.  Its swapped l=2 collection is certified by all six exact
+    # backward line-bundle cohomologies, then fullness follows from the
+    # paper's F_0/F_1 completion statement -- not from Euler orthogonality.
+    E = _collection(F0, 0, 2, (0, 0), swapped=True)
+    assert _line_collection_is_exceptional(E, F0)
+    differences = []
+    for i in range(4):
+        for j in range(i):
+            differences.append(tuple(E[j].c1[k] - E[i].c1[k] for k in range(2)))
+    assert differences == [(-1, -2), (-1, -3), (0, -1),
+                           (-2, -1), (-1, 1), (-1, 2)]
+
+    w = block_decomposition(
+        (2, (1, 0), F(-1)), (9, (2, 4), F(-4)), F0)
+    assert w is not None
+    assert (w.l, w.twist, w.coeffs_v1, w.coeffs_v2) == (
+        2, (0, 0), (1, 1), (-2, 11))
+    assert "exactly acyclic" in w.certificate.hypotheses[0]
 
 
 def test_region_k_single_nonsemiexceptional_is_not_a_violation():

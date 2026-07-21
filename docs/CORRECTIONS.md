@@ -1602,6 +1602,13 @@ criterion "the §8 values reproduced exactly at finite rank with `exact=True`" w
 **mathematically impossible** and is replaced by the sandwich/convergence pins below. (The M3a
 lesson applied to a spec: an acceptance criterion can itself fabricate.)
 
+The same distinction exposes a **paper wording erratum**: `thm-deltaKronecker` assumes rational
+`m`, while its following corollary says “`m` is generic” and its proof chooses rational `m'` and
+again calls it generic. Under the paper's absolute use of genericity elsewhere, no such `m` or `m'`
+exists: for `m=p/q`, the nonzero integral class `qE-pF` is orthogonal to `H_m`. The intended argument
+must pass to a nearby irrational polarization and use chamber constancy/continuity; the printed
+rational-plus-generic formulation is vacuous. This does not alter the closed formula.
+
 **The decision procedure (each step a theorem; two-way evidence in `tests/test_delta_sharp.py`).**
 Existence of a `μ_{H_m}`-stable sheaf of character `v` ⟺ `m ∈ I_v`, the *generic stability interval*
 (slope stability is open in flat families and `P_F(v)` is irreducible — Walter — so one stable sheaf
@@ -1612,12 +1619,17 @@ anticanonical index `m₀ = 1 − e/2` whenever nonempty (`cor-KstabilityEasy`, 
 
 * *The chamber gap.* Gieseker-ss existence of `v` is constant on `(m, m+g)` (mirror for left samples)
   with `g = 1/(32·Ymax·r²·q)`, `q = den(m)`, `Ymax = max(1, 2/(e+2m))`: every condition of the §5
-  criterion (`thm-HNcriterion`/`cor-algorithm`) flips only where (i) a slope relation `ξ·H_{m'} ∈
-  {0,1}` crosses, `ξ = ν_w − ν_u` a slope difference of recursion characters — coordinates in
-  `(1/r²)ℤ`, `|ξ·F| ≤ 8·Ymax` (the `lem-slopeQuad` window stacked over recursion depth ≤ 4, doubled
-  for pairs), giving `|m' − m| = |x + m y ∓ 1|/|y| ≥ 1/(8·Ymax·r²·q)`; (ii) the F-window boundary
-  `|ξ·F| = 2/(e+2m')` crosses a candidate — same lattice bound up to a factor 2; (iii) an integer
-  (the prioritary index `⌈m'⌉`) — at distance `≥ 1/q`. `g` under-runs all three.
+  criterion (`thm-HNcriterion`/`cor-algorithm`) is handled by **induction on the target rank**. On a
+  one-sided interval with fixed `⌈m'⌉`, existence of every proper-rank factor is constant by the
+  induction hypothesis. The remaining order/spread comparisons flip only where
+  `ξ·H_{m'} ∈ {0,1}` for a difference of slopes of ranks at most `r`. Its coordinates have a common
+  denominator `L ≤ r²` (they do **not** generally lie in `(1/r²)ℤ`; e.g. `1/2−1/3=1/6` at `r=5`).
+  Clearing `L` at `m=p/q`, and using the `lem-slopeQuad` bound `|ξ·F| ≤ Ymax`, puts every nonendpoint
+  root at distance at least `1/(Ymax·L·q) ≥ 1/(Ymax·r²·q)`. An integer jump is at least `1/q` away.
+  Thus `g` has a factor-32 margin. The moving `lem-slopeQuad` window is an enumeration bound, not an
+  additional crossing type: an actual change supplies an HN filtration and one of the two slope
+  equalities. The earlier recursion-depth-≤4 / `(1/r²)ℤ` proof was false documentation; the constant
+  and implementation are unchanged.
 * *Both directions.* Semistable at the rational chamber midpoint (one exact `hn_verdict` call) ⟹
   semistable at an **irrational** `m'` of the chamber (constancy) ⟹ `μ_{H_{m'}}`-stable sheaves exist
   (irrational ⟹ generic, `prop-ssIMPs` + `prop-sIMPmus`, `Δ > ½`) ⟹ `m ∈ [m₀, m'] ⊂ I_v` ⟹ exists at
@@ -1708,8 +1720,10 @@ the paper pins admit exactly `ℓ = 3`.
 the polarization index shifts by one per reduction step (Lemma 11.3(5)), so
 `δ_{m,F_e}^{μs}(ν) = δ_{m+1,F_{e−2}}^{μs}(π(ν))` — the inf-sets are in bijection. Pinned: the `F₀` pin
 lifts to `F₂` at `(π⁻¹ν, m−1) = ((8/15,1/5)_pkg, 16/9)` → `3/5`, the `F₁` pin to `F₃` at
-`((9/13,3/13)_pkg, 5/7)` → `98/169`; the M1 decision procedure independently refuses the transported
-wall class and certifies one lattice step up **on `F₂` directly**.
+`((9/13,3/13)_pkg, 5/7)` → `98/169`; the M1 decision procedure also refuses the transported wall
+class and certifies one lattice step up. This is a useful post-reduction differential (HN decision
+versus closed formula), but not an independent direct `F₂` computation: both routes first apply the
+same `π` reduction to the del Pezzo base.
 
 **The two-route differential (formula vs the §17 sandwich).** At four `(ν, m)` (both parities, the two
 paper points plus `m = 5/2` on `F₀` and `m = 3/2` on `F₁`): `lower ≤ formula < upper` — strict at the
@@ -1774,7 +1788,10 @@ endpoints.
 
 **`e ≥ 2` transport + the §11 conjecture's first candidate.** `cor-highermus`:
 `I_v = {t > 0 : t + 1 ∈ I_{π(v)}}` (the paper's `(0, m₁ − 1)`; implemented as the two-sided transport
-`(max(0, m₀'−1), m₁'−1)`, which agrees on every observed case). Pinned: the paper's `F₄` example
+`(max(0, m₀'−1), m₁'−1)`). These are identically equal, not merely empirically equal: every nonempty
+del Pezzo interval contains the anticanonical index (`1` on `F₀`, `1/2` on `F₁`), hence `m₀'<1`;
+after one higher-`e` transport a nonempty interval begins at `0`, and the statement continues
+inductively. Pinned: the paper's `F₄` example
 `(3, ⅓E + F, 4/9)` — window `(0,1)` on `F₂`, **empty** on `F₄` (no slope-stable sheaf of that
 character for any polarization, matching the paper's `ρ_gen` argument); and the §11 conjecture's
 first potential counterexample `(107, 25/107·E + 76/107·F, 5724/11449)` on `F₃`: the reduced `F₁`
@@ -1852,11 +1869,15 @@ factor of the rigid `V` is RIGID, whence `χ(gr, gr) = hom + ext² ≥ 1`, i.e.
 
 > every generic HN factor must satisfy `Δᵢ ≤ ½(1 − 1/rᵢ²)`.
 
-A computed factor above that bound refutes existence. Additionally, at a **chamber-generic** sample
-(the §17 gap) a length-ONE filtration refutes when the slope denominator equals the rank and the
-stability interval is empty: `V` would be Gieseker-semistable there, hence μ-semistable, hence
-μ-STABLE (no proper subsheaf can match a slope of exact denominator `r` at a generic polarization) —
-contradiction. **Scope note:** the del Pezzo theorem `thm-rigidSplit` (Kuleshov–Orlov: rigid splits
+A computed factor above that bound refutes existence. The code samples a **rational midpoint** of the
+§17 chamber; it is never literally generic. Chamber constancy transfers a length-one (semistable)
+result to an irrational generic polarization, where `lem-excFacts`(5) makes a potentially exceptional
+character stable exceptional. Consequently, length one together with an independently EMPTY
+`stability_interval` is a contradiction between two claimed certificates, not a nonexistence proof;
+the battery now fails closed with `AssertionError`. (Potentially exceptional characters are primitive
+by `lem-excFacts`(2–3); the former “prime slope denominator” test was redundant and misnamed — the
+minimal denominator may be composite.) **Scope note:** the del Pezzo theorem `thm-rigidSplit`
+(Kuleshov–Orlov: rigid splits
 into exceptionals) is NOT available on `F_e`, `e ≥ 2`; the obstruction deliberately uses only the
 any-surface `prop-mukai`. Sampling is restricted to `⌈m⌉ ≤ 2` — the prioritary regime `lem-simple`
 guarantees for a hypothetical `V` (at these `v` the `H₃`-prioritary stack is EMPTY: `ρ_gen = 2`, which
@@ -1870,7 +1891,7 @@ characters are refuted trivially; anchors `≥ 2` are refused (the regime guard)
 
 **Status of `v₁₀₇`: OPEN — and the rigid-factor computation is INFEASIBLE at the current
 architecture (post-mortem, 2026-07-19).** `ρ_gen = 2` (inconclusive); interval empty (§19). The
-generic-HN factor computation at the chamber-generic sample near `m = 1` was killed after
+generic-HN factor computation at the rational chamber midpoint near `m = 1` was killed after
 **67.4 CPU-hours with zero factor output**. The post-mortem — recorded in full because each finding
 shapes the eventual re-attempt (E15-M1b):
 
@@ -1884,7 +1905,7 @@ shapes the eventual re-attempt (E15-M1b):
 * **Stack forensics (`py-spy`, three samples before the kill).** (a) The recursion sat **17 frames
   deep** in alternating `_search_gr1` / `_decide` — the §5 tree is deep as well as wide; (b) 100% of
   samples were inside `fractions.py` arithmetic under the `_two_chi` inner loop — the computation is
-  Fraction-bound; (c) the chamber-generic sample **forced denominators ≈ 7.3·10⁵**: the E14-M1 gap
+  Fraction-bound; (c) the rational chamber midpoint **forced denominators ≈ 7.3·10⁵**: the E14-M1 gap
   `g = 1/(32·Ymax·r²·q)` at `r = 107` makes the chamber so narrow that every rational inside it has
   height ≥ ~3.7·10⁵ (Stern–Brocot), inflating every χ/slope/q-key computation in the entire tree by
   a large constant factor.
@@ -1972,11 +1993,18 @@ survives a fifth family.** Two new theorem-backed tools:
   GENERAL `F`-prioritary sheaf of any integral character (CoskunHuizengaBN Thm 3.1 as quoted in the
   paper): the `ν·F` thresholds, the at-most-one-nonzero-group range `ν·E ≥ −1`, the `−E`-twist
   recursion (terminating on every `F_e` since each step lowers `ν·F` by 1), Serre duality for
-  `ν·F < −1`. Pinned on line bundles.
+  `ν·F < −1`. The theorem states the last shortcut only for rank at least 2. In rank 1 the general
+  sheaf is `I_Z⊗L` and its sheaf dual is `L⁻¹`; the implementation now discards `length(Z)` when
+  forming the Serre-dual character. Exact pin: on `F₃`, `I_Z(K)` with `length(Z)=n` has
+  `(h⁰,h¹,h²)=(0,n,1)`, not `(0,n−1,0)`.
 * **`gaeta_star_conditions` (the star inequality, battery Condition 0.5)** — apply
   `Hom(−, V(−D'))` to the `L₀`-Gaeta resolution (`prop-Gaeta`; `α ≥ 0` automatic for `e ≥ 2`, and
-  tripwired via the rank identity `−α+β+γ+δ = r`): if the general `V` is `D'`-prioritary then
-  `Ext³ = 0` + exactness force `β·h² + γ·h² + δ·h² ≤ α·h²` over the four resolution twists — every
+  tripwired via the rank identity `−α+β+γ+δ = r`). The exact segment is
+  `Ext²(V,W) → Ext²(middle,W) → Ext²(kernel,W) → Ext³(V,W)`. Surface `Ext³=0` always makes the
+  middle map surjective (`LHS ≥ RHS`); `D'`-prioritariness kills the preceding term and makes it
+  injective, so the necessary condition is actually **equality**. The original `LHS ≤ RHS`
+  obstruction remains sound, and an `LHS < RHS` assertion now tripwires the unconditional half.
+  Every
   term a `general_betti` value (a twist of a general sheaf is general: twisting is an isomorphism
   of the irreducible stack). `LHS > RHS` at a box divisor (`−(K+D')` effective nontrivial) refutes
   an exceptional bundle of the character (`prop-excPrior`). This sees the `s`-coefficient-2
@@ -1986,16 +2014,17 @@ survives a fifth family.** Two new theorem-backed tools:
 
 **Cross-validation (the load-bearing evidence).** For `v₁₀₇`: `L₀ = E`, exponents
 `(α,β,γ,δ) = (329, 411, 7, 18)` (rank identity ✓); the star HOLDS at `H₂ = (5,1)` and is VIOLATED
-at `H₃` (`δ`-term Betti number 81 ⟹ LHS = 1458 > 0) — **independently reproducing
-`ρ_gen(v₁₀₇) = 2`** through Gaeta + thm-BN vs `cor-prioritaryRho`. The battery order now puts the
-star first, and it **independently refutes the paper's `F₄` example** (violation `((6,1), 2, 0)` =
-`H₂` on `F₄` — agreeing with `ρ_gen = 1`). All three existing-bundle controls pass every box row.
+at `H₃` (`δ`-term Betti number 81 ⟹ LHS = 1458 > 0), reproducing `ρ_gen(v₁₀₇) = 2` through a
+second computation. It is not independent evidence: Gaeta/`thm-BN` and `cor-prioritaryRho` share
+the paper's prioritary-stack and Brill–Noether chain. The battery order now puts the star first, and
+it also refutes the paper's `F₄` example (violation `((6,1), 2, 0)` = `H₂` on `F₄`, agreeing with
+`ρ_gen = 1`). All three existing-bundle controls pass every box row with equality.
 
-**The verdict on `v₁₀₇`: passes all 16 box rows** — every `s`-coefficient-2 row is `(0, 0)` (all
+**The verdict on `v₁₀₇`: passes all 16 box rows with equality** — every `s`-coefficient-2 row is `(0, 0)` (all
 relevant twists have `h² = 0`; no obstruction lives in the `h²` corridor). Direction (c) is now
-executed to its computable end. `v₁₀₇` has survived **five** independent necessary-condition
-families (`ρ_gen`; the rigid-factor computation at three engineering levels — infeasible, not
-failed; the χ-box; the Gaeta star). The honest reading: the accumulated evidence is consistent
+executed to its computable end. `v₁₀₇` has survived the implemented cheap conditions (`ρ_gen`, the
+χ-box, and the Gaeta star); the rigid-factor computation remains infeasible, and the first and
+third routes share source machinery. The honest reading: the accumulated evidence is consistent
 with `v₁₀₇` genuinely carrying an exceptional bundle — i.e., BEING a counterexample to the §11
 conjecture — and settling that now requires the CONSTRUCTION side (does the bundle exist? e.g.
 transporting the extant `F₁` bundle up the reduction, where the paper's `F₄` example shows the
@@ -2013,23 +2042,30 @@ new kind of question — existence, not obstruction — for a successor spec.
 `(O, O(F), O(E+3F), O(E+4F))` on `F₃` (K-theoretic mutations `[L_A B] = χ(A,B)[A] − [B]` etc., the
 two helix shifts, twist-normalization, integral-`c₂` and rank filters, enforced budgets).
 
-**The M1 ledger — four established facts:**
+**The M1 ledger — three established facts:**
 
-1. **`v₁₀₇` is in the full K-theoretic mutation orbit**: an explicit 11-step path (14 s), exiting
-   the geometric range (intermediate ranks `−2, −4, −6, −29`).
-2. **With helix + normalization, a 5-step ALL-POSITIVE-rank path exists** (136 nodes), landing
-   `v₁₀₇` in the χ-orthogonal integral quadruple `(5,(4,2),−2), (6,(4,1),−5/2), (107,(76,25),−89/2),
+1. **`v₁₀₇` is in the full K-theoretic mutation orbit, with an ALL-POSITIVE-rank 5-step path.**
+   The retained, replayed fixture is `[(1,L),(1,L),(0,R),(1,L),(2,L)]`; it lands after 136
+   positive-search expansions (310 in the broader K-theory mode) in the numerically exceptional,
+   χ-semiorthogonal integral quadruple `(5,(4,2),−2), (6,(4,1),−5/2), (107,(76,25),−89/2),
    (4,(3,1),−3/2)` — but **this path is NOT bundle-realizable**: its rank-2 node is (up to twist)
    `(2,(2,1))` and its rank-5 node is `(5,(4,2))` — BOTH are §24 sweep-dispatched (`ρ_gen = 1`,
    empty lifts of the `F₁` rows `(2,(1,1))` and `(5,(2,2))`): they provably carry no bundle. The
    obstruction and construction programs interlock: the sweep's refutations prune the orbit.
-3. **The certified search** (every non-target node required to be a PROVEN bundle — nonempty §19
+2. **The certified-character search** (every non-target numerical character required to have some
+   PROVEN bundle — nonempty §19
    interval): NO hit, but from only 52 collections in 48 min — the certification cost
    (rank ≥ 100 intervals) makes coverage tiny; **weak evidence only**. Recorded speed-up for the
    continuation: filter with the cheap battery conditions first (`ρ_gen = 1` refutes in
    milliseconds), full intervals only for survivors.
-4. The rank-4 and rank-6 partners `(4,(3,1))` (≅ interval `(0,1)`) and `(6,(4,1))` (`(0,2)`) DO
+3. The rank-4 and rank-6 partners `(4,(3,1))` (≅ interval `(0,1)`) and `(6,(4,1))` (`(0,2)`) DO
    carry bundles (certified).
+
+The orbit script now exposes separate `k-theory`, `positive`, and `certified` modes, normalizes before
+the coordinate cutoff (so the bound is twist-orbit invariant), and labels hits at character level.
+Even “certified” proves only that each character has some bundle; it does **not** prove the mutation
+cones are sheaves or geometrically realize the path. The earlier output label `GEOMETRIC HIT` and an
+unretained 11-step signed-path claim were provenance overclaims and have been removed.
 
 **The M2 ledger — where the literature stops (sourced).** Kuleshov's constructibility and
 mutation-regularity theory [arXiv:alg-geom/9511016] is for surfaces with **`−K` nef** (and
@@ -2067,10 +2103,13 @@ falsification harness. `classify_generic_filtration` computes the §5 factors an
 semiexceptionality — a length-≥3 filtration with ≥ 2 non-semiexceptional factors is an IMMEDIATE
 counterexample flag; `block_decomposition` searches an exact ℤ-span witness over the §8 collection
 family `(O(−E−ℓF), O, O(F), O(E−(ℓ−1−e)F))` extended three ways, each theorem-backed: all line-bundle
-twists (twisting preserves full exceptional collections), the `F₀` **ruling swap** (an automorphism),
-and `ℓ` BELOW the paper's `ℓ ≥ 3` (their bound served the §8 stability analysis, not fullness;
-quadruples are χ-orthogonality-filtered, and an orthogonal maximal-length collection on a del Pezzo
-is full — Kuleshov–Orlov). A `None` result is search-bounded — a ranked candidate, never a
+twists **within the searched box `[-8,8]²`** (twisting preserves full exceptional collections), the
+`F₀` **ruling swap** (an automorphism), and `ℓ ∈ [-2,10]`, including values below the paper's
+`ℓ ≥ 3`. For `ℓ < 3` on `F₀/F₁`, the implementation now verifies all six backward line-bundle
+cohomologies vanish exactly; the paper's completion statement then makes the length-four
+exceptional collection full. The former Euler-Gram-only check was necessary but not a proof, and
+the certificate falsely attributed those rows to the paper's `ℓ ≥ 3` family. A `None` result is
+search-bounded — a ranked candidate, never a
 counterexample claim.
 
 **Positive controls (pinned).** Both §8 Kronecker pins classify as length-2 both-non-semiexceptional
@@ -2086,15 +2125,20 @@ live).** The first sweep emitted a candidate: `(11,(3,4),−5)`/`F₀` at `m = 5
 pair decomposes (`ℓ = 2`, untwisted, swapped; `v₂ = −2E₁ + 11E₂`). Conjecture-consistent throughout;
 the harness's `None` must always be read against its family bounds.
 
-**Sweep ledger (rank ≤ 13, the extended family — COMPLETE 2026-07-18, ~22.5 h).** Both surfaces, 16
-chamber-offset anchors spanning both sides of `−K` and the §18 walls, `Δ ∈ [0, 2]`:
+**Sweep ledger (rank ≤ 13, the extended family — BOUNDED RUN COMPLETE 2026-07-18, ~22.5 h).** The
+grid is `c₁ ∈ [0,r)²`, `c₂ ∈ [0,2r]`, then filtered to `Δ ∈ [0,2]`; it is not exhaustive in that
+discriminant band (exact omitted orbit on `F₀`: `r=13`, `c₁=(12,1)`, `c₂=27`,
+`Δ=207/169`, whose dual/swap representative also has `c₂=27>26`). There are eight right-offset
+anchors per surface. They straddle the anticanonical index on `F₀`; every `F₁` sample is to the
+right of `1/2`. On this bounded grid:
 **126,936 computed generic HN filtrations, length histogram `{1: 68729, 2: 27382, 3: 7749, 4: 333}`,
 ZERO length-≥3 violations** (all 8,082 length-≥3 filtrations have ≤ 1 non-semiexceptional factor —
 the Thm 1.13 shape holds without exception), and **6 length-2 both-non-semiexceptional pairs, ALL
 SIX block-decomposed** within the extended family — zero undecomposed candidates. Conjecture A is
 consistent with every filtration observed on the swept grid. (The earlier rank ≤ 6 pass — 11,208
 filtrations, histogram `{1: 6583, 2: 2489, 3: 387, 4: 1}`, zero violations, zero pairs — is
-subsumed; the violation counts are search-family-independent.)
+subsumed; the violation flag is independent of the subsequent bounded block-family search, but not
+implementation-independent evidence — it shares the same generic-HN and semiexceptionality code.)
 
 *Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §1.5 (the conjecture), §8 (the family
 and the constructions), Ex. KroneckerF0/F1; Kuleshov–Orlov (fullness of maximal-length exceptional
@@ -2152,7 +2196,7 @@ battery's prioritary condition.
 The two survivors are `(107, (76,25))` and `(107, (138,82))` on `F₃`, both with del Pezzo interval
 right-endpoint `13/23` — **the dual pair of characters** (`−(51,25) + 107·(1,1) = (56,82)` on the
 `F₁` base): `v₁₀₇` up to duality, and nothing else. NO survivor exists at any rank `< 107` — the
-paper's "first potential counterexample" claim is REPRODUCED by an independent battery — and none in
+paper's "first potential counterexample" claim is reproduced by the executable sweep — and none in
 `(107, 130]` either: **on the swept family, the §11 conjecture is verified through rank 130 except
 for the single (dual pair of) character(s) `v₁₀₇`, whose existence question is exactly E15-M1's open
 case (§21).**
@@ -2163,7 +2207,157 @@ case (§21).**
 the paper's computation. The rank-6 shakedown (159 characters, 100/100 dispatched) and the sweep
 logic's spot rows are pinned in `tests/test_e15_sweep.py`; the full ledger is this record.
 
+The E15/E16 adversarial audit independently re-enumerated through rank 30: exactly 70 twist classes
+on `F₀` plus 49 on `F₁`, 74 empty lifts, all 74 dispatched by `ρ_gen=1`, with an exact row-for-row
+match to the script. Twist normalization (`c₁∈[0,r)²`), dual closure, and `hi≤k` for the transported
+open interval were also re-derived. The historical rank-130 run was not recomputed during the audit;
+its 587/366/364/2 totals remain a retained-run ledger rather than a fresh independent reproduction.
+
 *Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §11 (the conjecture, the `F₄`
 example, `ex-stabilityIntervals`), `cor-delPezzoExceptional`, `cor-highermus`; §§19, 21 above.
 Harness: `scripts/e15_m2_sweep.py`; spot tests: `tests/test_e15_sweep.py`.
 
+## 26. Adversarial E15/E16 audit ledger (2026-07-21)
+
+**Scope and standard.** This was a fresh hostile review of commits `93fc88a..4c0a0c1`. The paper was
+re-fetched from its [arXiv source tarball](https://arxiv.org/e-print/1907.06739); claims below were
+re-derived with `Fraction`, not inferred from the package tests. “VERIFIED” means the attacked
+mathematics survived; “CONFIRMED DEFECT” distinguishes live code defects from documentation,
+evidence, or provenance defects. Passing tests are regression evidence only.
+
+### 26.1 E14-M1 chamber sampling — VERIFIED constant; CONFIRMED proof defect
+
+The gap `g=1/(32·Ymax·r²·q)` survives. The correct proof is the rank induction now recorded in §17:
+proper-factor existence is constant by induction; each remaining crossing `ξ·H∈{0,1}` has common
+slope denominator `L≤r²`, so clearing `Lq` gives distance at least `1/(Ymax·r²·q)`. The former claims
+“coordinates lie in `(1/r²)ℤ`” and “recursion depth ≤4” were false (`1/2−1/3=1/6`, while
+`25/6∉ℤ`; live §5 recursion had reached depth 17). They were proof-text defects, not a bad constant.
+
+Exact adversarial enumeration covered 160 crossing sets at ranks `5,13,30,107` and denominators up
+to `7919`. The closest normalized case was `e=0,m=1,r=107,L=11342`: root
+`11343/11342`, distance `1/11342`, while `g=1/366368`, hence `distance/g=1712/53>32`. A separate 464
+pair in-gap differential (`g/4` versus `3g/4`, `e∈{0,1}`, ranks 2–4) found zero semistable-existence
+changes. The E15-M2 sweep is independent of this helper in the limited implementation sense: it
+imports `stability_interval`/`generic_prioritary_index`, not `delta_sharp`.
+
+Primary source: [arXiv:1907.06739](https://arxiv.org/abs/1907.06739), `thm-HNcriterion`,
+`lem-slopeQuad`, and `cor-algorithm` (§5).
+
+### 26.2 Rigid-factor obstruction — VERIFIED derivation; two implementation defects fixed
+
+The theorem chain survives. Reduced-Hilbert ordering gives `Hom(W,U)=0`; Serre duality and
+`K·H<0` give `Ext²(U,W)=Hom(W,U(K))*=0`; `prop-mukai` therefore passes rigidity down every HN step.
+For a rigid factor, `χ(G,G)=hom+ext²≥1` and `χ(G,G)=r²(1−2Δ)`, so
+`Δ≤(1−1/r²)/2` exactly.
+
+The firing sample was formerly omitted from `ExceptionalRefutation.samples`. Exact live witness:
+on `F₂`, `v=(7,(0,2),ch₂=−4)` has `Δ=24/49`; `g=1/1568`, sample
+`m=3137/3136`, and factors `(4,(0,2),−4)`, `(3,(0,0),0)`. The first has
+`Δ=3/4>15/32`, `χ(W,W)=−8`, and `χ(W,U)=0`. The code now appends that complete sample before
+returning the proven refutation.
+
+The former length-one/empty-interval branch also failed open: it returned “nonexistence” from two
+certificates that actually contradict each other. Chamber transfer to an irrational generic
+polarization plus `lem-excFacts`(5) turns a semistable potentially exceptional character into a
+stable exceptional bundle, contrary to an empty interval. It now raises. The old “prime denominator”
+language was false—ranks may be composite—and the denominator guard was redundant because
+`lem-excFacts`(2–3) makes every potentially exceptional character primitive. No such conflict was
+found in 180 normalized characters on `F₂..F₅`, ranks 2–16.
+
+Primary source: [arXiv:1907.06739](https://arxiv.org/abs/1907.06739), `prop-mukai`,
+`lem-excFacts`, `lem-simple`, and `prop-excPrior`.
+
+### 26.3 Gaeta star / general Betti numbers — CONFIRMED live code defect and common-mode risk
+
+`general_betti` incorrectly applied the paper's rank-at-least-2 Serre-dual shortcut to rank 1. On
+every `F_e`, take `I_Z(K)` with `length(Z)=n`: `K²=8`, `ch=(1,K,4−n)`, `Δ=n`, and
+`0→I_Z(K)→O(K)→O_Z→0` gives exactly `(h⁰,h¹,h²)=(0,n,1)`. At `F₃,n=1`, the old code returned
+`(0,0,0)` instead of `(0,1,1)`. Rank one now dualizes `I_Z⊗L` to `L⁻¹`; exhaustive exact comparison
+matched 18,207 rank-one cases (`e=0..6`, divisor coordinates `−8..8`, `n=0..8`). The Gaeta caller
+was insulated by its rank-one early exit, so no recorded exceptional verdict changed.
+
+The long exact sequence was also described backwards. For `0→A→B→V→0`, the relevant segment is
+`Ext²(V,W)→Ext²(B,W)→Ext²(A,W)→Ext³(V,W)`. Thus surface `Ext³=0` gives surjectivity (`LHS≥RHS`),
+and prioritariness gives injectivity, hence equality. `LHS>RHS` remains a sound obstruction;
+`LHS<RHS` is now an assertion failure. Exact `v₁₀₇` arithmetic remains
+`Δ=5724/11449`, `ch₂=−89/2`, `ψ=−7/25`, `L₀=E`, exponents `(329,411,7,18)`, and all 16 box rows
+satisfy equality. The `H₃` diagnostic remains `LHS=18·81=1458>0`; the `F₄` example remains the exact
+box violation `((6,1),2,0)`. These reproduce `ρ_gen`, but are not independent: both computations
+share the paper's prioritary/Brill–Noether chain.
+
+Primary source: [arXiv:1907.06739](https://arxiv.org/abs/1907.06739), `thm-BN` and `prop-Gaeta`.
+
+### 26.4 E15-M2 sweep scope — VERIFIED through rank 30; rank-130 rerun not claimed
+
+An independent enumerator found exactly one `[0,r)²` line-twist representative per orbit and, through
+rank 30, 70 `F₀` plus 49 `F₁` del Pezzo exceptional classes. Production matched all 119 rows exactly:
+74 empty lifts and all 74 dispatched by `ρ_gen=1`, with zero survivors. The lift matrix is
+unimodular; the enumerated sets are dual-closed (35 `F₀` pairs; 24 `F₁` pairs plus the self-dual
+rank-2 row); and for the open transported interval, emptiness is exactly `hi≤k`. The historical
+rank-130 totals were not rerun during this audit, so §24 now says so explicitly.
+
+Primary source: [arXiv:1907.06739](https://arxiv.org/abs/1907.06739),
+`cor-delPezzoExceptional`, `cor-highermus`, and §11.
+
+### 26.5 E16 mutation orbit — VERIFIED arithmetic; CONFIRMED provenance/output defects
+
+The retained five-mutation fixture is
+`[(1,L),(1,L),(0,R),(1,L),(2,L)]`. It lands exactly in
+`((5,(4,2),−2),(6,(4,1),−5/2),(107,(76,25),−89/2),(4,(3,1),−3/2))`, whose Euler Gram is
+`[[1,−1,−7,1],[0,1,13,2],[0,0,1,27],[0,0,0,1]]`. Thus it is numerically exceptional /
+χ-semiorthogonal, not “χ-orthogonal.” The target residues `(76,25)` and dual `(31,82)` modulo 107
+are both caught.
+
+The dead nodes recheck exactly:
+`(2,(0,−1),−3/2)⊗O(1,1)=(2,(2,1),−1/2)` reduces to the `F₁` row `(2,(1,1))`, `ρ_gen=1`; and
+`(5,(−1,−3),−9/2)⊗O(1,1)=(5,(4,2),−2)` reduces to `(5,(2,2))`, also `ρ_gen=1`. The other final
+partners have intervals `(0,1)` and `(0,2)`.
+
+The old script nevertheless labeled a character-filter hit “GEOMETRIC,” applied its coordinate cap
+before normalization, and retained no fixture for its claimed signed 11-step path. Those were
+confirmed defects. It now has explicit `k-theory`, `positive`, and `certified` scopes, applies the
+cap after twist normalization, replays the five-step fixture in tests, and states that even
+independent existence of every member does not realize mutation cones as sheaves.
+
+Primary sources for the convention/scope boundary:
+[Kuleshov, alg-geom/9511016](https://arxiv.org/abs/alg-geom/9511016) and
+[Okawa–Uehara, arXiv:1409.7813](https://arxiv.org/abs/1409.7813).
+
+### 26.6 Paper errata — CONFIRMED
+
+For `ex-triangle`, the line of slope `−12/7` through `(1/2,0)` gives
+`y=−(12/7)(x−1/2)`. At `x=3/13`, `y=6/13`; at the printed `x=2/13`,
+`y=54/91≠6/13`. Also `(2/13)(1/2,0)+(11/13)(2/11,6/11)=(3/13,6/13)`.
+The correction is `(3/13,6/13)`, agreeing with the paper's later `ex-KroneckerF1`.
+
+Separately, the rational/generic inconsistency following `thm-deltaKronecker` is confirmed as
+described in §17: if `m=p/q`, then `(qE−pF)·H_m=0`, so the printed simultaneous hypotheses cannot
+hold under the paper's absolute genericity convention.
+
+Primary source: [arXiv:1907.06739](https://arxiv.org/abs/1907.06739), `ex-triangle`,
+`ex-KroneckerF1`, `thm-deltaKronecker`, and its following corollary.
+
+### 26.7 Softer targets — one concern refuted; scope/provenance defects confirmed
+
+The higher-`e` interval concern is **REFUTED**: the paper's definitions send `H_t` on `F_e` to
+`H_{t+1}` on `F_{e−2}`, so the inverse is exactly `(max(0,lo−1),hi−1)`. Because every nonempty
+del Pezzo interval contains `1` (`F₀`) or `1/2` (`F₁`), `lo<1`, making this identically the paper's
+printed `(0,m₁−1)`; higher reductions inherit left endpoint zero.
+
+The §22 run needed scope corrections. Its actual bounds are `ℓ∈[−2,10]`, twists `[-8,8]²`, and
+`c₂∈[0,2r]`; its `F₁` minimum sample is `501/1000>1/2`, so it did not sample both sides of `−K`.
+The grid omits, for example, `F₀: r=13,c₁=(12,1),c₂=27,Δ=207/169` (and its dual/swap orbit) despite
+`Δ∈[0,2]`. The recorded 126,936 count itself recomputes exactly (`7205+8662` classes at each of
+eight anchors). For the live swapped `ℓ=2` witness, the six backward divisors are exactly
+`(−1,−2),(−1,−3),(0,−1),(−2,−1),(−1,1),(−1,2)` and all are acyclic; the result was sound, but its
+old “paper §8 family” certificate was not. Code now uses exact cohomology plus the paper's `F₀/F₁`
+completion statement for `ℓ<3`.
+
+Finally, the post-M1b integer Euler hot path matched the general RR implementation on 1,792 exact
+integral `F_e` characters (`e=0..6`, ranks 1–8), with zero mismatches.
+
+Primary source: [arXiv:1907.06739](https://arxiv.org/abs/1907.06739), the definitions preceding
+`cor-highermus`, `cor-KstabilityEasy`, `ex-HNDP`, and §8.
+
+**Regression gate (not correctness evidence):** 53/53 targeted tests passed; the fully live command
+`BRIDGELAND_M2=scripts/m2-wsl.cmd pytest -q` completed **632/632, 0 skips, 0 failures** in 596.9 s.

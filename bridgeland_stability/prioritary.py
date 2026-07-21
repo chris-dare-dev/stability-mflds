@@ -305,8 +305,11 @@ def general_betti(r: int, c1: Sequence[Number], ch2: Number,
       (``h^0 = max(chi, 0)``, ``h^1 = max(-chi, 0)``); else
       ``h^0(V) = h^0(V(-E))`` inductively (each ``-E`` twist lowers ``nu.F``
       by 1, so the recursion terminates on every ``F_e``);
-    * ``nu.F < -1``: ``h^0 = 0`` and ``h^2`` by Serre duality from the dual
-      character (rank >= 2 for local freeness of the general sheaf).
+    * ``nu.F < -1``: ``h^0 = 0`` and ``h^2`` by Serre duality.  In rank at
+      least 2 the general sheaf is locally free and its dual has the usual
+      Chern character.  In rank 1 the general sheaf is ``I_Z tensor L``;
+      ``Hom(I_Z tensor L, O) = L^{-1}``, so the zero-dimensional length must
+      be discarded when forming the Serre-dual character.
 
     Package coordinates: ``nu.F`` is the ``s``-component of ``nu``; ``nu.E`` is
     ``f``-component − e·(s-component).  Cross-validated in the tests against
@@ -334,6 +337,11 @@ def general_betti(r: int, c1: Sequence[Number], ch2: Number,
 
     def dual_serre(w):
         rr, cc, hh = w
+        if rr == 1:
+            # thm-BN's displayed ``nu.F < -1`` shortcut is stated only for
+            # rank >= 2.  A rank-one prioritary sheaf is I_Z tensor L, whose
+            # sheaf dual is L^{-1}, not a character retaining -length(Z).
+            hh = Fraction(lat.self_pairing(cc), 2)
         return tw((rr, (-cc[0], -cc[1]), hh), (-(e + 2), -2))
 
     def go(w, depth=0):

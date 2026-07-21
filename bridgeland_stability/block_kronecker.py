@@ -44,6 +44,7 @@ from .varieties import Surface
 from .exceptional_surface import SurfaceBundle, is_exceptional_collection
 from .dlp_hirzebruch import hirzebruch_index, is_semiexceptional
 from .generic_hn import generic_hn_factors
+from .prioritary import general_betti
 from .rigor import Certificate, Rigor
 
 __all__ = [
@@ -58,6 +59,8 @@ _HALF = Fraction(1, 2)
 _CITATIONS = (
     "arXiv:1907.06739 Sec. 1.5 (the conjecture), Sec. 8 (the collection family and the "
     "Kronecker constructions), Ex. KroneckerF0/KroneckerF1",
+    "arXiv:1907.06739 ex-HNDP (exceptional collections on F_0/F_1 complete to "
+    "length 4); thm-BN (exact line-bundle cohomology used for l < 3)",
     "E13-M3b generic_hn (factors exhibited); E11-M2 is_exceptional_collection",
 )
 
@@ -118,6 +121,31 @@ def _in_z_span(v: Tuple[int, Tuple[int, int], Fraction], A: SurfaceBundle,
     return None                                   # both systems singular
 
 
+def _line_collection_is_exceptional(
+        bundles: Tuple[SurfaceBundle, ...], surface: Surface) -> bool:
+    """Sheaf-level exceptionality for a line-bundle collection on F_0/F_1.
+
+    The Euler-Gram check alone is only necessary.  Here each backward Ext is
+    computed as the exact cohomology of ``O(D_j-D_i)``; all three groups must
+    vanish.  A length-four exceptional collection on F_0/F_1 is full by the
+    completion result quoted in the paper's ``ex-HNDP``.
+    """
+    if hirzebruch_index(surface) not in (0, 1):
+        return False
+    if not is_exceptional_collection(bundles, surface):
+        return False
+    lat = surface.lattice
+    if general_betti(1, (0, 0), Fraction(0), surface) != (1, 0, 0):
+        return False
+    for i in range(len(bundles)):
+        for j in range(i):
+            D = tuple(bundles[j].c1[k] - bundles[i].c1[k] for k in range(2))
+            ch2 = _HALF * lat.self_pairing(D)
+            if general_betti(1, D, ch2, surface) != (0, 0, 0):
+                return False
+    return True
+
+
 @dataclass(frozen=True)
 class BlockWitness:
     """A found block decomposition: the collection parameters and the integer
@@ -146,14 +174,14 @@ def block_decomposition(v1: Tuple[int, Sequence[int], Number],
     e = hirzebruch_index(surface)
     v1n = (int(v1[0]), tuple(int(x) for x in v1[1]), _Q(v1[2]))
     v2n = (int(v2[0]), tuple(int(x) for x in v2[1]), _Q(v2[2]))
-    # l ranges BELOW the paper's l >= 3 as well: their bound served the Sec. 8
-    # stability analysis, not collection-fullness.  Quadruples failing the
-    # chi-orthogonality test are silently skipped (they are not exceptional
-    # collections, hence outside the conjecture's quantifier); an orthogonal
-    # length-4 collection on a del Pezzo is full (Kuleshov-Orlov).  The paper
-    # range l >= 3 is orthogonal by the paper itself -- pinned in the tests.
+    # On F_0/F_1 also search below the paper's l >= 3 construction range, but
+    # certify those collections by exact backward line-bundle cohomology, not
+    # by the merely numerical Euler tripwire.  The paper's completion result
+    # then makes a length-four exceptional collection full.  Off the del Pezzo
+    # pair, retain only the paper-backed l >= 3 family.
     variants = (False, True) if e == 0 else (False,)
-    for l in range(-2, l_max + 1):
+    l_min = -2 if e in (0, 1) else 3
+    for l in range(l_min, l_max + 1):
         for tf in range(-twist_max, twist_max + 1):
             for ts in range(-twist_max, twist_max + 1):
               for swapped in variants:
@@ -164,15 +192,22 @@ def block_decomposition(v1: Tuple[int, Sequence[int], Number],
                 s2 = _in_z_span(v2n, E1, E2)
                 if s2 is None or not s2[2]:
                     continue
-                if not is_exceptional_collection([E1, E2, E3, E4], surface):
-                    continue                       # not an exceptional collection
+                collection = (E1, E2, E3, E4)
+                if l >= 3:
+                    if not is_exceptional_collection(collection, surface):
+                        continue                   # paper family tripwire
+                    proof = "paper Sec. 8 full exceptional collection (l >= 3)"
+                else:
+                    if not _line_collection_is_exceptional(collection, surface):
+                        continue
+                    proof = ("exactly acyclic backward line-bundle differences; "
+                             "length-four collection is full on F_0/F_1")
                 return BlockWitness(
                     l=l, twist=(tf, ts),
                     coeffs_v1=(s1[0], s1[1]), coeffs_v2=(s2[0], s2[1]),
                     certificate=Certificate(
                         rigor=Rigor.PROVEN, hypotheses=(
-                            "collection is the Sec. 8 family (full, per the paper) "
-                            "twisted by a line bundle",
+                            proof + "; common line twist/ruling swap preserves it",
                         ), citations=_CITATIONS,
                         note=f"block decomposition at l={l}, twist={(tf, ts)}"
                              + (", ruling-swapped" if swapped else "")))

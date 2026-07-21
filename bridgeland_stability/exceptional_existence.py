@@ -6,7 +6,9 @@ character ``v`` whose stability interval is EMPTY, to the question: does an
 exceptional bundle of character ``v`` exist at all?  The paper's own first open
 case is ``v_107 = (107, 25/107 E + 76/107 F, 5724/11449)`` on ``F_3``.
 
-Two necessary conditions are implemented, both valid on every ``F_e``:
+The battery includes the prioritary index, the rigid-factor obstruction, the
+simple-prioritary chi box, and the Gaeta-star dimension obstruction.  The first
+two load-bearing conditions are:
 
 1. **The prioritary index** (the paper's F_4-example route): an exceptional
    bundle is simple, hence ``H_2``-prioritary (``lem-simple``), and rigid, hence
@@ -29,12 +31,12 @@ Two necessary conditions are implemented, both valid on every ``F_e``:
 
        chi(gr_i, gr_i) = hom + ext^2 >= 1,   i.e.   Delta_i <= (1 - 1/r_i^2)/2
 
-   for every factor -- testable exactly.  Moreover, at a CHAMBER-GENERIC sample
-   (an irrational-equivalent polarization, via the E14-M1 chamber gap) a
-   length-ONE filtration also refutes when the slope denominator equals the
-   rank: ``V`` would be Gieseker-semistable there, hence mu-semistable, hence
-   mu-STABLE (no proper subsheaf can match a slope of exact denominator ``r``
-   at a generic polarization), contradicting the empty stability interval.
+   for every factor -- testable exactly.  The sampled midpoint is rational,
+   hence not itself generic.  Chamber constancy transfers a length-one result
+   to a generic irrational polarization, where ``lem-excFacts``(5) produces a
+   stable exceptional bundle.  If ``stability_interval`` is simultaneously
+   empty, those are conflicting certificates; the function fails closed
+   instead of misreporting the conflict as a nonexistence proof.
 
    NOTE the del Pezzo theorem ``thm-rigidSplit`` (Kuleshov-Orlov: rigid bundles
    split into exceptionals) is NOT available on ``F_e`` for ``e >= 2`` -- the
@@ -50,7 +52,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from fractions import Fraction
-from math import gcd
 from typing import Optional, Sequence, Tuple
 
 from .chern import Number
@@ -75,7 +76,7 @@ _HALF = Fraction(1, 2)
 _CITATIONS = (
     "arXiv:1907.06739 prop-mukai (Mukai/Gorodentsev; any smooth surface), lem-simple, "
     "prop-excPrior, cor-prioritaryRho, Sec. 5 (the generic HN algorithm), Sec. 11 conjecture",
-    "Walter (irreducibility of the prioritary stack); E14-M1 chamber gap (CORRECTIONS Sec. 17)",
+    "Walter (irreducibility of the prioritary stack)",
 )
 
 
@@ -156,9 +157,11 @@ def gaeta_star_conditions(r: int, c1: Sequence[int], surface: Surface
 
     Apply ``Hom(-, V(-D'))`` to the ``L_0``-Gaeta resolution of the general
     ``V in P_F(v)`` (``prop-Gaeta``; ``alpha >= 0`` is automatic for ``e >= 2``
-    and holds whenever computed here — asserted): if ``V`` is
-    ``D'``-prioritary, exactness + ``Ext^3 = 0`` force
-    ``Ext^2(middle) -> Ext^2(kernel)`` injective, i.e.
+    and holds whenever computed here — asserted).  On a surface ``Ext^3=0``
+    makes ``Ext^2(middle) -> Ext^2(kernel)`` surjective for every ``V``.  If
+    ``V`` is ``D'``-prioritary, the preceding ``Ext^2(V,V(-D'))`` term
+    vanishes and the same map is injective.  Thus prioritariness forces the
+    equality (and, in particular, the necessary inequality)
 
         beta h2(V(-L0+E+eF-D')) + gamma h2(V(-L0+F-D')) + delta h2(V(-L0-D'))
             <= alpha h2(V(-L0+E+(e+1)F-D'))                            (star)
@@ -171,9 +174,10 @@ def gaeta_star_conditions(r: int, c1: Sequence[int], surface: Surface
     (``prop-excPrior``) — so ``LHS > RHS`` at any box divisor REFUTES
     existence.  Returns ``((D', LHS, RHS), ...)``.
 
-    Cross-validated (tests): on ``v_107`` the inequality holds at ``H_2`` and
-    is VIOLATED at ``H_3``/``H_4`` — reproducing ``rho_gen = 2`` through
-    independent machinery (Gaeta exponents + thm-BN vs ``cor-prioritaryRho``).
+    Cross-checked (tests): on ``v_107`` the inequality holds at ``H_2`` and is
+    VIOLATED at ``H_3``/``H_4``, reproducing ``rho_gen = 2`` through a second
+    computation.  This is not independent evidence: both routes ultimately
+    use the same prioritary-stack and Brill--Noether results from the paper.
     """
     e = hirzebruch_index(surface)
     lat = surface.lattice
@@ -233,8 +237,13 @@ def gaeta_star_conditions(r: int, c1: Sequence[int], surface: Surface
                                  surface)[2]
             h2_d = general_betti(*tw(v, (-L0[0] - Dp[0], -L0[1] - Dp[1])),
                                  surface)[2]
-            rows.append((Dp, beta * h2_b + gamma * h2_g + dlt * h2_d,
-                         alpha * h2_K))
+            lhs = beta * h2_b + gamma * h2_g + dlt * h2_d
+            rhs = alpha * h2_K
+            if lhs < rhs:
+                raise AssertionError(
+                    "Gaeta Ext^2 dimensions violate the unconditional "
+                    "surjection Ext^2(middle) -> Ext^2(kernel)")
+            rows.append((Dp, lhs, rhs))
     return tuple(rows)
 
 
@@ -245,10 +254,10 @@ def exceptional_refutation(r: int, c1: Sequence[Number], surface: Surface,
     bundle of character ``(r, c1)`` on the ``F_e`` family of ``surface``.
 
     Preconditions checked: the character must be potentially exceptional
-    (otherwise no exceptional bundle by definition -- refuted trivially).  The
-    length-one branch additionally requires the character's stability interval
-    to be EMPTY and its slope denominator to equal ``r``; where those fail the
-    branch is skipped (recorded), never guessed.
+    (otherwise no exceptional bundle by definition -- refuted trivially).
+    A length-one generic-HN result together with an EMPTY independently
+    computed stability interval is an internal certificate conflict, not a
+    nonexistence proof, and therefore fails closed with ``AssertionError``.
     """
     e = hirzebruch_index(surface)
     r_frac = _Q(r)
@@ -305,10 +314,6 @@ def exceptional_refutation(r: int, c1: Sequence[Number], surface: Surface,
 
     # Condition 2: the rigid-factor obstruction.
     interval = stability_interval(r, c1_i, surface)
-    denom = 1
-    for x in nu:
-        denom = denom * x.denominator // gcd(denom, x.denominator)
-    length_one_refutes = interval.empty and denom == r
 
     # the exact round-trip ch2 of the forced exceptional discriminant
     ch2 = r * (_HALF * surface.lattice.self_pairing(nu) - delta)
@@ -317,7 +322,7 @@ def exceptional_refutation(r: int, c1: Sequence[Number], surface: Surface,
     for anchor in anchors:
         anchor = _Q(anchor)
         g = _chamber_gap(r, e, anchor, side_left=False)
-        m = anchor + g / 2                       # chamber-generic sample
+        m = anchor + g / 2                       # rational chamber midpoint
         S = surface_with_index(e, m)
         # The Sec. 5 filtration of the H_{ceil(m)}-prioritary stack directly
         # (hn_verdict early-exits through prop-ssPrior when P_{H_{ceil(m)+1}}
@@ -336,26 +341,29 @@ def exceptional_refutation(r: int, c1: Sequence[Number], surface: Surface,
             samples.append((anchor, None, None))
             continue
         facts = []
+        bad_factor = None
         for (r_i, c1_f, ch2_i) in facts_v:
             d_i = discriminant(SurfaceBundle(r_i, c1_f, ch2_i), S)
             bound = _HALF * (1 - Fraction(1, r_i * r_i))
             facts.append((r_i, tuple(c1_f), d_i, bound))
-            if d_i > bound:
-                return ExceptionalRefutation(
-                    True, f"generic HN factor (r={r_i}, c1={tuple(c1_f)}) at the sample "
-                          f"near m={anchor} has Delta = {d_i} > {bound}: it cannot be "
-                          "rigid, but every factor of a rigid sheaf is rigid "
-                          "(prop-mukai)",
-                    rho, interval.empty, tuple(samples), r, c1_i, e,
-                    _cert("refuted: non-rigid generic HN factor"))
-        if len(facts_v) == 1 and length_one_refutes:
-            return ExceptionalRefutation(
-                True, f"generic HN length 1 at the generic sample near m={anchor} with "
-                      "prime slope denominator: V would be mu-stable, but the "
-                      "stability interval is empty",
-                rho, interval.empty, tuple(samples), r, c1_i, e,
-                _cert("refuted: length-one at a generic polarization"))
+            if d_i > bound and bad_factor is None:
+                bad_factor = (r_i, tuple(c1_f), d_i, bound)
         samples.append((anchor, len(facts_v), tuple(facts)))
+        if bad_factor is not None:
+            r_i, c1_f, d_i, bound = bad_factor
+            return ExceptionalRefutation(
+                True, f"generic HN factor (r={r_i}, c1={c1_f}) at the sample "
+                      f"near m={anchor} has Delta = {d_i} > {bound}: it cannot be "
+                      "rigid, but every factor of a rigid sheaf is rigid "
+                      "(prop-mukai)",
+                rho, interval.empty, tuple(samples), r, c1_i, e,
+                _cert("refuted: non-rigid generic HN factor"))
+        if len(facts_v) == 1 and interval.empty:
+            raise AssertionError(
+                "certificate conflict: the generic-HN computation gives a "
+                "semistable sheaf in the sampled chamber, which transfers to "
+                "a generic irrational polarization and is stable exceptional "
+                "by lem-excFacts(5), but stability_interval is empty")
 
     return ExceptionalRefutation(
         False, "every implemented necessary condition passed -- existence UNDECIDED",

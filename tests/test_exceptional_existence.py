@@ -8,6 +8,7 @@ NEVER refuted (the soundness controls); and the paper's first open case
 """
 
 from fractions import Fraction as F
+from types import SimpleNamespace
 
 import pytest
 
@@ -20,6 +21,7 @@ from bridgeland_stability.varieties import P1xP1, hirzebruch
 
 F0 = P1xP1
 F1 = hirzebruch(1)
+F2 = hirzebruch(2)
 F3 = hirzebruch(3)
 F4 = hirzebruch(4)
 
@@ -27,7 +29,7 @@ F4 = hirzebruch(4)
 def test_f4_example_refuted_by_the_battery():
     # The paper's own dispatch of (3, 1/3 E + F, 4/9) on F_4.  Since E15-M1e
     # the battery's FIRST firing condition is the Gaeta star (at D' = (6,1) =
-    # H_2 on F_4 -- independently reproducing rho_gen = 1 < 2, which
+    # H_2 on F_4 -- reproducing rho_gen = 1 < 2 through shared machinery; the
     # test_rho_gen_probes still pins directly); the verdict is unchanged.
     res = exceptional_refutation(3, (3, 1), F4)
     assert res.refuted is True
@@ -105,15 +107,25 @@ def test_general_betti_pins():
     chK = F(1, 2) * lat.self_pairing(K)
     h = general_betti(1, K, chK, F3)
     assert h[2] == 1 and h[0] == 0
+    # Rank one is not locally free when Delta > 0: I_Z(K), not a fictitious
+    # dual character retaining -length(Z).  From
+    # 0 -> I_Z(K) -> O(K) -> O_Z -> 0, h=(0,length(Z),1).
+    for n in (1, 2, 5):
+        assert general_betti(1, K, chK - n, F3) == (0, n, 1)
+    K0 = (-2, -2)
+    chK0 = F(1, 2) * F0.lattice.self_pairing(K0)
+    for n in (1, 2, 5):
+        assert general_betti(1, K0, chK0 - n, F0) == (0, n, 1)
 
 
-def test_gaeta_star_machinery_cross_validates_rho_gen():
+def test_gaeta_star_machinery_cross_checks_rho_gen():
     # E15-M1e: the Gaeta exponents of v_107 are (329, 411, 7, 18) with the
     # rank identity -329+411+7+18 = 107; the H_2 box row holds (the general
     # sheaf IS H_2-prioritary, rho_gen = 2), and the H_3 delta-term Betti
     # number is 81 -- giving LHS = 18*81 = 1458 > 0, i.e. the star inequality
-    # VIOLATED at H_3, independently reproducing rho_gen(v_107) = 2 through
-    # thm-BN + prop-Gaeta (vs cor-prioritaryRho).  H_3 is outside the
+    # VIOLATED at H_3, reproducing rho_gen(v_107) = 2 through a second
+    # computation (not independent: both share the paper's prioritary and
+    # Brill--Noether chain).  H_3 is outside the
     # refutation box (-(K+H_3) is not effective), so it appears here as a
     # machinery differential only.
     from bridgeland_stability.exceptional_existence import gaeta_star_conditions
@@ -136,15 +148,51 @@ def test_gaeta_star_machinery_cross_validates_rho_gen():
 
 def test_gaeta_star_v107_and_controls():
     # v_107 passes the star inequality at ALL 16 box divisors (every relevant
-    # twist has h^2 = 0 -- the fifth independent attack family it survives);
+    # twist has h^2 = 0 -- a distinct implementation check, not an independent
+    # theorem chain);
     # the existing-bundle controls pass everywhere (soundness: their general
     # sheaves ARE the bundles, D-prioritary throughout the box).
     from bridgeland_stability.exceptional_existence import gaeta_star_conditions
     rows = gaeta_star_conditions(107, (76, 25), F3)
-    assert all(l <= r for (_, l, r) in rows)
+    assert all(l == r for (_, l, r) in rows)
     assert all((l, r) == (0, 0) for (D, l, r) in rows if D[1] == 2)
     for surf, rr, cc in ((F1, 11, (5, 3)), (F0, 11, (4, 4)), (F1, 2, (1, 1))):
-        assert all(l <= r for (_, l, r) in gaeta_star_conditions(rr, cc, surf))
+        assert all(l == r for (_, l, r) in gaeta_star_conditions(rr, cc, surf))
+
+
+def test_rigid_factor_refutation_records_the_firing_sample():
+    # Exact F_2 witness: at anchor 1, g=1/1568 and m=3137/3136.  The first
+    # generic HN factor has Delta=3/4 > 15/32, so the refutation fires, but the
+    # evidence contract must retain the very sample that caused it.
+    res = exceptional_refutation(7, (0, 2), F2)
+    assert res.refuted is True
+    assert "generic HN factor" in res.reason
+    assert len(res.samples) == 1
+    anchor, length, facts = res.samples[0]
+    assert (anchor, length) == (F(1), 2)
+    assert facts[0] == (4, (0, 2), F(3, 4), F(15, 32))
+
+
+def test_length_one_empty_interval_is_a_certificate_conflict(monkeypatch):
+    # The old branch mislabeled two contradictory PROVEN subsystems as a
+    # nonexistence proof.  Force only that dormant branch and require a loud,
+    # fail-closed result.  The genuine normalized sweep found no live hits.
+    import bridgeland_stability.exceptional_existence as ee
+
+    monkeypatch.setattr(ee, "is_potentially_exceptional", lambda *args: True)
+    monkeypatch.setattr(ee, "chi_box_conditions", lambda *args: ())
+    monkeypatch.setattr(ee, "gaeta_star_conditions", lambda *args: ())
+    monkeypatch.setattr(ee, "generic_prioritary_index", lambda *args: 2)
+    monkeypatch.setattr(ee, "stability_interval",
+                        lambda *args: SimpleNamespace(empty=True))
+    monkeypatch.setattr(ee, "_chamber_gap", lambda *args, **kwargs: F(1, 128))
+    monkeypatch.setattr(ee, "surface_with_index", lambda *args: F2)
+    monkeypatch.setattr(
+        ee, "generic_hn_factors",
+        lambda r, c1, ch2, surface: ((r, tuple(c1), ch2),))
+
+    with pytest.raises(AssertionError, match="certificate conflict"):
+        ee.exceptional_refutation(2, (1, 0), F2)
 
 
 def test_anchor_regime_guard():

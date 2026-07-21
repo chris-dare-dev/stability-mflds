@@ -1,22 +1,25 @@
-"""E16-M1: the geometric mutation-orbit search for v_107 on F_3, done right.
+"""E16-M1: mutation-orbit searches for v_107 on F_3.
 
 BFS over full exceptional collections (as K-theory quadruples) with:
 * the six pairwise mutations  [L_A B] = chi(A,B)[A] - [B],
   [R_B A] = chi(A,B)[B] - [A];
 * the two HELIX shifts (Bondal): right (E2,E3,E4, E1 x (-K)), left
   (E4 x K, E1,E2,E3) -- moves the spec-time probe lacked;
-* TWIST-NORMALIZATION: each visited collection is canonicalized by x L so
-  that c1(E1) lands in [0, r1)^2 -- collapsing the twist orbit;
-* the GEOMETRIC filter: every member has rank >= 1 and integral c2 (a
-  character no sheaf carries is pruned);
+* TWIST-NORMALIZATION: each visited collection is canonicalized using its first
+  nonzero-rank member, collapsing the common line-twist orbit even in the
+  signed K-theory search;
+* three explicit scopes: ``k-theory`` (signed numerical classes), ``positive``
+  (positive-rank integral characters), and ``certified`` (each non-target
+  character independently has some bundle);
 * enforced budgets (node cap / wall cap) + telemetry.
 
 Target: any member of rank 107 whose slope fractional part is nu(v_107) or
 its dual (Delta is forced for exceptional characters, and is twist-invariant).
-A hit yields the geometric path for E16-M3; sustained absence feeds the
-E16-M2 constructibility interpretation.
+A positive or certified-character hit does not prove that the mutation cones
+along the path are sheaves.  Per-step geometric realization is a separate
+problem, especially on F_3 where -K is not nef.
 
-Usage: python scripts/e16_m1_orbit.py [--node-cap N] [--wall-cap SECONDS]
+Usage: python scripts/e16_m1_orbit.py --mode {k-theory,positive,certified}
 """
 
 import argparse
@@ -40,6 +43,7 @@ HALF = Fraction(1, 2)
 K = (-(E_INDEX + 2), -2)
 TARGET_FRACS = ((Fraction(76, 107), Fraction(25, 107)),
                 (Fraction(31, 107), Fraction(82, 107)))     # nu and its dual class
+POSITIVE_PATH = ((1, "L"), (1, "L"), (0, "R"), (1, "L"), (2, "L"))
 
 
 def line(c1):
@@ -62,8 +66,18 @@ def integral_c2(w):
 
 
 def normalize(coll):
-    r1, c11, _ = coll[0]
-    D = (-(c11[0] // r1), -(c11[1] // r1))
+    """Canonical representative of a common line-twist orbit.
+
+    Use the first nonzero-rank member and put both c1 coordinates in
+    ``[0, abs(r))``.  This is defined for signed and rank-zero intermediates.
+    """
+    for r1, c11, _ in coll:
+        if r1:
+            a = abs(r1)
+            D = tuple(((c % a) - c) // r1 for c in c11)
+            break
+    else:
+        raise ValueError("cannot twist-normalize an all-rank-zero collection")
     if D == (0, 0):
         return coll
     return tuple(twist(w, D) for w in coll)
@@ -84,6 +98,22 @@ def moves(coll):
     yield (twist(coll[3], K),) + coll[:3], ("helix", "L")
 
 
+def standard_collection():
+    return normalize((line((0, 0)), line((1, 0)),
+                      line((E_INDEX, 1)), line((E_INDEX + 1, 1))))
+
+
+def follow_path(coll, path):
+    """Replay an exact mutation-label fixture, normalizing after each move."""
+    for wanted in path:
+        try:
+            coll = next(normalize(nc) for nc, label in moves(coll)
+                        if label == wanted)
+        except StopIteration as exc:
+            raise ValueError(f"mutation label {wanted!r} is unavailable") from exc
+    return coll
+
+
 def is_target(w):
     if w[0] != 107:
         return False
@@ -95,11 +125,13 @@ _BUNDLE_CACHE = {}
 
 
 def certified_bundle(w) -> bool:
-    """A REALIZABLE node: rank 1 (line bundle), or the exceptional bundle of
-    the character provably exists (nonempty E14-M3 stability interval on F_3;
-    twist-invariant, so cached by the normalized slope class).  The first
-    geometric hit (2026-07-21) was killed by exactly this: its rank-2 node is
-    the sweep-dispatched (2,(2,1)) with rho_gen = 1 -- no bundle."""
+    """Does some bundle of this numerical character provably exist?
+
+    Rank 1 is a line bundle; higher rank uses the nonempty E14-M3 stability
+    interval on F_3.  This certifies members individually, not the mutation
+    cones or a geometric path.  The five-step positive-character hit is killed
+    here by its sweep-dispatched rank-2 and rank-5 members.
+    """
     r = w[0]
     if r == 1:
         return True
@@ -118,14 +150,15 @@ def certified_bundle(w) -> bool:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--mode", choices=("k-theory", "positive", "certified"),
+                    default="certified")
     ap.add_argument("--node-cap", type=int, default=2_000_000)
     ap.add_argument("--wall-cap", type=float, default=1800.0)
     ap.add_argument("--rank-cap", type=int, default=300)
     ap.add_argument("--coord-cap", type=int, default=4000)
     args = ap.parse_args()
 
-    start = normalize((line((0, 0)), line((1, 0)),
-                       line((E_INDEX, 1)), line((E_INDEX + 1, 1))))
+    start = standard_collection()
     t0 = time.time()
     parent = {start: None}
     queue = deque([start])
@@ -141,25 +174,24 @@ def main() -> None:
         for nc, move in moves(coll):
             ok = True
             for w in nc:
-                if (w[0] < 1 or w[0] > args.rank_cap
-                        or abs(w[1][0]) > args.coord_cap
-                        or abs(w[1][1]) > args.coord_cap
-                        or not integral_c2(w)):
-                    ok = False
-                    break
-                # every non-target node must be a CERTIFIED bundle (the
-                # realizability filter; the target itself is the question)
-                if not is_target(w) and not certified_bundle(w):
+                if (abs(w[0]) > args.rank_cap or not integral_c2(w)
+                        or (args.mode != "k-theory" and w[0] < 1)):
                     ok = False
                     break
             if not ok:
                 continue
             nc = normalize(nc)
+            if any(abs(w[1][0]) > args.coord_cap or abs(w[1][1]) > args.coord_cap
+                   for w in nc):
+                continue
+            if args.mode == "certified" and any(
+                    not is_target(w) and not certified_bundle(w) for w in nc):
+                continue
             if nc in parent:
                 continue
             parent[nc] = (coll, move)
             for w in nc:
-                max_rank = max(max_rank, w[0])
+                max_rank = max(max_rank, abs(w[0]))
                 if is_target(w):
                     hit = (nc, w)
             if hit:
@@ -172,12 +204,20 @@ def main() -> None:
     print(f"\nDONE: {nodes} nodes expanded, {len(parent)} collections, "
           f"max rank {max_rank}, {time.time() - t0:.0f}s", flush=True)
     if hit is None:
-        print("NO geometric-orbit hit within budget (evidence, not proof; "
-              "see the E16-M2 constructibility interpretation)", flush=True)
+        print(f"NO {args.mode} orbit hit within budget (evidence, not proof)",
+              flush=True)
         return
     nc, w = hit
-    print(f"GEOMETRIC HIT: {w} in collection "
+    labels = {
+        "k-theory": "K-THEORY HIT",
+        "positive": "POSITIVE-CHARACTER HIT",
+        "certified": "CERTIFIED-CHARACTER HIT",
+    }
+    print(f"{labels[args.mode]}: {w} in collection "
           f"{[(m[0], m[1], str(m[2])) for m in nc]}", flush=True)
+    if args.mode != "k-theory":
+        print("Character-level filters do not prove that mutation cones are "
+              "sheaves; per-step geometric realization remains unproved.", flush=True)
     path = []
     cur = nc
     while parent[cur] is not None:

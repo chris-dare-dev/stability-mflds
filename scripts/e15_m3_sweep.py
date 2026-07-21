@@ -1,6 +1,8 @@
 """E15-M3: the Conjecture A falsification sweep.
 
-Scans generic HN filtrations over a character x polarization grid on F_0 / F_1,
+Scans generic HN filtrations over a bounded character x polarization grid on
+F_0 / F_1 (``c1`` modulo rank, ``0 <= c2 <= 2r``, and eight right-offset
+polarization samples per surface),
 classifying every computed factor's semiexceptionality:
 
 * a length >= 3 filtration with >= 2 non-semiexceptional factors is an
@@ -28,8 +30,9 @@ from bridgeland_stability.delta_sharp import surface_with_index        # noqa: E
 from bridgeland_stability.dlp_hirzebruch import discriminant           # noqa: E402
 from bridgeland_stability.exceptional_surface import SurfaceBundle     # noqa: E402
 
-# polarization anchors: chamber-offset samples on both sides of the
-# anticanonical index, plus the Kronecker-triangle walls of Sec. 18
+# Right chamber-offsets from the listed anchors, including the Sec. 18 walls.
+# These straddle the anticanonical index 1 on F_0; on F_1 every sample is to
+# the right of the anticanonical index 1/2.
 ANCHORS = (Fraction(1, 2), Fraction(1), Fraction(3, 2), Fraction(2),
            Fraction(5, 2), Fraction(25, 9), Fraction(12, 7), Fraction(3))
 EPS = Fraction(1, 1000)
