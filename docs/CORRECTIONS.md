@@ -2211,7 +2211,10 @@ The E15/E16 adversarial audit independently re-enumerated through rank 30: exact
 on `F₀` plus 49 on `F₁`, 74 empty lifts, all 74 dispatched by `ρ_gen=1`, with an exact row-for-row
 match to the script. Twist normalization (`c₁∈[0,r)²`), dual closure, and `hi≤k` for the transported
 open interval were also re-derived. The historical rank-130 run was not recomputed during the audit;
-its 587/366/364/2 totals remain a retained-run ledger rather than a fresh independent reproduction.
+its **587-character enumeration was independently reproduced on 2026-07-22** by mutation-orbit
+enumeration (§26.4 — a route that never calls the DLP rank induction this scan is built on, matching
+member for member wherever the scan is affordable), while the `366/364/2` figures remain retained-run
+values over that now-confirmed character set.
 
 *Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §11 (the conjecture, the `F₄`
 example, `ex-stabilityIntervals`), `cor-delPezzoExceptional`, `cor-highermus`; §§19, 21 above.
@@ -2287,7 +2290,7 @@ share the paper's prioritary/Brill–Noether chain.
 
 Primary source: [arXiv:1907.06739](https://arxiv.org/abs/1907.06739), `thm-BN` and `prop-Gaeta`.
 
-### 26.4 E15-M2 sweep scope — VERIFIED through rank 30; rank-130 rerun not claimed
+### 26.4 E15-M2 sweep scope — VERIFIED through rank 30; enumeration independently reproduced through rank 130
 
 An independent enumerator found exactly one `[0,r)²` line-twist representative per orbit and, through
 rank 30, 70 `F₀` plus 49 `F₁` del Pezzo exceptional classes. Production matched all 119 rows exactly:
@@ -2295,6 +2298,33 @@ rank 30, 70 `F₀` plus 49 `F₁` del Pezzo exceptional classes. Production matc
 unimodular; the enumerated sets are dual-closed (35 `F₀` pairs; 24 `F₁` pairs plus the self-dual
 rank-2 row); and for the open transported interval, emptiness is exactly `hi≤k`. The historical
 rank-130 totals were not rerun during this audit, so §24 now says so explicitly.
+
+**Rank-130 enumeration closure (2026-07-22).** The enumeration half of the §24 ledger — the half
+where an error would actually falsify the uniqueness claim, a missed family member being the failure
+mode — is now independently reproduced through rank 130. The del Pezzo exceptional characters were
+re-derived by K-theoretic mutation of the standard collection `<O, O(1,0), O(0,1), O(1,1)>` on each
+base, collecting every positive-rank member of rank ≤ 130 as its twist class `(r, c₁ mod r)`. That
+route never calls the DLP rank induction (`is_stable_exceptional`) the §24 scan is built on, and it is
+complete by Kuleshov–Orlov braid transitivity: every exceptional bundle lies in the mutation orbit of
+a full exceptional collection. Helix moves are omitted deliberately — a helix twists one member by
+`±K`, moving `c₁` by `±r·K` and leaving `c₁ mod r` fixed, so it yields no new twist class (it only
+inflates the collection orbit). Result: `F₀` 376 and `F₁` 211 characters of rank 2..130, totalling
+**587** — the §24 count exactly. The enumerated SETS, not merely the counts, match the production scan
+member for member on every range where that scan is affordable: rank ≤ 15 (28 / 19), ≤ 30 (70 / 49),
+and ≤ 40 (94 / 65). Both surfaces reached character saturation with a 2,000,000-collection margin, and
+the result is invariant under the intermediate-rank cap — caps 160 and 220 give bit-identical
+rank-≤130 sets while the search front ran out to rank 219 — so no character is lost to the search
+bound.
+
+**What was not replayed, and why.** The downstream `366 / 364 / 2` figures were not recomputed. They
+need `stability_interval` for every enumerated character, whose measured cost grows by a factor of
+≈1.9 per 25 characters taken in rank order (`F₀`: 19 s at 50 characters, 260 s at 100, 1194 s at
+150 / rank 55), extrapolating to a tens-of-hours job consistent with the original sweep's ~36 h.
+Reordering to put the cheap battery first does **not** rescue it: `ρ_gen ≥ 2` holds for **810 of the
+1174** lifts, and `stability_interval` depends only on `(r, c₁)`, not on `k`, so almost every interval
+is still required. Those three figures therefore remain retained-run values — but now over an
+independently confirmed character set, and resting on an emptiness criterion (`hi ≤ k`) and a `ρ_gen`
+dispatch both verified above.
 
 Primary source: [arXiv:1907.06739](https://arxiv.org/abs/1907.06739),
 `cor-delPezzoExceptional`, `cor-highermus`, and §11.
