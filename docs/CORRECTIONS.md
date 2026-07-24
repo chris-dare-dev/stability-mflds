@@ -2035,75 +2035,6 @@ new kind of question — existence, not obstruction — for a successor spec.
 `bridgeland_stability/exceptional_existence.py` (`gaeta_star_conditions`, Condition 0.5); tests in
 `tests/test_exceptional_existence.py`.
 
-## 25. The construction side of `v₁₀₇`: the mutation orbit, and where the literature stops (E16-M1/M2)
-
-**Context.** After five silent obstruction families (§21), the `v₁₀₇` question moved to existence.
-`scripts/e16_m1_orbit.py` searches the mutation orbit of the standard collection
-`(O, O(F), O(E+3F), O(E+4F))` on `F₃` (K-theoretic mutations `[L_A B] = χ(A,B)[A] − [B]` etc., the
-two helix shifts, twist-normalization, integral-`c₂` and rank filters, enforced budgets).
-
-**The M1 ledger — three established facts:**
-
-1. **`v₁₀₇` is in the full K-theoretic mutation orbit, with an ALL-POSITIVE-rank 5-step path.**
-   The retained, replayed fixture is `[(1,L),(1,L),(0,R),(1,L),(2,L)]`; it lands after 136
-   positive-search expansions (310 in the broader K-theory mode) in the numerically exceptional,
-   χ-semiorthogonal integral quadruple `(5,(4,2),−2), (6,(4,1),−5/2), (107,(76,25),−89/2),
-   (4,(3,1),−3/2)` — but **this path is NOT bundle-realizable**: its rank-2 node is (up to twist)
-   `(2,(2,1))` and its rank-5 node is `(5,(4,2))` — BOTH are §24 sweep-dispatched (`ρ_gen = 1`,
-   empty lifts of the `F₁` rows `(2,(1,1))` and `(5,(2,2))`): they provably carry no bundle. The
-   obstruction and construction programs interlock: the sweep's refutations prune the orbit.
-2. **The certified-character search** (every non-target numerical character required to have some
-   PROVEN bundle — nonempty §19
-   interval): NO hit, but from only 52 collections in 48 min — the certification cost
-   (rank ≥ 100 intervals) makes coverage tiny; **weak evidence only**. Recorded speed-up for the
-   continuation: filter with the cheap battery conditions first (`ρ_gen = 1` refutes in
-   milliseconds), full intervals only for survivors.
-3. The rank-4 and rank-6 partners `(4,(3,1))` (≅ interval `(0,1)`) and `(6,(4,1))` (`(0,2)`) DO
-   carry bundles (certified).
-
-The orbit script now exposes separate `k-theory`, `positive`, and `certified` modes, normalizes before
-the coordinate cutoff (so the bound is twist-orbit invariant), and labels hits at character level.
-Even “certified” proves only that each character has some bundle; it does **not** prove the mutation
-cones are sheaves or geometrically realize the path. The earlier output label `GEOMETRIC HIT` and an
-unretained 11-step signed-path claim were provenance overclaims and have been removed.
-
-**The M2 ledger — where the literature stops (sourced).** Kuleshov's constructibility and
-mutation-regularity theory [arXiv:alg-geom/9511016] is for surfaces with **`−K` nef** (and
-`K² > 0` for constructibility) — del Pezzos and their weak extensions; Okawa–Uehara
-[arXiv:1409.7813] treat `F₂` as "the prototypical weak del Pezzo". On `F₃`, `−K·E = −1 < 0`
-(pinned: Gram `[[0,1],[1,−3]]`, `−K = (5,2)`, `E = (0,1)`): **`−K` is not nef, and `F₃` lies
-outside every constructibility and geometric-mutation theorem found.** Consequences: (a) an
-exhaustive geometric-orbit ∉-result cannot prove non-existence (no constructibility backstop);
-(b) realizing any path needs ad-hoc per-step stability arguments; (c) this is precisely why the
-paper's §11 conjecture becomes hard at `e ≥ 3` — `F₂` still falls under the nef umbrella.
-
-**Status: `v₁₀₇` existence remains OPEN**, now with the terrain fully mapped: in the K-orbit;
-positive-rank-reachable only (so far) through provably-dead nodes; certified-path search open at
-low coverage; no literature theorem to close either direction on `F₃`.
-
-**Battery-first is worth ≈1.4×, not 10–100× (measured 2026-07-22).** The recorded M1 speed-up note —
-reorder `certified_bundle` to run the cheap refutation arms before the §19 `stability_interval` —
-was never measured. It now has been. Under the positive-rank filters the F₃ orbit is *finite*: the
-walk exhausts at **28,993 collections**, and because `certified_bundle` caches on the twist class
-`(r, c₁ mod r)` the entire question reduces to **501 distinct characters of rank ≥ 2**. Scoring all
-501 by `ρ_gen` costs 0.02 ms each and refutes **145**, leaving **356** that still need an interval —
-a pruning rate of **0.289**, i.e. a speed-up of `1/(1−p) ≈ 1.4`. Crucially the rate is *flat in
-rank* — 27 % (`r ≤ 10`), 26 % (11–30), 26 % (31–60), 29 % (61–120), 30 % (> 120) — so `ρ_gen = 1`
-does **not** preferentially kill the expensive high-rank nodes, and the time-weighted saving is the
-same ≈29 %. The residual is the real obstacle: of the 356 survivors the median rank is **148** and
-**286 exceed rank 60**, while a measured interval already costs 26–36 s at rank 32 (0.0 s at
-`r ≤ 10`, 0.2–0.3 s at `r ≈ 12`). E16-M3's bottleneck is therefore the *certification primitive*,
-not search breadth: a cheaper existence certificate, a rank-bounded search, or an explicitly
-uncertified scope is needed — battery-first alone will not make the certified path search feasible.
-The same inversion had already failed on the §24 sweep, where `ρ_gen ≥ 2` held for **810 of 1174**
-lifts and `stability_interval` depends only on `(r, c₁)` and not on the lift index `k`.
-
-*Sources:* S. Kuleshov, *Exceptional and Rigid Sheaves on Surfaces with Anticanonical Class
-without Base Components*, [arXiv:alg-geom/9511016] (J. Math. Sci. 86, 1997); S. Okawa, K. Uehara,
-*Exceptional sheaves on the Hirzebruch surface `F₂`*, [arXiv:1409.7813] (IMRN 2015);
-arXiv:1907.06739 §11. Package: `scripts/e16_m1_orbit.py`; the §19/§24 machinery as the
-certification layer.
-
 *Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) `prop-mukai` (Mukai/Gorodentsev — any
 smooth surface), `thm-rigidSplit` (Kuleshov–Orlov — del Pezzo ONLY, noted), `lem-simple`,
 `prop-excPrior`, `cor-prioritaryRho`, `prop-ssPrior`, the §1.4 remark (the filtration below the
@@ -2236,6 +2167,75 @@ values over that now-confirmed character set.
 *Source:* [arXiv:1907.06739](https://arxiv.org/abs/1907.06739) §11 (the conjecture, the `F₄`
 example, `ex-stabilityIntervals`), `cor-delPezzoExceptional`, `cor-highermus`; §§19, 21 above.
 Harness: `scripts/e15_m2_sweep.py`; spot tests: `tests/test_e15_sweep.py`.
+
+## 25. The construction side of `v₁₀₇`: the mutation orbit, and where the literature stops (E16-M1/M2)
+
+**Context.** After five silent obstruction families (§21), the `v₁₀₇` question moved to existence.
+`scripts/e16_m1_orbit.py` searches the mutation orbit of the standard collection
+`(O, O(F), O(E+3F), O(E+4F))` on `F₃` (K-theoretic mutations `[L_A B] = χ(A,B)[A] − [B]` etc., the
+two helix shifts, twist-normalization, integral-`c₂` and rank filters, enforced budgets).
+
+**The M1 ledger — three established facts:**
+
+1. **`v₁₀₇` is in the full K-theoretic mutation orbit, with an ALL-POSITIVE-rank 5-step path.**
+   The retained, replayed fixture is `[(1,L),(1,L),(0,R),(1,L),(2,L)]`; it lands after 136
+   positive-search expansions (310 in the broader K-theory mode) in the numerically exceptional,
+   χ-semiorthogonal integral quadruple `(5,(4,2),−2), (6,(4,1),−5/2), (107,(76,25),−89/2),
+   (4,(3,1),−3/2)` — but **this path is NOT bundle-realizable**: its rank-2 node is (up to twist)
+   `(2,(2,1))` and its rank-5 node is `(5,(4,2))` — BOTH are §24 sweep-dispatched (`ρ_gen = 1`,
+   empty lifts of the `F₁` rows `(2,(1,1))` and `(5,(2,2))`): they provably carry no bundle. The
+   obstruction and construction programs interlock: the sweep's refutations prune the orbit.
+2. **The certified-character search** (every non-target numerical character required to have some
+   PROVEN bundle — nonempty §19
+   interval): NO hit, but from only 52 collections in 48 min — the certification cost
+   (rank ≥ 100 intervals) makes coverage tiny; **weak evidence only**. Recorded speed-up for the
+   continuation: filter with the cheap battery conditions first (`ρ_gen = 1` refutes in
+   milliseconds), full intervals only for survivors.
+3. The rank-4 and rank-6 partners `(4,(3,1))` (≅ interval `(0,1)`) and `(6,(4,1))` (`(0,2)`) DO
+   carry bundles (certified).
+
+The orbit script now exposes separate `k-theory`, `positive`, and `certified` modes, normalizes before
+the coordinate cutoff (so the bound is twist-orbit invariant), and labels hits at character level.
+Even “certified” proves only that each character has some bundle; it does **not** prove the mutation
+cones are sheaves or geometrically realize the path. The earlier output label `GEOMETRIC HIT` and an
+unretained 11-step signed-path claim were provenance overclaims and have been removed.
+
+**The M2 ledger — where the literature stops (sourced).** Kuleshov's constructibility and
+mutation-regularity theory [arXiv:alg-geom/9511016] is for surfaces with **`−K` nef** (and
+`K² > 0` for constructibility) — del Pezzos and their weak extensions; Okawa–Uehara
+[arXiv:1409.7813] treat `F₂` as "the prototypical weak del Pezzo". On `F₃`, `−K·E = −1 < 0`
+(pinned: Gram `[[0,1],[1,−3]]`, `−K = (5,2)`, `E = (0,1)`): **`−K` is not nef, and `F₃` lies
+outside every constructibility and geometric-mutation theorem found.** Consequences: (a) an
+exhaustive geometric-orbit ∉-result cannot prove non-existence (no constructibility backstop);
+(b) realizing any path needs ad-hoc per-step stability arguments; (c) this is precisely why the
+paper's §11 conjecture becomes hard at `e ≥ 3` — `F₂` still falls under the nef umbrella.
+
+**Status: `v₁₀₇` existence remains OPEN**, now with the terrain fully mapped: in the K-orbit;
+positive-rank-reachable only (so far) through provably-dead nodes; certified-path search open at
+low coverage; no literature theorem to close either direction on `F₃`.
+
+**Battery-first is worth ≈1.4×, not 10–100× (measured 2026-07-22).** The recorded M1 speed-up note —
+reorder `certified_bundle` to run the cheap refutation arms before the §19 `stability_interval` —
+was never measured. It now has been. Under the positive-rank filters the F₃ orbit is *finite*: the
+walk exhausts at **28,993 collections**, and because `certified_bundle` caches on the twist class
+`(r, c₁ mod r)` the entire question reduces to **501 distinct characters of rank ≥ 2**. Scoring all
+501 by `ρ_gen` costs 0.02 ms each and refutes **145**, leaving **356** that still need an interval —
+a pruning rate of **0.289**, i.e. a speed-up of `1/(1−p) ≈ 1.4`. Crucially the rate is *flat in
+rank* — 27 % (`r ≤ 10`), 26 % (11–30), 26 % (31–60), 29 % (61–120), 30 % (> 120) — so `ρ_gen = 1`
+does **not** preferentially kill the expensive high-rank nodes, and the time-weighted saving is the
+same ≈29 %. The residual is the real obstacle: of the 356 survivors the median rank is **148** and
+**286 exceed rank 60**, while a measured interval already costs 26–36 s at rank 32 (0.0 s at
+`r ≤ 10`, 0.2–0.3 s at `r ≈ 12`). E16-M3's bottleneck is therefore the *certification primitive*,
+not search breadth: a cheaper existence certificate, a rank-bounded search, or an explicitly
+uncertified scope is needed — battery-first alone will not make the certified path search feasible.
+The same inversion had already failed on the §24 sweep, where `ρ_gen ≥ 2` held for **810 of 1174**
+lifts and `stability_interval` depends only on `(r, c₁)` and not on the lift index `k`.
+
+*Sources:* S. Kuleshov, *Exceptional and Rigid Sheaves on Surfaces with Anticanonical Class
+without Base Components*, [arXiv:alg-geom/9511016] (J. Math. Sci. 86, 1997); S. Okawa, K. Uehara,
+*Exceptional sheaves on the Hirzebruch surface `F₂`*, [arXiv:1409.7813] (IMRN 2015);
+arXiv:1907.06739 §11. Package: `scripts/e16_m1_orbit.py`; the §19/§24 machinery as the
+certification layer.
 
 ## 26. Adversarial E15/E16 audit ledger (2026-07-21)
 
