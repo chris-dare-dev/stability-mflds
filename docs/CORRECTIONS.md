@@ -2081,6 +2081,23 @@ paper's §11 conjecture becomes hard at `e ≥ 3` — `F₂` still falls under t
 positive-rank-reachable only (so far) through provably-dead nodes; certified-path search open at
 low coverage; no literature theorem to close either direction on `F₃`.
 
+**Battery-first is worth ≈1.4×, not 10–100× (measured 2026-07-22).** The recorded M1 speed-up note —
+reorder `certified_bundle` to run the cheap refutation arms before the §19 `stability_interval` —
+was never measured. It now has been. Under the positive-rank filters the F₃ orbit is *finite*: the
+walk exhausts at **28,993 collections**, and because `certified_bundle` caches on the twist class
+`(r, c₁ mod r)` the entire question reduces to **501 distinct characters of rank ≥ 2**. Scoring all
+501 by `ρ_gen` costs 0.02 ms each and refutes **145**, leaving **356** that still need an interval —
+a pruning rate of **0.289**, i.e. a speed-up of `1/(1−p) ≈ 1.4`. Crucially the rate is *flat in
+rank* — 27 % (`r ≤ 10`), 26 % (11–30), 26 % (31–60), 29 % (61–120), 30 % (> 120) — so `ρ_gen = 1`
+does **not** preferentially kill the expensive high-rank nodes, and the time-weighted saving is the
+same ≈29 %. The residual is the real obstacle: of the 356 survivors the median rank is **148** and
+**286 exceed rank 60**, while a measured interval already costs 26–36 s at rank 32 (0.0 s at
+`r ≤ 10`, 0.2–0.3 s at `r ≈ 12`). E16-M3's bottleneck is therefore the *certification primitive*,
+not search breadth: a cheaper existence certificate, a rank-bounded search, or an explicitly
+uncertified scope is needed — battery-first alone will not make the certified path search feasible.
+The same inversion had already failed on the §24 sweep, where `ρ_gen ≥ 2` held for **810 of 1174**
+lifts and `stability_interval` depends only on `(r, c₁)` and not on the lift index `k`.
+
 *Sources:* S. Kuleshov, *Exceptional and Rigid Sheaves on Surfaces with Anticanonical Class
 without Base Components*, [arXiv:alg-geom/9511016] (J. Math. Sci. 86, 1997); S. Okawa, K. Uehara,
 *Exceptional sheaves on the Hirzebruch surface `F₂`*, [arXiv:1409.7813] (IMRN 2015);
@@ -2325,6 +2342,15 @@ Reordering to put the cheap battery first does **not** rescue it: `ρ_gen ≥ 2`
 is still required. Those three figures therefore remain retained-run values — but now over an
 independently confirmed character set, and resting on an emptiness criterion (`hi ≤ k`) and a `ρ_gen`
 dispatch both verified above.
+
+The generator is retained as a permanent second oracle,
+`tests/oracle/delpezzo_mutation_reference.py` — import-independent of the package (its own NS Gram,
+canonical class and Riemann-Roch Euler form, cross-checked against `exceptional_surface.chi`), exact
+`int`/`Fraction` only, in the tradition of the E13-M4 P² mutation oracle.
+`tests/test_delpezzo_mutation_oracle.py` runs the differential at rank ≤ 12 (`F₀` 20, `F₁` 15,
+member-for-member against the production scan), pins the cap-invariance and saturation properties in
+miniature, and re-derives CLAUDE.md invariant 4's `F₀`-odd / `F₁`-rank-2 facts from the independent
+generator.
 
 Primary source: [arXiv:1907.06739](https://arxiv.org/abs/1907.06739),
 `cor-delPezzoExceptional`, `cor-highermus`, and §11.

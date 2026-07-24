@@ -102,5 +102,5 @@ def test_frozen_corpus_unchanged():
 def test_oracle_dir_holds_exactly_the_expected_modules():
     """Make an accidental extra file under tests/oracle/ visible."""
     names = sorted(n for n in os.listdir(_ORACLE_DIR) if n.endswith(".py"))
-    assert names == ["__init__.py", "corpus.py", "dlp_reference.py",
-                     "mutation_reference.py"], names
+    assert names == ["__init__.py", "corpus.py", "delpezzo_mutation_reference.py",
+                     "dlp_reference.py", "mutation_reference.py"], names
